@@ -1,6 +1,10 @@
 # main-project-snap-match
+
 AI 패션 이미지 검색 기반 듀프 쇼핑 최저가 비교 서비스 | YOLO + CLIP 활용
 
+## 📁 프로젝트 구조
+
+```
 snap-match/
 │
 ├── README.md
@@ -361,3 +365,36 @@ snap-match/
         ├── test_data_pipeline.yml
         ├── test_ml_models.yml
         └── test_web_service.yml
+```
+
+## 🏗️ 주요 모듈 설명
+
+### Data Pipeline (🔧 DE 전담)
+- **Airflow**: 일일 파이프라인 스케줄링
+- **Crawlers**: 5개 쇼핑몰 크롤링 (Uniqlo, Zara, H&M, Topten, Eight Seconds)
+- **Kafka**: 실시간 스트리밍 처리
+- **Spark**: 배치 데이터 처리 및 전처리
+- **Database**: PostgreSQL + MySQL + MongoDB 마이그레이션 관리
+- **Elasticsearch**: 제품 검색 엔진
+
+### ML Models (🤖 DS 전담)
+- **YOLO**: 의류 객체 탐지
+- **CLIP**: 이미지-텍스트 임베딩 및 매칭
+- **NLP**: KeyBERT, KoNLPy를 활용한 키워드/태그 추출
+- **Embeddings**: 벡터 생성 및 PGVector 저장
+
+### Web Service (🌐 공통)
+- **Backend**: FastAPI 기반 검색 API
+- **Frontend**: HTML/CSS/JS 기반 사용자 인터페이스
+
+## 🚀 빠른 시작
+
+```bash
+# 전체 서비스 시작
+docker-compose -f docker-compose.data.yml -f docker-compose.ml.yml -f docker-compose.web.yml up -d
+
+# 로컬 개발 환경
+docker-compose -f docker-compose.override.yml up -d
+```
+
+자세한 설정 방법은 [SETUP.md](docs/SETUP.md)를 참고하세요.
