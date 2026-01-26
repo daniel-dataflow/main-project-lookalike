@@ -1,0 +1,123 @@
+{% extends "admin_base.html" %}
+
+{% block page_title %}실시간 모니터링 대시보드{% endblock %}
+
+{% block content %}
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm p-3 h-100">
+            <div class="d-flex justify-content-between">
+                <div>
+                    <i class="fas fa-search text-primary fs-4 mb-2"></i>
+                    <h6 class="text-muted small">오늘 검색 수</h6>
+                    <h3 class="fw-bold m-0">125,402</h3>
+                </div>
+                <span class="badge bg-success-subtle text-success align-self-start">+12.5%</span>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm p-3 h-100">
+            <div class="d-flex justify-content-between">
+                <div>
+                    <i class="far fa-check-circle text-success fs-4 mb-2"></i>
+                    <h6 class="text-muted small">검색 성공률</h6>
+                    <h3 class="fw-bold m-0">99.82%</h3>
+                </div>
+                <span class="badge bg-success-subtle text-success align-self-start">+0.02%</span>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm p-3 h-100">
+            <div class="d-flex justify-content-between">
+                <div>
+                    <i class="fas fa-mouse-pointer text-info fs-4 mb-2"></i>
+                    <h6 class="text-muted small">평균 클릭률</h6>
+                    <h3 class="fw-bold m-0">24.5%</h3>
+                </div>
+                <span class="badge bg-danger-subtle text-danger align-self-start">-1.2%</span>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm p-3 h-100">
+            <div class="d-flex justify-content-between">
+                <div>
+                    <i class="fas fa-bolt text-warning fs-4 mb-2"></i>
+                    <h6 class="text-muted small">Avg Latency</h6>
+                    <h3 class="fw-bold m-0">108ms</h3>
+                </div>
+                <span class="badge bg-success-subtle text-success align-self-start">-4ms</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3">
+    <div class="col-md-8">
+        <div class="card border-0 shadow-sm p-4 h-100">
+            <h6 class="fw-bold mb-4"><i class="fas fa-chart-area text-primary me-2"></i>API 응답 시간 및 검색 트래픽</h6>
+            <canvas id="apiChart" height="250"></canvas>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm p-4 h-100">
+            <h6 class="fw-bold mb-4"><i class="fas fa-chart-pie text-warning me-2"></i>검색 결과 로그 현황</h6>
+            <div style="position: relative; height: 200px;">
+                <canvas id="logChart"></canvas>
+            </div>
+            <div class="mt-4 text-center">
+                <span class="badge bg-success me-2">성공 92%</span>
+                <span class="badge bg-danger">실패 8%</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // API Chart
+        const ctxApi = document.getElementById('apiChart').getContext('2d');
+        new Chart(ctxApi, {
+            type: 'line',
+            data: {
+                labels: ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00'],
+                datasets: [{
+                    label: 'Requests',
+                    data: [120, 132, 101, 134, 90, 105, 125],
+                    borderColor: '#0d6efd',
+                    tension: 0.4,
+                    fill: false
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: true, grid: { display: false } } }
+            }
+        });
+
+        // Log Chart
+        const ctxLog = document.getElementById('logChart').getContext('2d');
+        new Chart(ctxLog, {
+            type: 'doughnut',
+            data: {
+                labels: ['Success', 'Fail'],
+                datasets: [{
+                    data: [92, 8],
+                    backgroundColor: ['#198754', '#dc3545'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                cutout: '70%'
+            }
+        });
+    });
+</script>
+{% endblock %}

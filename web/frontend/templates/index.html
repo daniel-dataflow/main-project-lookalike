@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Lookalike - 홈{% endblock %}
+
+{% block content %}
+<div class="text-center mb-4">
+    <h4 class="fw-bold mb-1">어떤 상품을 찾아 드릴까요?</h4>
+    <p class="text-muted small">이미지를 업로드하고 유사한 상품을 검색해보세요</p>
+</div>
+
+<!-- Image Upload Area -->
+<div class="card bg-white border-0 shadow-sm mb-4">
+    <div class="card-body p-4">
+        <h6 class="fw-bold mb-3">상품 이미지 업로드</h6>
+        <div class="upload-area rounded d-flex flex-column align-items-center justify-content-center p-5 text-center"
+            style="border: 2px dashed #dee2e6; background-color: #f8f9fa; cursor: pointer; min-height: 300px;">
+            <i class="fas fa-file-upload text-secondary mb-3" style="font-size: 2rem;"></i>
+            <p class="text-secondary mb-1 fw-medium">이미지를 드래그하거나 클릭하여 업로드</p>
+            <p class="text-muted small">JPG, PNG, GIF 지원</p>
+            <input type="file" id="imageUpload" class="d-none" accept="image/*">
+        </div>
+    </div>
+</div>
+
+<!-- Search Input -->
+<div class="card bg-white border-0 shadow-sm mb-4">
+    <div class="card-body">
+        <label class="form-label fw-bold">검색어 입력 (선택)</label>
+        <div class="input-group mb-3">
+            <input type="text" class="form-control border-end-0" placeholder="예: 린넨 셔츠, 트렌치 코트..." id="searchInput">
+            <a href="/search" class="btn btn-secondary border-start-0 ps-3 pe-3" id="searchBtn">
+                <i class="fas fa-search"></i> 검색
+            </a>
+        </div>
+
+        <label class="form-label fw-bold small">카테고리 선택</label>
+        <div class="d-flex gap-2 flex-wrap">
+            <button class="btn btn-primary btn-sm rounded-pill px-3">전체</button>
+            <button class="btn btn-outline-secondary btn-sm rounded-pill px-3">남성</button>
+            <button class="btn btn-outline-secondary btn-sm rounded-pill px-3">여성</button>
+            <button class="btn btn-outline-secondary btn-sm rounded-pill px-3">아우터</button>
+            <button class="btn btn-outline-secondary btn-sm rounded-pill px-3">상의</button>
+        </div>
+        <div class="mt-3 text-muted" style="font-size: 0.75rem;">
+            <i class="far fa-lightbulb text-warning me-1"></i>
+            이미지만으로도 검색 가능하며, 텍스트와 카테고리를 추가하면 더 정확한 결과를 얻을 수 있습니다.
+        </div>
+    </div>
+</div>
+{% endblock %}
