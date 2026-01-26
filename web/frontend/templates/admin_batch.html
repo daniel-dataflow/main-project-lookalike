@@ -1,0 +1,65 @@
+{% extends "admin_base.html" %}
+
+{% block page_title %}배치 작업 모니터링{% endblock %}
+
+{% block content %}
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white py-3">
+        <h6 class="m-0 fw-bold">Airflow DAG 상태</h6>
+        <small class="text-muted">마지막 데이터 갱신: 2026-01-26 22:45:00</small>
+    </div>
+    <div class="list-group list-group-flush">
+        <!-- Job 1 -->
+        <div class="list-group-item py-4">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-play text-primary me-3 fs-5"></i>
+                    <div>
+                        <h6 class="fw-bold m-0">daily_product_crawler</h6>
+                        <small class="text-muted">Running since 09:00</small>
+                    </div>
+                </div>
+                <span class="badge bg-primary">60% 완료</span>
+            </div>
+            <div class="progress" style="height: 8px;">
+                <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar"
+                    style="width: 60%"></div>
+            </div>
+        </div>
+
+        <!-- Job 2 -->
+        <div class="list-group-item py-4">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-check-circle text-success me-3 fs-5"></i>
+                    <div>
+                        <h6 class="fw-bold m-0">monthly_sales_report</h6>
+                        <small class="text-muted">Finished at 12:30</small>
+                    </div>
+                </div>
+                <span class="badge bg-success">성공</span>
+            </div>
+            <div class="progress" style="height: 8px;">
+                <div class="progress-bar bg-success" role="progressbar" style="width: 100%"></div>
+            </div>
+        </div>
+
+        <!-- Job 3 -->
+        <div class="list-group-item py-4">
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-times-circle text-danger me-3 fs-5"></i>
+                    <div>
+                        <h6 class="fw-bold m-0">spark_indexing_job</h6>
+                        <small class="text-danger">Failed: Memory Out of Bound</small>
+                    </div>
+                </div>
+                <span class="badge bg-danger">실패</span>
+            </div>
+            <div class="progress" style="height: 8px;">
+                <div class="progress-bar bg-danger" role="progressbar" style="width: 30%"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

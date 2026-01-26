@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}Lookalike - 검색 결과{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center mb-4">
+    <i class="fas fa-search me-2 text-primary"></i>
+    <h5 class="fw-bold m-0">검색 결과</h5>
+</div>
+
+<p class="text-muted small mb-3">유사도 기준으로 정렬한 검색 결과입니다.</p>
+
+<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
+    <!-- Mock Product Card 1 -->
+    <div class="col">
+        <div class="card h-100 product-card position-relative overflow-hidden">
+            <span class="badge bg-primary position-absolute top-0 end-0 m-2">95% 유사</span>
+            <img src="https://placehold.co/400x400?text=Product+Image" class="card-img-top" alt="Product">
+            <div class="card-body">
+                <small class="text-muted d-block mb-1">UNIQLO</small>
+                <h6 class="card-title text-truncate fw-bold">프리미엄 코튼 반팔 티셔츠 - 네이비</h6>
+                <div class="d-flex align-items-center mt-2">
+                    <span class="text-danger fw-bold fs-5 me-2">29,900원</span>
+                    <span class="text-decoration-line-through text-muted small me-2">45,000원</span>
+                    <span class="badge bg-danger rounded-pill">34%</span>
+                </div>
+                <div class="text-muted small mt-1">네이버 쇼핑</div>
+            </div>
+            <div class="card-footer bg-white border-top-0 pt-0">
+                <a href="/product/1" class="btn btn-dark w-100 btn-sm">상품 상세보기 <i
+                        class="fas fa-external-link-alt ms-1"></i></a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mock Product Card 2 -->
+    <div class="col">
+        <div class="card h-100 product-card position-relative overflow-hidden">
+            <span class="badge bg-primary position-absolute top-0 end-0 m-2">92% 유사</span>
+            <img src="https://placehold.co/400x400/gray/white?text=Sneakers" class="card-img-top" alt="Product">
+            <div class="card-body">
+                <small class="text-muted d-block mb-1">CONVERSE</small>
+                <h6 class="card-title text-truncate fw-bold">캐주얼 스니커즈 화이트 운동화</h6>
+                <div class="d-flex align-items-center mt-2">
+                    <span class="text-danger fw-bold fs-5 me-2">89,000원</span>
+                    <span class="text-decoration-line-through text-muted small me-2">129,000원</span>
+                    <span class="badge bg-danger rounded-pill">31%</span>
+                </div>
+                <div class="text-muted small mt-1">쿠팡</div>
+            </div>
+            <div class="card-footer bg-white border-top-0 pt-0">
+                <a href="/product/2" class="btn btn-dark w-100 btn-sm">상품 상세보기 <i
+                        class="fas fa-external-link-alt ms-1"></i></a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mock Product Card 3 -->
+    <div class="col">
+        <div class="card h-100 product-card position-relative overflow-hidden">
+            <span class="badge bg-primary position-absolute top-0 end-0 m-2">88% 유사</span>
+            <img src="https://placehold.co/400x400/black/white?text=Backpack" class="card-img-top" alt="Product">
+            <div class="card-body">
+                <small class="text-muted d-block mb-1">SAMSONITE</small>
+                <h6 class="card-title text-truncate fw-bold">데일리 백팩 노트북 수납 가능</h6>
+                <div class="d-flex align-items-center mt-2">
+                    <span class="text-danger fw-bold fs-5 me-2">49,900원</span>
+                    <!-- No discount -->
+                </div>
+                <div class="text-muted small mt-1">11번가</div>
+            </div>
+            <div class="card-footer bg-white border-top-0 pt-0">
+                <a href="/product/3" class="btn btn-dark w-100 btn-sm">상품 상세보기 <i
+                        class="fas fa-external-link-alt ms-1"></i></a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

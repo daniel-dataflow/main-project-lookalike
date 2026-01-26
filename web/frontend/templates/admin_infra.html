@@ -1,0 +1,78 @@
+{% extends "admin_base.html" %}
+
+{% block page_title %}인프라 모니터링{% endblock %}
+
+{% block content %}
+<div class="row g-4 mb-4">
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm p-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="fw-bold m-0">CPU</h6>
+                <i class="fas fa-microchip text-primary fs-5"></i>
+            </div>
+            <h2 class="fw-bold text-primary mb-3">42%</h2>
+            <div class="progress" style="height: 6px;">
+                <div class="progress-bar" role="progressbar" style="width: 42%" aria-valuenow="42" aria-valuemin="0"
+                    aria-valuemax="100"></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm p-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="fw-bold m-0">MEMORY</h6>
+                <i class="fas fa-memory text-purple fs-5" style="color: #6f42c1;"></i>
+            </div>
+            <h2 class="fw-bold text-purple mb-3" style="color: #6f42c1;">68%</h2>
+            <div class="progress" style="height: 6px;">
+                <div class="progress-bar" role="progressbar" style="width: 68%; background-color: #6f42c1;"
+                    aria-valuenow="68" aria-valuemin="0" aria-valuemax="100"></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm p-4 border-start border-danger border-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="fw-bold m-0">DISK</h6>
+                <i class="fas fa-hdd text-danger fs-5"></i>
+            </div>
+            <h2 class="fw-bold text-danger mb-3">82%</h2>
+            <small class="text-danger fw-bold">CRITICAL: 80% OVER</small>
+        </div>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm text-white bg-dark">
+    <div class="card-header border-bottom border-light d-flex justify-content-between align-items-center">
+        <h6 class="m-0 fw-bold font-monospace">system_error.log</h6>
+        <div class="d-flex gap-2">
+            <div class="rounded-circle bg-danger" style="width: 10px; height: 10px;"></div>
+            <div class="rounded-circle bg-warning" style="width: 10px; height: 10px;"></div>
+            <div class="rounded-circle bg-success" style="width: 10px; height: 10px;"></div>
+        </div>
+    </div>
+    <div class="card-body font-monospace small" style="height: 300px; overflow-y: auto;">
+        <div class="text-danger mb-1"><span class="text-muted">[2026-01-26 22:12:33]</span> CRITICAL PostgresSQL
+            connection pool exhausted.</div>
+        <div class="text-warning mb-1"><span class="text-muted">[2026-01-26 22:15:01]</span> WARNING Redis cache miss
+            for key "search:rankings".</div>
+        <div class="text-danger mb-1"><span class="text-muted">[2026-01-26 22:20:45]</span> ERROR Failed to upload image
+            "thumb_4221.png".</div>
+        <div class="text-success mb-1"><span class="text-muted">[2026-01-26 22:30:00]</span> INFO System backup
+            completed successfully.</div>
+        <div class="text-white mb-1">> tail -f /logs/error.log --listening <span class="blink">_</span></div>
+    </div>
+</div>
+
+<style>
+    .blink {
+        animation: blinker 1s linear infinite;
+    }
+
+    @keyframes blinker {
+        50% {
+            opacity: 0;
+        }
+    }
+</style>
+{% endblock %}
