@@ -389,6 +389,15 @@ snap-match/
 
 ## 🚀 빠른 시작
 
+# Web 환경 설치 : 
+conda create -n main_project python=3.10 -y
+# 환경 시작 : 
+conda activate main_project
+# 1. 필요한 라이브러리 설치 (없는 경우)
+pip install fastapi uvicorn jinja2
+# 2. 서버 실행
+python web/backend/main.py
+
 ```bash
 # 전체 서비스 시작
 docker-compose -f docker-compose.data.yml -f docker-compose.ml.yml -f docker-compose.web.yml up -d
