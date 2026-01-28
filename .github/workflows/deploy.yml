@@ -1,0 +1,36 @@
+name: EC2 직접 배포 (Git Pull)
+
+on:
+  push:
+    branches: [ "main" ]  # main 브랜치에 머지되면 실행
+
+jobs:
+  deploy:
+    name: 배포 수행
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: EC2 접속 및 배포 실행
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.EC2_HOST }}
+        username: ${{ secrets.EC2_USER }}
+        key: ${{ secrets.EC2_SSH_KEY }}
+        port: 22
+        script: |
+          # 1. 프로젝트 폴더로 이동 (폴더명은 실제 프로젝트 이름으로 수정하세요!)
+          cd /home/${{ secrets.EC2_USER }}/main-project-lookalike
+
+          # 2. 최신 코드 가져오기
+          git pull origin main
+
+          # 3. 서버 재시작 (사용하는 기술에 맞춰 아래 중 하나를 선택해서 쓰세요)
+          
+          # [Case A] Docker Compose를 쓰는 경우 (추천)
+          # (기존 컨테이너를 다시 빌드해서 실행합니다)
+          sudo docker-compose up -d --build
+
+          # [Case B] Python/FastAPI를 직접 실행하는 경우 (예시)
+          # pip install -r requirements.txt
+          # pkill -f uvicorn || true
+          # nohup uvicorn main:app --host 0.0.0.0 --port 8000 &
