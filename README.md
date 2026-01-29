@@ -408,4 +408,4 @@ docker-compose -f docker-compose.override.yml up -d
 
 자세한 설정 방법은 [SETUP.md](docs/SETUP.md)를 참고하세요.
 
- 배포 확인6
+ 배포 확인7
