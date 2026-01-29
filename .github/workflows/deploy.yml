@@ -1,8 +1,8 @@
-name: EC2 직접 배포 (Git Pull)
+name: EC2 직접 배포 (Anaconda)
 
 on:
   push:
-    branches: [ "main" ]  # main 브랜치에 머지되면 실행
+    branches: [ "main" ]
 
 jobs:
   deploy:
@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: EC2 접속 및 배포 실행
+    - name: EC2 접속 및 배포
       uses: appleboy/ssh-action@master
       with:
         host: ${{ secrets.EC2_HOST }}
@@ -18,19 +18,28 @@ jobs:
         key: ${{ secrets.EC2_SSH_KEY }}
         port: 22
         script: |
-          # 1. 프로젝트 폴더로 이동 (폴더명은 실제 프로젝트 이름으로 수정하세요!)
+          # ----------------------------------------------------------------
+          # [설정 1] Python 실행 경로 (1단계 'which python' 결과값)
+          # (Miniconda는 miniconda3, Anaconda는 anaconda3 일 수 있음)
+          # ----------------------------------------------------------------
+          CONDA_PYTHON="/home/ubuntu/anaconda3/envs/ml-env/bin/python"
+          CONDA_PIP="/home/ubuntu/anaconda3/envs/ml-env/bin/pip"
+
+          # ----------------------------------------------------------------
+          # [설정 2] 프로젝트 폴더명 수정
+          # ----------------------------------------------------------------
           cd /home/${{ secrets.EC2_USER }}/main-project-lookalike
 
-          # 2. 최신 코드 가져오기
-          git pull origin main
+          # 1. 최신 코드 가져오기
+          git fetch origin main
+          git reset --hard origin/main
 
-          # 3. 서버 재시작 (사용하는 기술에 맞춰 아래 중 하나를 선택해서 쓰세요)
-          
-          # [Case A] Docker Compose를 쓰는 경우 (추천)
-          # (기존 컨테이너를 다시 빌드해서 실행합니다)
-          sudo docker-compose up -d --build
+          # 2. 라이브러리 설치 (Conda 환경의 pip 사용)
+          # (pip는 이미 설치된 라이브러리는 자동으로 건너뛰므로 매번 실행해도 안전하고 빠릅니다)
+          $CONDA_PIP install -r web/backend/requirements.txt
 
-          # [Case B] Python/FastAPI를 직접 실행하는 경우 (예시)
-          # pip install -r requirements.txt
-          # pkill -f uvicorn || true
-          # nohup uvicorn main:app --host 0.0.0.0 --port 8000 &
+          # 3. 기존 서버 종료 (8900번 포트)
+          sudo fuser -k 8900/tcp || true
+
+          # 4. 서버 재시작 (Conda 환경의 python 사용)
+          nohup $CONDA_PYTHON -m uvicorn web.backend.main:app --host 0.0.0.0 --port 8900 > nohup.out 2>&1 &
