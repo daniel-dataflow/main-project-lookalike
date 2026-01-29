@@ -22,8 +22,8 @@ jobs:
           # [설정 1] Python 실행 경로 (1단계 'which python' 결과값)
           # (Miniconda는 miniconda3, Anaconda는 anaconda3 일 수 있음)
           # ----------------------------------------------------------------
-          CONDA_PYTHON="/home/ubuntu/miniconda3/envs/ml-env/bin/python"
-          CONDA_PIP="/home/ubuntu/miniconda3/envs/ml-env/bin/pip"
+          CONDA_PYTHON="/home/ubuntu/main-project-lookalike/miniconda3/envs/ml-env/bin/python"
+          CONDA_PIP="/home/ubuntu/main-project-lookalike/miniconda3/envs/ml-env/bin/pip"
 
           # ----------------------------------------------------------------
           # [설정 2] 프로젝트 폴더명 수정
