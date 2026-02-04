@@ -16,7 +16,7 @@ app = FastAPI(
 # Get current directory
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # Frontend directory (sibling of backend)
-FRONTEND_DIR = os.path.join(BASE_DIR, "..", "frontend")
+FRONTEND_DIR = os.path.join(BASE_DIR, "..", "..", "frontend")
 
 # Mount static files
 app.mount("/static", StaticFiles(directory=os.path.join(FRONTEND_DIR, "static")), name="static")
@@ -28,6 +28,13 @@ templates = Jinja2Templates(directory=os.path.join(FRONTEND_DIR, "templates"))
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
+
+@app.get("/health")
+async def health_check():
+    return {
+        "status": "healthy",
+        "environment": os.getenv("APP_ENV", "development")
+    }
 
 @app.get("/search", response_class=HTMLResponse)
 async def search_results(request: Request, q: str = ""):
