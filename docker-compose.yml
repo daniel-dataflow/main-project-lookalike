@@ -485,6 +485,7 @@ services:
     environment:
       - AIRFLOW_HOME=/opt/airflow
       - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__CORE__AUTH_MANAGER=airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgresql:5432/${POSTGRES_DB}
       - AIRFLOW__CORE__FERNET_KEY=ZmDfcTF7_60GrrY167zsiPd67pEvs0aGOv2oasOM1Pg=
       - AIRFLOW__CORE__LOAD_EXAMPLES=False
@@ -507,7 +508,7 @@ services:
         reservations:
           memory: 1G
     command: >
-      bash -c "pip install --no-cache-dir apache-airflow-providers-postgres apache-airflow-providers-apache-spark psycopg2-binary &&
+      bash -c "pip install --no-cache-dir apache-airflow-providers-fab apache-airflow-providers-postgres apache-airflow-providers-apache-spark psycopg2-binary &&
                airflow db migrate &&
                airflow users create --username admin --password admin123 --firstname Admin --lastname User --role Admin --email admin@example.com 2>/dev/null || true &&
                airflow api-server"
@@ -531,6 +532,7 @@ services:
     environment:
       - AIRFLOW_HOME=/opt/airflow
       - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__CORE__AUTH_MANAGER=airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgresql:5432/${POSTGRES_DB}
       - AIRFLOW__CORE__FERNET_KEY=ZmDfcTF7_60GrrY167zsiPd67pEvs0aGOv2oasOM1Pg=
       - AIRFLOW__CORE__LOAD_EXAMPLES=False
@@ -543,7 +545,7 @@ services:
     networks: [main-network]
     restart: unless-stopped
     command: >
-      bash -c "pip install --no-cache-dir apache-airflow-providers-postgres apache-airflow-providers-apache-spark psycopg2-binary &&
+      bash -c "pip install --no-cache-dir apache-airflow-providers-fab apache-airflow-providers-postgres apache-airflow-providers-apache-spark psycopg2-binary &&
                airflow scheduler"
     healthcheck:
       test: ["CMD-SHELL", "airflow jobs check --job-type SchedulerJob --hostname \"$${HOSTNAME}\""]
