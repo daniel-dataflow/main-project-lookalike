@@ -23,5 +23,20 @@ body {
 
 .navbar-bottom {
     background-color: white;
-    box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.05);
+}
+
+/* Logo Responsive Styles */
+.logo-image {
+    height: 25px !important;
+    width: auto !important;
+    transition: opacity 0.3s ease;
+    max-width: 100%;
+}
+
+/* Mobile - smaller logo */
+@media (max-width: 576px) {
+    .logo-image {
+        height: 18px !important;
+    }
 }

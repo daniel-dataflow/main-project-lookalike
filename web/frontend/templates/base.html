@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ko">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -13,15 +14,17 @@
     <!-- Custom CSS -->
     <link href="/static/css/style.css" rel="stylesheet">
 </head>
+
 <body class="d-flex flex-column h-100">
-    
+
     <!-- Top Header -->
     <header class="py-3 px-3 border-bottom bg-white fixed-top">
         <div class="container d-flex justify-content-between align-items-center">
             <a href="/" class="text-decoration-none text-dark d-flex align-items-center gap-2">
-                <i class="fas fa-camera text-primary"></i>
+                <img src="/static/images/logo_open.png" alt="Lookalike Logo" id="mainLogo" class="logo-image"
+                    onmouseover="this.src='/static/images/logo_close.png'"
+                    onmouseout="this.src='/static/images/logo_open.png'">
                 <div>
-                    <h5 class="m-0 fw-bold">Lookalike</h5>
                     <small class="text-muted" style="font-size: 0.7rem;">이미지로 찾는 최저가 쇼핑</small>
                 </div>
             </a>
@@ -70,10 +73,12 @@
                     <p class="text-muted mb-4">로그인하거나 새 계정을 만들어주세요.</p>
                     <ul class="nav nav-pills nav-fill mb-3 bg-light rounded p-1" id="pills-tab" role="tablist">
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link active rounded shadow-sm" id="pills-login-tab" data-bs-toggle="pill" data-bs-target="#pills-login" type="button" role="tab">로그인</button>
+                            <button class="nav-link active rounded shadow-sm" id="pills-login-tab" data-bs-toggle="pill"
+                                data-bs-target="#pills-login" type="button" role="tab">로그인</button>
                         </li>
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link rounded" id="pills-signup-tab" data-bs-toggle="pill" data-bs-target="#pills-signup" type="button" role="tab">회원가입</button>
+                            <button class="nav-link rounded" id="pills-signup-tab" data-bs-toggle="pill"
+                                data-bs-target="#pills-signup" type="button" role="tab">회원가입</button>
                         </li>
                     </ul>
                     <div class="tab-content" id="pills-tabContent">
@@ -112,4 +117,5 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="/static/js/script.js"></script>
 </body>
+
 </html>
