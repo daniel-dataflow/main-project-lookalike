@@ -1,3 +1,4 @@
+
 # ──────────────────────────────────────────────
 # 네트워크
 # ──────────────────────────────────────────────
@@ -456,7 +457,7 @@ services:
       - .:/app
       - ./miniconda3:/opt/miniconda3
     networks: [main-network]
-    restart: unless-stopped
+    restart: unless-stopped  
     deploy:
       resources:
         limits:
@@ -464,7 +465,7 @@ services:
         reservations:
           memory: 512M
     command: >
-      bash -c "/opt/miniconda3/envs/ml-env/bin/python -m uvicorn web.backend.app.main:app --host 0.0.0.0 --port 8900"
+      bash -c "/opt/miniconda3/envs/ml-env/bin/python -m uvicorn web.backend.app.main:app --host 0.0.0.0 --port 8900"     
     healthcheck:
       test: ["CMD-SHELL", "python -c 'import socket; s = socket.socket(socket.AF_INET, socket.SOCK_STREAM); s.connect((\"localhost\", 8900))' || exit 1"]
       interval: 10s
@@ -479,24 +480,22 @@ services:
     image: apache/airflow:3.0.3-python3.11
     container_name: airflow-webserver-main
     hostname: airflow-webserver
+    user: "50000:0"
     depends_on:
       postgresql: {condition: service_healthy}
     env_file: [.env]
     environment:
       - AIRFLOW_HOME=/opt/airflow
       - AIRFLOW__CORE__EXECUTOR=LocalExecutor
-      - AIRFLOW__CORE__AUTH_MANAGER=airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
+      - AIRFLOW__AUTH__MANAGER=airflow.auth.managers.simple.simple_auth_manager.SimpleAuthManager
+      - AIRFLOW__API__AUTH_BACKENDS=airflow.api.auth.backend.default
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgresql:5432/${POSTGRES_DB}
       - AIRFLOW__CORE__FERNET_KEY=ZmDfcTF7_60GrrY167zsiPd67pEvs0aGOv2oasOM1Pg=
       - AIRFLOW__CORE__LOAD_EXAMPLES=False
-      - _AIRFLOW_WWW_USER_CREATE=True
-      - _AIRFLOW_WWW_USER_USERNAME=admin
-      - _AIRFLOW_WWW_USER_PASSWORD=admin123
       - TZ=${TZ}
     ports: ["${AIRFLOW_WEBSERVER_PORT}:8080"]
     volumes:
       - ./data-pipeline/airflow:/opt/airflow
-      - ./miniconda3:/opt/miniconda3
       - airflow_logs:/opt/airflow/logs
       - airflow_plugins:/opt/airflow/plugins
     networks: [main-network]
@@ -508,10 +507,10 @@ services:
         reservations:
           memory: 1G
     command: >
-      bash -c "pip install --no-cache-dir apache-airflow-providers-fab apache-airflow-providers-postgres apache-airflow-providers-apache-spark psycopg2-binary &&
-               airflow db migrate &&
-               airflow users create --username admin --password admin123 --firstname Admin --lastname User --role Admin --email admin@example.com 2>/dev/null || true &&
-               airflow api-server"
+      bash -c "
+        pip install --no-cache-dir apache-airflow-providers-postgres psycopg2-binary
+        airflow db migrate &&
+        airflow api-server"
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import socket, sys; s = socket.socket(socket.AF_INET, socket.SOCK_STREAM); result = s.connect_ex(('localhost', 8080)); sys.exit(result)\""]
       interval: 30s
@@ -526,30 +525,33 @@ services:
     image: apache/airflow:3.0.3-python3.11
     container_name: airflow-scheduler-main
     hostname: airflow-scheduler
+    user: "50000:0"
     depends_on:
       airflow-webserver: {condition: service_started}
     env_file: [.env]
     environment:
       - AIRFLOW_HOME=/opt/airflow
       - AIRFLOW__CORE__EXECUTOR=LocalExecutor
-      - AIRFLOW__CORE__AUTH_MANAGER=airflow.providers.fab.auth_manager.fab_auth_manager.FabAuthManager
+      - AIRFLOW__AUTH__MANAGER=airflow.auth.managers.simple.simple_auth_manager.SimpleAuthManager
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgresql:5432/${POSTGRES_DB}
       - AIRFLOW__CORE__FERNET_KEY=ZmDfcTF7_60GrrY167zsiPd67pEvs0aGOv2oasOM1Pg=
       - AIRFLOW__CORE__LOAD_EXAMPLES=False
       - TZ=${TZ}
     volumes:
       - ./data-pipeline/airflow:/opt/airflow
-      - ./miniconda3:/opt/miniconda3
       - airflow_logs:/opt/airflow/logs
       - airflow_plugins:/opt/airflow/plugins
     networks: [main-network]
     restart: unless-stopped
     command: >
-      bash -c "pip install --no-cache-dir apache-airflow-providers-fab apache-airflow-providers-postgres apache-airflow-providers-apache-spark psycopg2-binary &&
+      bash -c "pip install --no-cache-dir apache-airflow-providers-postgres apache-airflow-providers-apache-spark psycopg2-binary &&
                airflow scheduler"
     healthcheck:
       test: ["CMD-SHELL", "airflow jobs check --job-type SchedulerJob --hostname \"$${HOSTNAME}\""]
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 120s 
+      start_period: 120s
+
+
+

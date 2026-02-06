@@ -10,7 +10,9 @@
 # ──────────────────────────────────────────────
 PROJECT_ROOT="$HOME/main-project-lookalike"
 LOG_DIR="${PROJECT_ROOT}/logs"
+FAIL_DIR="${LOG_DIR}/fail"
 mkdir -p "${LOG_DIR}"
+mkdir -p "${FAIL_DIR}"
 
 # ──────────────────────────────────────────────
 # JSON 로그 디렉토리 생성 (추가됨)
@@ -128,7 +130,7 @@ wait_for_healthy() {
     local MAX="$2"
     local INTERVAL="$3"
     local ELAPSED=0
-    local FAIL_LOG="${LOG_DIR}/fail_${CONTAINER}_${TS}.log"
+    local FAIL_LOG="${FAIL_DIR}/${TS}_fail_${CONTAINER}.log"
     
     # 서비스명 추출 (컨테이너명에서 -main 제거)
     local SERVICE_NAME="${CONTAINER%-main}"
