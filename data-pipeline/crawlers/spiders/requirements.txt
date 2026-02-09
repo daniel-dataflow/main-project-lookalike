@@ -11,5 +11,5 @@ pyarrow
 
 # [Airflow 연동]
 apache-airflow-providers-apache-spark
-
+# python -m playwright install chromium
 # 실행 docker-compose up -d --build
