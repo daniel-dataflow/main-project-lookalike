@@ -1,0 +1,15 @@
+# [크롤링 관련]
+playwright
+beautifulsoup4          
+lxml                    
+requests                
+
+# [데이터 처리 & Spark]
+pyspark                 
+pandas                  
+pyarrow                 
+
+# [Airflow 연동]
+apache-airflow-providers-apache-spark
+
+# 실행 docker-compose up -d --build
