@@ -36,6 +36,21 @@ class Settings(BaseSettings):
     ELASTICSEARCH_HOST: str = "localhost"
     ELASTICSEARCH_PORT: int = 8903
 
+    # === OAuth2 소셜 로그인 ===
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: str = ""
+    NAVER_CLIENT_ID: str = ""
+    NAVER_CLIENT_SECRET: str = ""
+    KAKAO_CLIENT_ID: str = ""
+    KAKAO_CLIENT_SECRET: str = ""
+
+    # === 세션 ===
+    SESSION_SECRET_KEY: str = "lookalike-session-secret-change-in-production-2024"
+    SESSION_EXPIRE_HOURS: int = 24
+
+    # === FastAPI ===
+    FASTAPI_PORT: int = 8900
+
     @property
     def DATABASE_URL(self) -> str:
         return (
@@ -57,6 +72,21 @@ class Settings(BaseSettings):
     @property
     def ELASTICSEARCH_URL(self) -> str:
         return f"http://{self.ELASTICSEARCH_HOST}:{self.ELASTICSEARCH_PORT}"
+
+    @property
+    def OAUTH_REDIRECT_BASE(self) -> str:
+        """OAuth 콜백 URL 베이스 (환경에 따라 자동 설정)"""
+        return f"http://localhost:{self.FASTAPI_PORT}"
+
+    def is_oauth_configured(self, provider: str) -> bool:
+        """지정된 OAuth 제공자의 클라이언트 키가 설정되어 있는지 확인"""
+        if provider == "google":
+            return bool(self.GOOGLE_CLIENT_ID and self.GOOGLE_CLIENT_SECRET)
+        elif provider == "naver":
+            return bool(self.NAVER_CLIENT_ID and self.NAVER_CLIENT_SECRET)
+        elif provider == "kakao":
+            return bool(self.KAKAO_CLIENT_ID and self.KAKAO_CLIENT_SECRET)
+        return False
 
     class Config:
         env_file = os.path.join(
