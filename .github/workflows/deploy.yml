@@ -1,4 +1,4 @@
-name: EC2 직접 배포 (Anaconda)
+name: EC2 직접 배포
 
 on:
   push:
@@ -18,29 +18,15 @@ jobs:
         key: ${{ secrets.EC2_SSH_KEY }}
         port: 22
         script: |
-          # ----------------------------------------------------------------
-          # [설정 1] Python 실행 경로 (1단계 'which python' 결과값)
-          # (Miniconda는 miniconda3, Anaconda는 anaconda3 일 수 있음)
-          # ----------------------------------------------------------------
-          CONDA_PYTHON="/home/ubuntu/main-project-lookalike/miniconda3/envs/ml-env/bin/python"
-          CONDA_PIP="/home/ubuntu/main-project-lookalike/miniconda3/envs/ml-env/bin/pip"
-
-          # ----------------------------------------------------------------
-          # [설정 2] 프로젝트 폴더명 수정
-          # ----------------------------------------------------------------
           cd /home/${{ secrets.EC2_USER }}/main-project-lookalike
-
-          # 1. 최신 코드 가져오기
+        
+          # 1. 모든 파일의 소유권을 현재 유저로 강제 변경 (권한 에러 방지)
+          sudo chown -R ${{ secrets.EC2_USER }}:${{ secrets.EC2_USER }} .
+          
+          # 2. 강제 동기화 및 찌꺼기 파일 삭제
           git fetch origin main
           git reset --hard origin/main
-
-          # 2. 라이브러리 설치 (Conda 환경의 pip 사용)
-          # (pip는 이미 설치된 라이브러리는 자동으로 건너뛰므로 매번 실행해도 안전하고 빠릅니다)
-          $CONDA_PIP install -r web/backend/requirements.txt
-          $CONDA_PIP install jinja2
-
-          # 3. 기존 서버 종료 (8900번 포트)
-          sudo fuser -k 8900/tcp || true
-
-          # 4. 서버 재시작 (Conda 환경의 python 사용)
-          nohup $CONDA_PYTHON -m uvicorn web.backend.app.main:app --host 0.0.0.0 --port 8900 > nohup.out 2>&1 &
+          
+          # 3. 도커 재시작
+          sudo docker-compose down
+          sudo docker-compose up -d --build
