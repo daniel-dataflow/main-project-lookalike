@@ -1,9 +1,10 @@
 """
 문의 게시판 라우터 - 유저용/관리자용 API
-- 유저: 본인 문의글만 CRUD
-- 관리자: 모든 문의글 조회 + 답변 작성
+- inquiry_board (게시글) + comments (댓글) 구조
+- 유저: 본인 문의글 CRUD
+- 관리자: 모든 문의글 조회 + 답변(댓글) 작성
 
-⚠️ 라우트 순서 중요: /admin/* 경로가 /{inquiry_id} 보다 먼저 정의되어야 함
+⚠️ 라우트 순서 중요: /admin/* 경로가 /{inquiry_board_id} 보다 먼저 정의되어야 함
 """
 from fastapi import APIRouter, HTTPException, Query, Request, status
 import math
@@ -16,6 +17,8 @@ from ..models.inquiry import (
     InquiryUpdateRequest,
     InquiryAnswerRequest,
     InquiryResponse,
+    InquiryDetailResponse,
+    InquiryCommentResponse,
     InquiryListResponse,
 )
 
@@ -58,7 +61,7 @@ def _require_admin(request: Request) -> dict:
 
 
 # ══════════════════════════════════════
-# 관리자 전용 API (/{inquiry_id} 보다 먼저 정의)
+# 관리자 전용 API (/{inquiry_board_id} 보다 먼저 정의)
 # ══════════════════════════════════════
 
 # ──────────────────────────────────────
@@ -69,45 +72,33 @@ async def admin_list_inquiries(
     request: Request,
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
-    status_filter: str = Query("", description="상태 필터 (pending/answered)"),
 ):
     """[관리자] 전체 문의글 목록"""
     _require_admin(request)
 
     try:
         offset = (page - 1) * page_size
-        where_clause = ""
-        params = []
-
-        if status_filter in ("pending", "answered"):
-            where_clause = "WHERE ib.status = %s"
-            params.append(status_filter)
 
         with get_pg_cursor() as cur:
-            cur.execute(
-                f"SELECT COUNT(*) as cnt FROM inquiry_board ib {where_clause}",
-                params,
-            )
+            cur.execute("SELECT COUNT(*) as cnt FROM inquiry_board")
             total = cur.fetchone()["cnt"]
 
             cur.execute(
-                f"""
-                SELECT ib.inquiry_id, ib.title, ib.content, ib.author_id,
-                       u1.name as author_name,
-                       ib.status, ib.answer, ib.answered_by,
-                       u2.name as answered_by_name,
-                       ib.answered_at, ib.view_count,
+                """
+                SELECT ib.inquiry_board_id, ib.title, ib.content, ib.author_id,
+                       u.name as author_name,
+                       ib.view_count,
+                       COALESCE(cc.cnt, 0) as comment_count,
                        ib.create_dt, ib.update_dt
                 FROM inquiry_board ib
-                LEFT JOIN users u1 ON ib.author_id = u1.user_id
-                LEFT JOIN users u2 ON ib.answered_by = u2.user_id
-                {where_clause}
-                ORDER BY
-                    CASE WHEN ib.status = 'pending' THEN 0 ELSE 1 END,
-                    ib.create_dt DESC
+                LEFT JOIN users u ON ib.author_id = u.user_id
+                LEFT JOIN (
+                    SELECT inquiry_board_id, COUNT(*) as cnt FROM comments GROUP BY inquiry_board_id
+                ) cc ON ib.inquiry_board_id = cc.inquiry_board_id
+                ORDER BY ib.create_dt DESC
                 LIMIT %s OFFSET %s
                 """,
-                params + [page_size, offset],
+                (page_size, offset),
             )
             rows = cur.fetchall()
 
@@ -127,36 +118,51 @@ async def admin_list_inquiries(
 
 
 # ──────────────────────────────────────
-# [관리자] 문의글 상세 조회
+# [관리자] 문의글 상세 조회 (댓글 포함)
 # ──────────────────────────────────────
-@router.get("/admin/{inquiry_id}", response_model=InquiryResponse)
-async def admin_get_inquiry(inquiry_id: int, request: Request):
-    """[관리자] 문의글 상세"""
+@router.get("/admin/{inquiry_board_id}", response_model=InquiryDetailResponse)
+async def admin_get_inquiry(inquiry_board_id: int, request: Request):
+    """[관리자] 문의글 상세 (댓글 포함)"""
     _require_admin(request)
 
     try:
         with get_pg_cursor() as cur:
             cur.execute(
                 """
-                SELECT ib.inquiry_id, ib.title, ib.content, ib.author_id,
-                       u1.name as author_name,
-                       ib.status, ib.answer, ib.answered_by,
-                       u2.name as answered_by_name,
-                       ib.answered_at, ib.view_count,
+                SELECT ib.inquiry_board_id, ib.title, ib.content, ib.author_id,
+                       u.name as author_name,
+                       ib.view_count,
                        ib.create_dt, ib.update_dt
                 FROM inquiry_board ib
-                LEFT JOIN users u1 ON ib.author_id = u1.user_id
-                LEFT JOIN users u2 ON ib.answered_by = u2.user_id
-                WHERE ib.inquiry_id = %s
+                LEFT JOIN users u ON ib.author_id = u.user_id
+                WHERE ib.inquiry_board_id = %s
                 """,
-                (inquiry_id,),
+                (inquiry_board_id,),
             )
             row = cur.fetchone()
 
             if not row:
                 raise HTTPException(status_code=404, detail="문의글을 찾을 수 없습니다")
 
-        return InquiryResponse(**row)
+            # 댓글 조회
+            cur.execute(
+                """
+                SELECT c.comment_id, c.inquiry_board_id, c.author_id,
+                       u.name as author_name,
+                       c.comment_text, c.create_dt
+                FROM comments c
+                LEFT JOIN users u ON c.author_id = u.user_id
+                WHERE c.inquiry_board_id = %s
+                ORDER BY c.create_dt ASC
+                """,
+                (inquiry_board_id,),
+            )
+            comment_rows = cur.fetchall()
+
+        return InquiryDetailResponse(
+            post=InquiryResponse(**row, comment_count=len(comment_rows)),
+            comments=[InquiryCommentResponse(**c) for c in comment_rows],
+        )
 
     except HTTPException:
         raise
@@ -166,50 +172,46 @@ async def admin_get_inquiry(inquiry_id: int, request: Request):
 
 
 # ──────────────────────────────────────
-# [관리자] 답변 작성
+# [관리자] 답변 작성 (댓글로 등록)
 # ──────────────────────────────────────
-@router.post("/admin/{inquiry_id}/answer", response_model=InquiryResponse)
+@router.post("/admin/{inquiry_board_id}/answer", response_model=InquiryCommentResponse)
 async def admin_answer_inquiry(
-    inquiry_id: int, req: InquiryAnswerRequest, request: Request
+    inquiry_board_id: int, req: InquiryAnswerRequest, request: Request
 ):
-    """[관리자] 문의글에 답변 작성"""
+    """[관리자] 문의글에 답변(댓글) 작성"""
     session = _require_admin(request)
     admin_id = session["user_id"]
 
     try:
         with get_pg_cursor() as cur:
+            # 게시글 존재 확인
+            cur.execute(
+                "SELECT inquiry_board_id FROM inquiry_board WHERE inquiry_board_id = %s",
+                (inquiry_board_id,),
+            )
+            if not cur.fetchone():
+                raise HTTPException(status_code=404, detail="문의글을 찾을 수 없습니다")
+
+            # 댓글로 답변 등록
             cur.execute(
                 """
-                UPDATE inquiry_board
-                SET answer = %s,
-                    answered_by = %s,
-                    answered_at = NOW(),
-                    status = 'answered',
-                    update_dt = NOW()
-                WHERE inquiry_id = %s
-                RETURNING inquiry_id, title, content, author_id, status,
-                          answer, answered_by, answered_at, view_count,
-                          create_dt, update_dt
+                INSERT INTO comments (inquiry_board_id, author_id, comment_text)
+                VALUES (%s, %s, %s)
+                RETURNING comment_id, inquiry_board_id, author_id, comment_text, create_dt
                 """,
-                (req.answer, admin_id, inquiry_id),
+                (inquiry_board_id, admin_id, req.answer),
             )
             row = cur.fetchone()
 
-            if not row:
-                raise HTTPException(status_code=404, detail="문의글을 찾을 수 없습니다")
-
-            # 이름 조회
+            # 작성자 이름 조회
             cur.execute(
-                "SELECT user_id, name FROM users WHERE user_id IN (%s, %s)",
-                (row["author_id"], admin_id),
+                "SELECT name FROM users WHERE user_id = %s", (admin_id,)
             )
-            user_rows = cur.fetchall()
-            user_names = {u["user_id"]: u["name"] for u in user_rows}
+            user_row = cur.fetchone()
 
-        return InquiryResponse(
+        return InquiryCommentResponse(
             **row,
-            author_name=user_names.get(row["author_id"]),
-            answered_by_name=user_names.get(admin_id),
+            author_name=user_row["name"] if user_row else None,
         )
 
     except HTTPException:
@@ -248,15 +250,16 @@ async def list_my_inquiries(
 
             cur.execute(
                 """
-                SELECT ib.inquiry_id, ib.title, ib.content, ib.author_id,
-                       u1.name as author_name,
-                       ib.status, ib.answer, ib.answered_by,
-                       u2.name as answered_by_name,
-                       ib.answered_at, ib.view_count,
+                SELECT ib.inquiry_board_id, ib.title, ib.content, ib.author_id,
+                       u.name as author_name,
+                       ib.view_count,
+                       COALESCE(cc.cnt, 0) as comment_count,
                        ib.create_dt, ib.update_dt
                 FROM inquiry_board ib
-                LEFT JOIN users u1 ON ib.author_id = u1.user_id
-                LEFT JOIN users u2 ON ib.answered_by = u2.user_id
+                LEFT JOIN users u ON ib.author_id = u.user_id
+                LEFT JOIN (
+                    SELECT inquiry_board_id, COUNT(*) as cnt FROM comments GROUP BY inquiry_board_id
+                ) cc ON ib.inquiry_board_id = cc.inquiry_board_id
                 WHERE ib.author_id = %s
                 ORDER BY ib.create_dt DESC
                 LIMIT %s OFFSET %s
@@ -295,8 +298,7 @@ async def create_inquiry(req: InquiryCreateRequest, request: Request):
                 """
                 INSERT INTO inquiry_board (title, content, author_id)
                 VALUES (%s, %s, %s)
-                RETURNING inquiry_id, title, content, author_id, status,
-                          answer, answered_by, answered_at, view_count,
+                RETURNING inquiry_board_id, title, content, author_id, view_count,
                           create_dt, update_dt
                 """,
                 (req.title, req.content, user_id),
@@ -313,14 +315,14 @@ async def create_inquiry(req: InquiryCreateRequest, request: Request):
 
 
 # ──────────────────────────────────────
-# [유저] 문의글 상세 조회
+# [유저] 문의글 상세 조회 (댓글 포함)
 # ──────────────────────────────────────
-@router.get("/{inquiry_id}", response_model=InquiryResponse)
-async def get_inquiry(inquiry_id: int, request: Request):
-    """문의글 상세 (본인 글만)"""
+@router.get("/{inquiry_board_id}", response_model=InquiryDetailResponse)
+async def get_inquiry(inquiry_board_id: int, request: Request):
+    """문의글 상세 (본인 글만, 관리자는 전체)"""
     session = _require_login(request)
     user_id = session["user_id"]
-    is_admin = session.get("role") == "ADMIN"
+    is_admin = session.get("is_admin", False)
 
     try:
         with get_pg_cursor() as cur:
@@ -328,12 +330,11 @@ async def get_inquiry(inquiry_id: int, request: Request):
             cur.execute(
                 """
                 UPDATE inquiry_board SET view_count = view_count + 1
-                WHERE inquiry_id = %s
-                RETURNING inquiry_id, title, content, author_id, status,
-                          answer, answered_by, answered_at, view_count,
+                WHERE inquiry_board_id = %s
+                RETURNING inquiry_board_id, title, content, author_id, view_count,
                           create_dt, update_dt
                 """,
-                (inquiry_id,),
+                (inquiry_board_id,),
             )
             row = cur.fetchone()
 
@@ -344,18 +345,35 @@ async def get_inquiry(inquiry_id: int, request: Request):
             if row["author_id"] != user_id and not is_admin:
                 raise HTTPException(status_code=403, detail="접근 권한이 없습니다")
 
-            # 작성자/답변자 이름 조회
+            # 작성자 이름 조회
             cur.execute(
-                "SELECT user_id, name FROM users WHERE user_id IN (%s, %s)",
-                (row["author_id"], row.get("answered_by") or row["author_id"]),
+                "SELECT name FROM users WHERE user_id = %s",
+                (row["author_id"],),
             )
-            user_rows = cur.fetchall()
-            user_names = {u["user_id"]: u["name"] for u in user_rows}
+            author_row = cur.fetchone()
 
-        return InquiryResponse(
-            **row,
-            author_name=user_names.get(row["author_id"]),
-            answered_by_name=user_names.get(row.get("answered_by")),
+            # 댓글 조회
+            cur.execute(
+                """
+                SELECT c.comment_id, c.inquiry_board_id, c.author_id,
+                       u.name as author_name,
+                       c.comment_text, c.create_dt
+                FROM comments c
+                LEFT JOIN users u ON c.author_id = u.user_id
+                WHERE c.inquiry_board_id = %s
+                ORDER BY c.create_dt ASC
+                """,
+                (inquiry_board_id,),
+            )
+            comment_rows = cur.fetchall()
+
+        return InquiryDetailResponse(
+            post=InquiryResponse(
+                **row,
+                author_name=author_row["name"] if author_row else None,
+                comment_count=len(comment_rows),
+            ),
+            comments=[InquiryCommentResponse(**c) for c in comment_rows],
         )
 
     except HTTPException:
@@ -366,11 +384,11 @@ async def get_inquiry(inquiry_id: int, request: Request):
 
 
 # ──────────────────────────────────────
-# [유저] 문의글 수정 (답변 전에만)
+# [유저] 문의글 수정
 # ──────────────────────────────────────
-@router.put("/{inquiry_id}", response_model=InquiryResponse)
-async def update_inquiry(inquiry_id: int, req: InquiryUpdateRequest, request: Request):
-    """문의글 수정 (답변 전에만 가능, 본인만)"""
+@router.put("/{inquiry_board_id}", response_model=InquiryResponse)
+async def update_inquiry(inquiry_board_id: int, req: InquiryUpdateRequest, request: Request):
+    """문의글 수정 (본인만)"""
     session = _require_login(request)
     user_id = session["user_id"]
 
@@ -378,8 +396,8 @@ async def update_inquiry(inquiry_id: int, req: InquiryUpdateRequest, request: Re
         with get_pg_cursor() as cur:
             # 기존 글 확인
             cur.execute(
-                "SELECT author_id, status FROM inquiry_board WHERE inquiry_id = %s",
-                (inquiry_id,),
+                "SELECT author_id FROM inquiry_board WHERE inquiry_board_id = %s",
+                (inquiry_board_id,),
             )
             existing = cur.fetchone()
 
@@ -387,8 +405,6 @@ async def update_inquiry(inquiry_id: int, req: InquiryUpdateRequest, request: Re
                 raise HTTPException(status_code=404, detail="문의글을 찾을 수 없습니다")
             if existing["author_id"] != user_id:
                 raise HTTPException(status_code=403, detail="본인의 글만 수정할 수 있습니다")
-            if existing["status"] == "answered":
-                raise HTTPException(status_code=400, detail="답변이 완료된 글은 수정할 수 없습니다")
 
             updates = []
             values = []
@@ -404,14 +420,13 @@ async def update_inquiry(inquiry_id: int, req: InquiryUpdateRequest, request: Re
                 raise HTTPException(status_code=400, detail="수정할 항목이 없습니다")
 
             updates.append("update_dt = NOW()")
-            values.append(inquiry_id)
+            values.append(inquiry_board_id)
 
             cur.execute(
                 f"""
                 UPDATE inquiry_board SET {', '.join(updates)}
-                WHERE inquiry_id = %s
-                RETURNING inquiry_id, title, content, author_id, status,
-                          answer, answered_by, answered_at, view_count,
+                WHERE inquiry_board_id = %s
+                RETURNING inquiry_board_id, title, content, author_id, view_count,
                           create_dt, update_dt
                 """,
                 values,
@@ -428,19 +443,19 @@ async def update_inquiry(inquiry_id: int, req: InquiryUpdateRequest, request: Re
 
 
 # ──────────────────────────────────────
-# [유저] 문의글 삭제 (답변 전에만)
+# [유저] 문의글 삭제
 # ──────────────────────────────────────
-@router.delete("/{inquiry_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_inquiry(inquiry_id: int, request: Request):
-    """문의글 삭제 (답변 전에만 가능, 본인만)"""
+@router.delete("/{inquiry_board_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_inquiry(inquiry_board_id: int, request: Request):
+    """문의글 삭제 (본인만, 댓글도 CASCADE 삭제)"""
     session = _require_login(request)
     user_id = session["user_id"]
 
     try:
         with get_pg_cursor() as cur:
             cur.execute(
-                "SELECT author_id, status FROM inquiry_board WHERE inquiry_id = %s",
-                (inquiry_id,),
+                "SELECT author_id FROM inquiry_board WHERE inquiry_board_id = %s",
+                (inquiry_board_id,),
             )
             existing = cur.fetchone()
 
@@ -448,12 +463,10 @@ async def delete_inquiry(inquiry_id: int, request: Request):
                 raise HTTPException(status_code=404, detail="문의글을 찾을 수 없습니다")
             if existing["author_id"] != user_id:
                 raise HTTPException(status_code=403, detail="본인의 글만 삭제할 수 있습니다")
-            if existing["status"] == "answered":
-                raise HTTPException(status_code=400, detail="답변이 완료된 글은 삭제할 수 없습니다")
 
             cur.execute(
-                "DELETE FROM inquiry_board WHERE inquiry_id = %s",
-                (inquiry_id,),
+                "DELETE FROM inquiry_board WHERE inquiry_board_id = %s",
+                (inquiry_board_id,),
             )
 
     except HTTPException:

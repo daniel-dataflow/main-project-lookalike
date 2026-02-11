@@ -1,6 +1,6 @@
 from .auth import router as auth_router
 from .products import router as products_router
-from .posts import router as posts_router
+from .inquiry_board import router as posts_router
 from .search import router as search_router
 from .inquiries import router as inquiries_router
 

@@ -101,16 +101,16 @@ services:
             last_login TIMESTAMP DEFAULT NOW(), create_dt TIMESTAMP DEFAULT NOW(), update_dt TIMESTAMP DEFAULT NOW()
           );
           CREATE UNIQUE INDEX IF NOT EXISTS idx_users_social ON users(provider, social_id);
-          CREATE TABLE IF NOT EXISTS posts (
-            post_id BIGSERIAL PRIMARY KEY, title VARCHAR(200) NOT NULL, content TEXT,
+          CREATE TABLE IF NOT EXISTS inquiry_board (
+            inquiry_board_id BIGSERIAL PRIMARY KEY, title VARCHAR(200) NOT NULL, content TEXT,
             author_id VARCHAR(50) REFERENCES users(user_id), view_count INTEGER DEFAULT 0,
             is_notice BOOLEAN DEFAULT FALSE, create_dt TIMESTAMP DEFAULT NOW(), update_dt TIMESTAMP DEFAULT NOW()
           );
           CREATE TABLE IF NOT EXISTS comments (
-            comment_id BIGSERIAL PRIMARY KEY, post_id BIGINT REFERENCES posts(post_id) ON DELETE CASCADE,
+            comment_id BIGSERIAL PRIMARY KEY, inquiry_board_id BIGINT REFERENCES inquiry_board(inquiry_board_id) ON DELETE CASCADE,
             author_id VARCHAR(50) REFERENCES users(user_id), comment_text TEXT, create_dt TIMESTAMP DEFAULT NOW()
           );
-          CREATE INDEX IF NOT EXISTS idx_comments_post_id ON comments(post_id);
+          CREATE INDEX IF NOT EXISTS idx_comments_inquiry_board_id ON comments(inquiry_board_id);
           CREATE TABLE IF NOT EXISTS products (
             product_id BIGSERIAL PRIMARY KEY, origine_prod_id VARCHAR(50), model_code VARCHAR(50),
             prod_name VARCHAR(50), base_price INTEGER, category_code VARCHAR(50),
@@ -134,15 +134,7 @@ services:
           );
           CREATE INDEX IF NOT EXISTS idx_search_logs_user_id ON search_logs(user_id);
           CREATE INDEX IF NOT EXISTS idx_search_logs_nprice_id ON search_logs(nprice_id);
-          CREATE TABLE IF NOT EXISTS inquiry_board (
-            inquiry_id BIGSERIAL PRIMARY KEY, title VARCHAR(200) NOT NULL, content TEXT,
-            author_id VARCHAR(50) REFERENCES users(user_id), status VARCHAR(20) DEFAULT 'pending',
-            answer TEXT, answered_by VARCHAR(50) REFERENCES users(user_id),
-            answered_at TIMESTAMP, view_count INTEGER DEFAULT 0,
-            create_dt TIMESTAMP DEFAULT NOW(), update_dt TIMESTAMP DEFAULT NOW()
-          );
           CREATE INDEX IF NOT EXISTS idx_inquiry_board_author_id ON inquiry_board(author_id);
-          CREATE INDEX IF NOT EXISTS idx_inquiry_board_status ON inquiry_board(status);
       EOF
         echo '✅ 프로젝트 테이블 초기화 완료'
         echo '🚀 DB 초기화 완료!'

@@ -35,7 +35,7 @@ def init_postgresql():
             product_features,
             naver_prices,
             comments,
-            posts,
+            inquiry_board,
             products,
             users
         CASCADE;
@@ -59,10 +59,10 @@ def init_postgresql():
             );
             """,
 
-            # Posts
+            # Inquiry Board (게시판)
             """
-            CREATE TABLE posts (
-                post_id BIGSERIAL PRIMARY KEY,
+            CREATE TABLE inquiry_board (
+                inquiry_board_id BIGSERIAL PRIMARY KEY,
                 title VARCHAR(200) NOT NULL,
                 content TEXT,
                 author_id VARCHAR(50) REFERENCES users(user_id),
@@ -77,12 +77,12 @@ def init_postgresql():
 """
             CREATE TABLE comments (
                 comment_id BIGSERIAL PRIMARY KEY,
-                post_id BIGINT REFERENCES posts(post_id) ON DELETE CASCADE,
+                inquiry_board_id BIGINT REFERENCES inquiry_board(inquiry_board_id) ON DELETE CASCADE,
                 author_id VARCHAR(50) REFERENCES users(user_id),
                 comment_text TEXT,
                 create_dt TIMESTAMP DEFAULT NOW()
             );
-            CREATE INDEX idx_comments_post_id ON comments(post_id);
+            CREATE INDEX idx_comments_inquiry_board_id ON comments(inquiry_board_id);
             """,
 
             # Products
