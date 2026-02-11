@@ -307,14 +307,13 @@
 
             // 카운트 업데이트
             const total = data.total || 0;
-            const answered = data.items ? data.items.filter(i => i.status === 'answered').length : 0;
             document.getElementById('totalCount').textContent = total;
 
-            // 전체 상태 카운트를 위해 간단 계산 (목록 기반)
+            // comment_count 기반 상태 계산
             let allPending = 0, allAnswered = 0;
             if (data.items) {
                 data.items.forEach(i => {
-                    if (i.status === 'answered') allAnswered++;
+                    if ((i.comment_count || 0) > 0) allAnswered++;
                     else allPending++;
                 });
             }
@@ -329,16 +328,18 @@
             }
 
             emptyEl.classList.add('d-none');
-            listEl.innerHTML = data.items.map(item => `
-            <div class="inquiry-item" onclick="viewInquiry(${item.inquiry_id})">
+            listEl.innerHTML = data.items.map(item => {
+                const hasAnswer = (item.comment_count || 0) > 0;
+                return `
+            <div class="inquiry-item" onclick="viewInquiry(${item.inquiry_board_id})">
                 <div class="d-flex justify-content-between align-items-start mb-2">
                     <h6 class="fw-bold mb-0" style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                         ${escapeHtml(item.title)}
                     </h6>
-                    <span class="status-badge ${item.status === 'answered' ? 'status-answered' : 'status-pending'} ms-2">
-                        ${item.status === 'answered'
-                    ? '<i class="fas fa-check-circle"></i> 답변완료'
-                    : '<i class="fas fa-clock"></i> 대기중'}
+                    <span class="status-badge ${hasAnswer ? 'status-answered' : 'status-pending'} ms-2">
+                        ${hasAnswer
+                        ? '<i class="fas fa-check-circle"></i> 답변완료'
+                        : '<i class="fas fa-clock"></i> 대기중'}
                     </span>
                 </div>
                 <p class="text-muted mb-2" style="font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
@@ -353,7 +354,8 @@
                     </small>
                 </div>
             </div>
-        `).join('');
+            `;
+            }).join('');
 
             // 페이지네이션
             renderPagination(data.total_pages, page);
@@ -364,14 +366,17 @@
     }
 
     // 문의 상세 보기
-    async function viewInquiry(inquiryId) {
+    async function viewInquiry(postId) {
         try {
-            const resp = await fetch(`/api/inquiries/${inquiryId}`, { credentials: 'same-origin' });
+            const resp = await fetch(`/api/inquiries/${postId}`, { credentials: 'same-origin' });
             if (!resp.ok) {
                 if (typeof showToast === 'function') showToast('문의글을 불러올 수 없습니다.', 'error');
                 return;
             }
-            const item = await resp.json();
+            const data = await resp.json();
+            const item = data.post;
+            const comments = data.comments || [];
+            const hasAnswer = comments.length > 0;
 
             document.getElementById('inquiryListSection').classList.add('d-none');
             document.getElementById('inquiryDetailSection').classList.remove('d-none');
@@ -381,21 +386,21 @@
             card.innerHTML = `
             <div class="detail-header">
                 <div class="d-flex justify-content-between align-items-start mb-2">
-                    <span class="status-badge ${item.status === 'answered' ? 'status-answered' : 'status-pending'}">
-                        ${item.status === 'answered'
+                    <span class="status-badge ${hasAnswer ? 'status-answered' : 'status-pending'}">
+                        ${hasAnswer
                     ? '<i class="fas fa-check-circle"></i> 답변완료'
                     : '<i class="fas fa-clock"></i> 대기중'}
                     </span>
-                    ${item.status !== 'answered' ? `
+                    ${!hasAnswer ? `
                     <div class="dropdown">
                         <button class="btn btn-sm btn-outline-light rounded-pill" data-bs-toggle="dropdown">
                             <i class="fas fa-ellipsis-v"></i>
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end shadow border-0">
-                            <li><a class="dropdown-item" href="#" onclick="openEditModal(${item.inquiry_id}, '${escapeHtml(item.title).replace(/'/g, "\\'")}', \`${escapeHtml(item.content || '').replace(/`/g, "\\`")}\`); return false;">
+                            <li><a class="dropdown-item" href="#" onclick="openEditModal(${item.inquiry_board_id}, '${escapeHtml(item.title).replace(/'/g, "\\'")}', \`${escapeHtml(item.content || '').replace(/`/g, "\\`")}\`); return false;">
                                 <i class="fas fa-edit me-2"></i>수정
                             </a></li>
-                            <li><a class="dropdown-item text-danger" href="#" onclick="deleteInquiry(${item.inquiry_id}); return false;">
+                            <li><a class="dropdown-item text-danger" href="#" onclick="deleteInquiry(${item.inquiry_board_id}); return false;">
                                 <i class="fas fa-trash me-2"></i>삭제
                             </a></li>
                         </ul>
@@ -410,7 +415,7 @@
             </div>
             <div class="detail-body">
                 <div class="detail-content">${escapeHtml(item.content || '')}</div>
-                ${item.status === 'answered' && item.answer ? `
+                ${hasAnswer ? comments.map(c => `
                 <div class="answer-section">
                     <div class="d-flex align-items-center mb-3">
                         <div class="bg-success rounded-circle d-flex align-items-center justify-content-center me-2"
@@ -420,13 +425,13 @@
                         <div>
                             <div class="fw-bold" style="font-size: 0.9rem;">관리자 답변</div>
                             <div class="text-muted" style="font-size: 0.75rem;">
-                                ${item.answered_by_name || '관리자'} · ${formatDate(item.answered_at)}
+                                ${escapeHtml(c.author_name || '관리자')} · ${formatDate(c.create_dt)}
                             </div>
                         </div>
                     </div>
-                    <div class="answer-content">${escapeHtml(item.answer)}</div>
+                    <div class="answer-content">${escapeHtml(c.comment_text || '')}</div>
                 </div>
-                ` : `
+                `).join('') : `
                 <div class="text-center py-4 mt-3" style="opacity: 0.5;">
                     <i class="fas fa-hourglass-half fa-2x mb-2"></i>
                     <p class="mb-0" style="font-size: 0.85rem;">관리자 답변을 기다리고 있습니다...</p>

@@ -34,7 +34,7 @@ class CommentCreateRequest(BaseModel):
 class CommentResponse(BaseModel):
     """댓글 응답"""
     comment_id: int
-    post_id: int
+    inquiry_board_id: int
     author_id: Optional[str] = None
     comment_text: Optional[str] = None
     create_dt: Optional[datetime] = None
@@ -42,7 +42,7 @@ class CommentResponse(BaseModel):
 
 class PostResponse(BaseModel):
     """게시글 응답"""
-    post_id: int
+    inquiry_board_id: int
     title: str
     content: Optional[str] = None
     author_id: Optional[str] = None

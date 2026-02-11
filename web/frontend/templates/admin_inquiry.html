@@ -270,8 +270,8 @@
             let pending = 0, answered = 0;
             if (data.items) {
                 data.items.forEach(i => {
-                    if (i.status === 'pending') pending++;
-                    else answered++;
+                    if ((i.comment_count || 0) > 0) answered++;
+                    else pending++;
                 });
             }
             // 전체를 로드했을 때만 카운트 업데이트
@@ -291,9 +291,11 @@
             }
 
             emptyEl.classList.add('d-none');
-            listEl.innerHTML = data.items.map(item => `
-            <tr class="inquiry-row" onclick="viewAdminInquiry(${item.inquiry_id})">
-                <td class="text-center text-muted">${item.inquiry_id}</td>
+            listEl.innerHTML = data.items.map(item => {
+                const hasAnswer = (item.comment_count || 0) > 0;
+                return `
+            <tr class="inquiry-row" onclick="viewAdminInquiry(${item.inquiry_board_id})">
+                <td class="text-center text-muted">${item.inquiry_board_id}</td>
                 <td>
                     <div class="fw-semibold" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 350px;">
                         ${escapeHtml(item.title)}
@@ -303,10 +305,10 @@
                     <span class="text-muted" style="font-size: 0.85rem;">${escapeHtml(item.author_name || item.author_id || '-')}</span>
                 </td>
                 <td class="text-center">
-                    <span class="admin-status-badge ${item.status === 'answered' ? 'admin-status-answered' : 'admin-status-pending'}">
-                        ${item.status === 'answered'
-                    ? '<i class="fas fa-check-circle"></i> 답변완료'
-                    : '<i class="fas fa-clock"></i> 대기중'}
+                    <span class="admin-status-badge ${hasAnswer ? 'admin-status-answered' : 'admin-status-pending'}">
+                        ${hasAnswer
+                        ? '<i class="fas fa-check-circle"></i> 답변완료'
+                        : '<i class="fas fa-clock"></i> 대기중'}
                     </span>
                 </td>
                 <td class="text-center text-muted" style="font-size: 0.8rem;">
@@ -314,12 +316,13 @@
                 </td>
                 <td class="text-center">
                     <button class="btn btn-sm btn-outline-dark rounded-pill px-3"
-                        onclick="event.stopPropagation(); viewAdminInquiry(${item.inquiry_id});">
-                        ${item.status === 'answered' ? '보기' : '답변'}
+                        onclick="event.stopPropagation(); viewAdminInquiry(${item.inquiry_board_id});">
+                        ${hasAnswer ? '보기' : '답변'}
                     </button>
                 </td>
             </tr>
-        `).join('');
+            `;
+            }).join('');
 
             // 페이지네이션
             renderAdminPagination(data.total_pages, page);
@@ -342,11 +345,14 @@
     }
 
     // 문의 상세 보기 (관리자)
-    async function viewAdminInquiry(inquiryId) {
+    async function viewAdminInquiry(postId) {
         try {
-            const resp = await fetch(`/api/inquiries/admin/${inquiryId}`, { credentials: 'same-origin' });
+            const resp = await fetch(`/api/inquiries/admin/${postId}`, { credentials: 'same-origin' });
             if (!resp.ok) return;
-            const item = await resp.json();
+            const data = await resp.json();
+            const item = data.post;
+            const comments = data.comments || [];
+            const hasAnswer = comments.length > 0;
 
             // 목록 숨기고 상세 보기
             document.getElementById('adminInquiryListSection').classList.add('d-none');
@@ -356,8 +362,8 @@
 
             // 데이터 채우기
             const statusEl = document.getElementById('adminDetailStatus');
-            statusEl.className = `admin-status-badge ${item.status === 'answered' ? 'admin-status-answered' : 'admin-status-pending'}`;
-            statusEl.innerHTML = item.status === 'answered'
+            statusEl.className = `admin-status-badge ${hasAnswer ? 'admin-status-answered' : 'admin-status-pending'}`;
+            statusEl.innerHTML = hasAnswer
                 ? '<i class="fas fa-check-circle"></i> 답변완료'
                 : '<i class="fas fa-clock"></i> 대기중';
 
@@ -366,18 +372,20 @@
                 `<i class="far fa-user me-1"></i>${escapeHtml(item.author_name || item.author_id || '-')}`;
             document.getElementById('adminDetailDate').textContent = formatDate(item.create_dt);
             document.getElementById('adminDetailContent').textContent = item.content || '';
-            document.getElementById('answerInquiryId').value = inquiryId;
+            document.getElementById('answerInquiryId').value = postId;
 
-            // 기존 답변
+            // 기존 답변 (댓글)
             const existingSection = document.getElementById('existingAnswerSection');
             const formSection = document.getElementById('answerFormSection');
 
-            if (item.status === 'answered' && item.answer) {
+            if (hasAnswer) {
                 existingSection.classList.remove('d-none');
                 formSection.classList.add('d-none');
-                document.getElementById('existingAnswer').textContent = item.answer;
+                // 최신 댓글 표시
+                const latestComment = comments[comments.length - 1];
+                document.getElementById('existingAnswer').textContent = latestComment.comment_text || '';
                 document.getElementById('existingAnswerMeta').innerHTML =
-                    `<i class="far fa-user me-1"></i>${escapeHtml(item.answered_by_name || '관리자')} · ${formatDate(item.answered_at)}`;
+                    `<i class="far fa-user me-1"></i>${escapeHtml(latestComment.author_name || '관리자')} · ${formatDate(latestComment.create_dt)}`;
             } else {
                 existingSection.classList.add('d-none');
                 formSection.classList.remove('d-none');
