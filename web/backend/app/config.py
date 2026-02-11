@@ -48,6 +48,9 @@ class Settings(BaseSettings):
     SESSION_SECRET_KEY: str = "***REMOVED***"
     SESSION_EXPIRE_HOURS: int = 24
 
+    # === 관리자 ===
+    ADMIN_PASSWORD: str = "***REMOVED***"
+
     # === FastAPI ===
     FASTAPI_PORT: int = 8900
 

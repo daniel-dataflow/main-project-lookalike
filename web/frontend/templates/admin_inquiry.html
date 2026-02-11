@@ -1,0 +1,503 @@
+{% extends "admin_base.html" %}
+
+{% block title %}Lookalike Admin - 문의 관리{% endblock %}
+
+{% block page_title %}
+<i class="far fa-comment-dots me-2"></i>문의 관리
+{% endblock %}
+
+{% block content %}
+<div class="inquiry-admin">
+    <!-- 상태 카드 -->
+    <div class="row g-3 mb-4">
+        <div class="col-md-4">
+            <div class="bg-white rounded-4 p-4 shadow-sm h-100" style="border-left: 4px solid #0d6efd;">
+                <div class="d-flex align-items-center">
+                    <div class="bg-primary bg-opacity-10 rounded-3 p-3 me-3">
+                        <i class="fas fa-inbox text-primary fs-4"></i>
+                    </div>
+                    <div>
+                        <div class="text-muted" style="font-size: 0.8rem;">전체 문의</div>
+                        <div class="fw-bold fs-3" id="adminTotalCount">0</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="bg-white rounded-4 p-4 shadow-sm h-100" style="border-left: 4px solid #ffc107;">
+                <div class="d-flex align-items-center">
+                    <div class="bg-warning bg-opacity-10 rounded-3 p-3 me-3">
+                        <i class="fas fa-hourglass-half text-warning fs-4"></i>
+                    </div>
+                    <div>
+                        <div class="text-muted" style="font-size: 0.8rem;">미답변</div>
+                        <div class="fw-bold fs-3 text-warning" id="adminPendingCount">0</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="bg-white rounded-4 p-4 shadow-sm h-100" style="border-left: 4px solid #198754;">
+                <div class="d-flex align-items-center">
+                    <div class="bg-success bg-opacity-10 rounded-3 p-3 me-3">
+                        <i class="fas fa-check-double text-success fs-4"></i>
+                    </div>
+                    <div>
+                        <div class="text-muted" style="font-size: 0.8rem;">답변완료</div>
+                        <div class="fw-bold fs-3 text-success" id="adminAnsweredCount">0</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 필터/탭 -->
+    <div class="bg-white rounded-4 shadow-sm p-3 mb-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <ul class="nav nav-pills" id="statusFilter" role="tablist">
+                <li class="nav-item">
+                    <button class="nav-link active rounded-pill px-3" data-filter="" onclick="filterInquiries('')">
+                        전체
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link rounded-pill px-3" data-filter="pending"
+                        onclick="filterInquiries('pending')">
+                        <i class="fas fa-clock me-1 text-warning"></i>미답변
+                    </button>
+                </li>
+                <li class="nav-item">
+                    <button class="nav-link rounded-pill px-3" data-filter="answered"
+                        onclick="filterInquiries('answered')">
+                        <i class="fas fa-check-circle me-1 text-success"></i>답변완료
+                    </button>
+                </li>
+            </ul>
+            <div class="text-muted" style="font-size: 0.85rem;" id="adminResultInfo">
+                <!-- 결과 수 -->
+            </div>
+        </div>
+    </div>
+
+    <!-- 문의 목록 테이블 -->
+    <div class="bg-white rounded-4 shadow-sm" style="overflow: hidden;" id="adminInquiryListSection">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 60px;" class="text-center">번호</th>
+                        <th>제목</th>
+                        <th style="width: 100px;">작성자</th>
+                        <th style="width: 100px;" class="text-center">상태</th>
+                        <th style="width: 130px;" class="text-center">작성일</th>
+                        <th style="width: 100px;" class="text-center">관리</th>
+                    </tr>
+                </thead>
+                <tbody id="adminInquiryList">
+                    <!-- 동적으로 채워짐 -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 빈 상태 -->
+        <div class="text-center py-5 d-none" id="adminEmptyState">
+            <i class="fas fa-inbox fa-3x text-muted mb-3" style="opacity: 0.3;"></i>
+            <h6 class="text-muted">문의글이 없습니다</h6>
+        </div>
+
+        <!-- 페이지네이션 -->
+        <div class="d-flex justify-content-center p-3 border-top" id="adminPaginationNav">
+            <ul class="pagination pagination-sm mb-0" id="adminPagination"></ul>
+        </div>
+    </div>
+
+    <!-- 문의 상세 + 답변 (숨김) -->
+    <div class="d-none" id="adminDetailSection">
+        <button class="btn btn-sm btn-outline-secondary rounded-pill mb-3 px-3" onclick="adminBackToList()">
+            <i class="fas fa-arrow-left me-1"></i> 목록으로
+        </button>
+
+        <div class="row g-4">
+            <!-- 문의 내용 -->
+            <div class="col-lg-7">
+                <div class="bg-white rounded-4 shadow-sm" style="overflow: hidden;">
+                    <div class="p-4 border-bottom" style="background: linear-gradient(135deg, #f8f9fa, #fff);">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <span class="admin-status-badge" id="adminDetailStatus"></span>
+                            <small class="text-muted" id="adminDetailDate"></small>
+                        </div>
+                        <h5 class="fw-bold mb-1" id="adminDetailTitle"></h5>
+                        <small class="text-muted" id="adminDetailAuthor"></small>
+                    </div>
+                    <div class="p-4">
+                        <div class="bg-light rounded-3 p-4" id="adminDetailContent"
+                            style="line-height: 1.8; white-space: pre-wrap; word-break: break-word; min-height: 100px;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 답변 패널 -->
+            <div class="col-lg-5">
+                <div class="bg-white rounded-4 shadow-sm" style="overflow: hidden; position: sticky; top: 20px;">
+                    <div class="p-3 border-bottom bg-dark text-white">
+                        <h6 class="mb-0 fw-bold"><i class="fas fa-reply me-2"></i>답변 관리</h6>
+                    </div>
+
+                    <!-- 기존 답변 (있으면) -->
+                    <div class="p-4 d-none" id="existingAnswerSection">
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="bg-success rounded-circle d-flex align-items-center justify-content-center me-2"
+                                style="width: 28px; height: 28px;">
+                                <i class="fas fa-check text-white" style="font-size: 0.7rem;"></i>
+                            </div>
+                            <span class="fw-bold" style="font-size: 0.9rem;">답변 완료</span>
+                        </div>
+                        <div class="bg-light rounded-3 p-3 mb-3" id="existingAnswer"
+                            style="line-height: 1.7; white-space: pre-wrap; word-break: break-word; font-size: 0.9rem;">
+                        </div>
+                        <div class="text-muted" style="font-size: 0.8rem;" id="existingAnswerMeta"></div>
+                        <hr>
+                        <button class="btn btn-outline-dark btn-sm rounded-pill w-100" onclick="showRewriteForm()">
+                            <i class="fas fa-edit me-1"></i> 답변 수정
+                        </button>
+                    </div>
+
+                    <!-- 답변 작성 폼 -->
+                    <div class="p-4" id="answerFormSection">
+                        <form id="answerForm" novalidate>
+                            <input type="hidden" id="answerInquiryId">
+                            <div class="mb-3">
+                                <textarea class="form-control rounded-3" id="answerContent" rows="8"
+                                    placeholder="답변을 작성해주세요..."
+                                    style="padding: 12px 16px; border: 1px solid #e0e0e0; resize: vertical; font-size: 0.9rem;"></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-dark rounded-pill w-100" id="submitAnswerBtn">
+                                <span class="btn-text"><i class="fas fa-paper-plane me-1"></i>답변 등록</span>
+                                <span class="spinner-border spinner-border-sm d-none" id="answerSpinner"></span>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .admin-status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .admin-status-pending {
+        background: linear-gradient(135deg, #fff3cd, #ffeaa7);
+        color: #856404;
+    }
+
+    .admin-status-answered {
+        background: linear-gradient(135deg, #d1e7dd, #a3d9a5);
+        color: #0f5132;
+    }
+
+    .table th {
+        font-weight: 600;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #6c757d;
+        border-bottom: 2px solid #dee2e6;
+    }
+
+    .table td {
+        font-size: 0.9rem;
+        vertical-align: middle;
+    }
+
+    .inquiry-row {
+        cursor: pointer;
+        transition: background 0.15s ease;
+    }
+
+    .inquiry-row:hover {
+        background-color: #f0f4ff !important;
+    }
+
+    #statusFilter .nav-link {
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: #6c757d;
+    }
+
+    #statusFilter .nav-link.active {
+        background-color: #212529;
+        color: #fff;
+    }
+</style>
+
+<script>
+    let adminCurrentPage = 1;
+    let adminCurrentFilter = '';
+
+    document.addEventListener('DOMContentLoaded', function () {
+        loadAdminInquiries();
+        initAnswerForm();
+    });
+
+    // 문의 목록 로드 (관리자)
+    async function loadAdminInquiries(page = 1) {
+        adminCurrentPage = page;
+        try {
+            let url = `/api/inquiries/admin/list?page=${page}&page_size=15`;
+            if (adminCurrentFilter) {
+                url += `&status_filter=${adminCurrentFilter}`;
+            }
+
+            const resp = await fetch(url, { credentials: 'same-origin' });
+            if (!resp.ok) {
+                console.error('관리자 문의 목록 조회 실패:', resp.status);
+                return;
+            }
+            const data = await resp.json();
+
+            // 카운트 업데이트
+            document.getElementById('adminTotalCount').textContent = data.total || 0;
+            let pending = 0, answered = 0;
+            if (data.items) {
+                data.items.forEach(i => {
+                    if (i.status === 'pending') pending++;
+                    else answered++;
+                });
+            }
+            // 전체를 로드했을 때만 카운트 업데이트
+            if (!adminCurrentFilter) {
+                document.getElementById('adminPendingCount').textContent = pending;
+                document.getElementById('adminAnsweredCount').textContent = answered;
+            }
+            document.getElementById('adminResultInfo').textContent = `총 ${data.total}건`;
+
+            const listEl = document.getElementById('adminInquiryList');
+            const emptyEl = document.getElementById('adminEmptyState');
+
+            if (!data.items || data.items.length === 0) {
+                listEl.innerHTML = '';
+                emptyEl.classList.remove('d-none');
+                return;
+            }
+
+            emptyEl.classList.add('d-none');
+            listEl.innerHTML = data.items.map(item => `
+            <tr class="inquiry-row" onclick="viewAdminInquiry(${item.inquiry_id})">
+                <td class="text-center text-muted">${item.inquiry_id}</td>
+                <td>
+                    <div class="fw-semibold" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 350px;">
+                        ${escapeHtml(item.title)}
+                    </div>
+                </td>
+                <td>
+                    <span class="text-muted" style="font-size: 0.85rem;">${escapeHtml(item.author_name || item.author_id || '-')}</span>
+                </td>
+                <td class="text-center">
+                    <span class="admin-status-badge ${item.status === 'answered' ? 'admin-status-answered' : 'admin-status-pending'}">
+                        ${item.status === 'answered'
+                    ? '<i class="fas fa-check-circle"></i> 답변완료'
+                    : '<i class="fas fa-clock"></i> 대기중'}
+                    </span>
+                </td>
+                <td class="text-center text-muted" style="font-size: 0.8rem;">
+                    ${formatDate(item.create_dt)}
+                </td>
+                <td class="text-center">
+                    <button class="btn btn-sm btn-outline-dark rounded-pill px-3"
+                        onclick="event.stopPropagation(); viewAdminInquiry(${item.inquiry_id});">
+                        ${item.status === 'answered' ? '보기' : '답변'}
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+
+            // 페이지네이션
+            renderAdminPagination(data.total_pages, page);
+
+        } catch (e) {
+            console.error('관리자 문의 목록 로드 실패:', e);
+        }
+    }
+
+    // 상태 필터
+    function filterInquiries(status) {
+        adminCurrentFilter = status;
+
+        document.querySelectorAll('#statusFilter .nav-link').forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.dataset.filter === status) btn.classList.add('active');
+        });
+
+        loadAdminInquiries(1);
+    }
+
+    // 문의 상세 보기 (관리자)
+    async function viewAdminInquiry(inquiryId) {
+        try {
+            const resp = await fetch(`/api/inquiries/admin/${inquiryId}`, { credentials: 'same-origin' });
+            if (!resp.ok) return;
+            const item = await resp.json();
+
+            // 목록 숨기고 상세 보기
+            document.getElementById('adminInquiryListSection').classList.add('d-none');
+            document.querySelectorAll('.row.g-3.mb-4')[0].classList.add('d-none');
+            document.querySelector('.bg-white.rounded-4.shadow-sm.p-3.mb-4').classList.add('d-none');
+            document.getElementById('adminDetailSection').classList.remove('d-none');
+
+            // 데이터 채우기
+            const statusEl = document.getElementById('adminDetailStatus');
+            statusEl.className = `admin-status-badge ${item.status === 'answered' ? 'admin-status-answered' : 'admin-status-pending'}`;
+            statusEl.innerHTML = item.status === 'answered'
+                ? '<i class="fas fa-check-circle"></i> 답변완료'
+                : '<i class="fas fa-clock"></i> 대기중';
+
+            document.getElementById('adminDetailTitle').textContent = item.title;
+            document.getElementById('adminDetailAuthor').innerHTML =
+                `<i class="far fa-user me-1"></i>${escapeHtml(item.author_name || item.author_id || '-')}`;
+            document.getElementById('adminDetailDate').textContent = formatDate(item.create_dt);
+            document.getElementById('adminDetailContent').textContent = item.content || '';
+            document.getElementById('answerInquiryId').value = inquiryId;
+
+            // 기존 답변
+            const existingSection = document.getElementById('existingAnswerSection');
+            const formSection = document.getElementById('answerFormSection');
+
+            if (item.status === 'answered' && item.answer) {
+                existingSection.classList.remove('d-none');
+                formSection.classList.add('d-none');
+                document.getElementById('existingAnswer').textContent = item.answer;
+                document.getElementById('existingAnswerMeta').innerHTML =
+                    `<i class="far fa-user me-1"></i>${escapeHtml(item.answered_by_name || '관리자')} · ${formatDate(item.answered_at)}`;
+            } else {
+                existingSection.classList.add('d-none');
+                formSection.classList.remove('d-none');
+                document.getElementById('answerContent').value = '';
+            }
+
+        } catch (e) {
+            console.error('관리자 문의 상세 조회 실패:', e);
+        }
+    }
+
+    function showRewriteForm() {
+        const existing = document.getElementById('existingAnswer').textContent;
+        document.getElementById('answerContent').value = existing;
+        document.getElementById('existingAnswerSection').classList.add('d-none');
+        document.getElementById('answerFormSection').classList.remove('d-none');
+        document.getElementById('answerContent').focus();
+    }
+
+    function adminBackToList() {
+        document.getElementById('adminDetailSection').classList.add('d-none');
+        document.getElementById('adminInquiryListSection').classList.remove('d-none');
+        document.querySelectorAll('.row.g-3.mb-4')[0].classList.remove('d-none');
+        document.querySelector('.bg-white.rounded-4.shadow-sm.p-3.mb-4').classList.remove('d-none');
+        loadAdminInquiries(adminCurrentPage);
+    }
+
+    // 답변 폼
+    function initAnswerForm() {
+        const form = document.getElementById('answerForm');
+        if (!form) return;
+
+        form.addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            const inquiryId = document.getElementById('answerInquiryId').value;
+            const answer = document.getElementById('answerContent').value.trim();
+
+            if (!answer) {
+                alert('답변 내용을 입력해주세요.');
+                return;
+            }
+
+            const btn = document.getElementById('submitAnswerBtn');
+            const spinner = document.getElementById('answerSpinner');
+            const btnText = btn.querySelector('.btn-text');
+
+            btn.disabled = true;
+            spinner.classList.remove('d-none');
+            btnText.classList.add('d-none');
+
+            try {
+                const resp = await fetch(`/api/inquiries/admin/${inquiryId}/answer`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ answer }),
+                });
+
+                if (resp.ok) {
+                    alert('답변이 등록되었습니다!');
+                    viewAdminInquiry(inquiryId);
+                } else {
+                    const err = await resp.json();
+                    alert(err.detail || '답변 등록에 실패했습니다.');
+                }
+            } catch (e) {
+                alert('서버 연결에 실패했습니다.');
+            } finally {
+                btn.disabled = false;
+                spinner.classList.add('d-none');
+                btnText.classList.remove('d-none');
+            }
+        });
+    }
+
+    // 페이지네이션
+    function renderAdminPagination(totalPages, currentPage) {
+        const pagEl = document.getElementById('adminPagination');
+
+        if (totalPages <= 1) {
+            pagEl.innerHTML = '';
+            return;
+        }
+
+        let html = '';
+        html += `<li class="page-item ${currentPage <= 1 ? 'disabled' : ''}">
+        <a class="page-link" href="#" onclick="loadAdminInquiries(${currentPage - 1}); return false;">‹</a>
+    </li>`;
+
+        for (let i = 1; i <= totalPages; i++) {
+            html += `<li class="page-item ${i === currentPage ? 'active' : ''}">
+            <a class="page-link" href="#" onclick="loadAdminInquiries(${i}); return false;">${i}</a>
+        </li>`;
+        }
+
+        html += `<li class="page-item ${currentPage >= totalPages ? 'disabled' : ''}">
+        <a class="page-link" href="#" onclick="loadAdminInquiries(${currentPage + 1}); return false;">›</a>
+    </li>`;
+
+        pagEl.innerHTML = html;
+    }
+
+    // 유틸
+    function escapeHtml(str) {
+        const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+        return str.replace(/[&<>"']/g, c => map[c]);
+    }
+
+    function formatDate(dtStr) {
+        if (!dtStr) return '';
+        const d = new Date(dtStr);
+        const now = new Date();
+        const diff = now - d;
+
+        if (diff < 60000) return '방금 전';
+        if (diff < 3600000) return `${Math.floor(diff / 60000)}분 전`;
+        if (diff < 86400000) return `${Math.floor(diff / 3600000)}시간 전`;
+
+        return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
+    }
+</script>
+{% endblock %}
