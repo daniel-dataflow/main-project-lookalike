@@ -48,6 +48,9 @@ class Settings(BaseSettings):
     SESSION_SECRET_KEY: str = "lookalike-session-secret-change-in-production-2024"
     SESSION_EXPIRE_HOURS: int = 24
 
+    # === 관리자 ===
+    ADMIN_PASSWORD: str = "admin1234!"
+
     # === FastAPI ===
     FASTAPI_PORT: int = 8900
 

@@ -548,3 +548,81 @@ async def update_user(user_id: str, req: UserUpdateRequest):
     except Exception as e:
         logger.error(f"사용자 수정 실패: {e}")
         raise HTTPException(status_code=500, detail="서버 오류")
+
+
+# ══════════════════════════════════════
+# 관리자 인증 (별도 비밀번호 체크)
+# ══════════════════════════════════════
+
+@router.post("/admin/login")
+async def admin_login(request: Request):
+    """관리자 비밀번호 인증 → 세션에 is_admin 플래그 저장"""
+    settings = get_settings()
+
+    # 1) 로그인 체크
+    token = request.cookies.get("session_token")
+    if not token:
+        raise HTTPException(status_code=401, detail="먼저 로그인해주세요")
+
+    redis_client = get_redis()
+    session_data = redis_client.get(f"session:{token}")
+    if not session_data:
+        raise HTTPException(status_code=401, detail="세션이 만료되었습니다")
+
+    session = json.loads(session_data)
+
+    # 2) 비밀번호 확인
+    body = await request.json()
+    password = body.get("password", "")
+
+    if password != settings.ADMIN_PASSWORD:
+        raise HTTPException(status_code=403, detail="관리자 비밀번호가 올바르지 않습니다")
+
+    # 3) 세션에 is_admin 플래그 추가
+    session["is_admin"] = True
+    redis_client.setex(
+        f"session:{token}",
+        settings.SESSION_EXPIRE_HOURS * 3600,
+        json.dumps(session, default=str),
+    )
+
+    logger.info(f"✅ 관리자 인증 성공: {session.get('user_id')}")
+    return {"success": True, "message": "관리자 인증 완료"}
+
+
+@router.post("/admin/logout")
+async def admin_logout(request: Request):
+    """관리자 권한 해제 (세션에서 is_admin 제거)"""
+    token = request.cookies.get("session_token")
+    if not token:
+        return {"success": True}
+
+    redis_client = get_redis()
+    session_data = redis_client.get(f"session:{token}")
+    if session_data:
+        session = json.loads(session_data)
+        session.pop("is_admin", None)
+        settings = get_settings()
+        redis_client.setex(
+            f"session:{token}",
+            settings.SESSION_EXPIRE_HOURS * 3600,
+            json.dumps(session, default=str),
+        )
+
+    return {"success": True, "message": "관리자 권한이 해제되었습니다"}
+
+
+@router.get("/admin/check")
+async def admin_check(request: Request):
+    """현재 세션이 관리자 인증 상태인지 확인"""
+    token = request.cookies.get("session_token")
+    if not token:
+        return {"is_admin": False}
+
+    redis_client = get_redis()
+    session_data = redis_client.get(f"session:{token}")
+    if not session_data:
+        return {"is_admin": False}
+
+    session = json.loads(session_data)
+    return {"is_admin": session.get("is_admin", False)}

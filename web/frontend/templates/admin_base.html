@@ -28,18 +28,172 @@
             padding: 20px;
         }
 
-        .nav-link.active {
-            background-color: #f8f9fa;
+        .sidebar .nav-pills .nav-link {
+            color: #333;
+            border-radius: 8px;
+            margin-bottom: 2px;
+            padding: 10px 16px;
+            transition: all 0.2s ease;
+            border-left: 3px solid transparent;
+        }
+
+        .sidebar .nav-pills .nav-link:hover {
+            background-color: #f0f0f0;
+        }
+
+        .sidebar .nav-pills .nav-link.active {
+            background-color: #e8f0fe !important;
             color: #0d6efd !important;
             font-weight: 600;
+            border-left: 3px solid #0d6efd;
+        }
+
+        /* 어드민 인증 화면 */
+        .admin-auth-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .admin-auth-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 48px 40px;
+            width: 100%;
+            max-width: 420px;
+            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.3);
+        }
+
+        .admin-auth-card .shield-icon {
+            width: 72px;
+            height: 72px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 24px;
+            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
+        }
+
+        .admin-auth-card h4 {
+            color: #fff;
+            font-weight: 700;
+        }
+
+        .admin-auth-card p {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 0.9rem;
+        }
+
+        .admin-auth-card .form-control {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            color: #fff;
+            border-radius: 12px;
+            padding: 14px 18px;
+            font-size: 1rem;
+        }
+
+        .admin-auth-card .form-control::placeholder {
+            color: rgba(255, 255, 255, 0.35);
+        }
+
+        .admin-auth-card .form-control:focus {
+            background: rgba(255, 255, 255, 0.12);
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+            color: #fff;
+        }
+
+        .admin-auth-card .btn-admin-login {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: none;
+            border-radius: 12px;
+            padding: 14px;
+            font-weight: 600;
+            font-size: 1rem;
+            color: #fff;
+            transition: all 0.3s ease;
+        }
+
+        .admin-auth-card .btn-admin-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .admin-auth-card .btn-admin-login:disabled {
+            opacity: 0.6;
+            transform: none;
+        }
+
+        .admin-auth-error {
+            background: rgba(220, 53, 69, 0.15);
+            border: 1px solid rgba(220, 53, 69, 0.3);
+            color: #ff6b6b;
+            border-radius: 10px;
+            padding: 10px 14px;
+            font-size: 0.85rem;
+            display: none;
+        }
+
+        .admin-back-link {
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 0.85rem;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .admin-back-link:hover {
+            color: rgba(255, 255, 255, 0.8);
         }
     </style>
 </head>
 
 <body class="bg-light">
 
+    <!-- 어드민 인증 오버레이 (JS로 제어) -->
+    <div class="admin-auth-overlay" id="adminAuthOverlay">
+        <div class="admin-auth-card text-center">
+            <div class="shield-icon">
+                <i class="fas fa-user-shield text-white fs-3"></i>
+            </div>
+            <h4 class="mb-2">관리자 인증</h4>
+            <p class="mb-4">관리자 페이지에 접근하려면 비밀번호를 입력해주세요.</p>
+
+            <div class="admin-auth-error mb-3" id="adminAuthError">
+                <i class="fas fa-exclamation-circle me-1"></i>
+                <span id="adminAuthErrorMsg">비밀번호가 올바르지 않습니다.</span>
+            </div>
+
+            <form id="adminAuthForm" onsubmit="adminLogin(event)">
+                <div class="mb-4">
+                    <input type="password" class="form-control" id="adminPassword" placeholder="관리자 비밀번호"
+                        autocomplete="off" autofocus>
+                </div>
+                <button type="submit" class="btn btn-admin-login w-100 mb-3" id="adminLoginBtn">
+                    <span class="btn-text"><i class="fas fa-lock-open me-2"></i>인증하기</span>
+                    <span class="spinner-border spinner-border-sm d-none" id="adminLoginSpinner"></span>
+                </button>
+            </form>
+
+            <a href="/" class="admin-back-link">
+                <i class="fas fa-arrow-left me-1"></i> 사용자 홈으로 돌아가기
+            </a>
+        </div>
+    </div>
+
     <!-- Sidebar -->
-    <div class="sidebar d-flex flex-column p-3">
+    <div class="sidebar d-flex flex-column p-3" id="adminSidebar" style="display: none !important;">
         <a href="/admin" class="d-flex align-items-center mb-3 mb-md-0 me-md-auto link-dark text-decoration-none">
             <i class="fas fa-user-shield text-primary fs-4 me-2"></i>
             <span class="fs-4 fw-bold">관리자 페이지</span>
@@ -66,6 +220,13 @@
                     배치작업 모니터링
                 </a>
             </li>
+            <li>
+                <a href="/admin/inquiry"
+                    class="nav-link link-dark {% if request.url.path == '/admin/inquiry' %}active{% endif %}">
+                    <i class="far fa-comment-dots me-2"></i>
+                    문의 관리
+                </a>
+            </li>
         </ul>
         <hr>
         <div class="dropdown">
@@ -73,20 +234,22 @@
                 id="dropdownUser2" data-bs-toggle="dropdown" aria-expanded="false">
                 <img src="https://ui-avatars.com/api/?name=Admin&background=random" alt="" width="32" height="32"
                     class="rounded-circle me-2">
-                <strong>Super Admin</strong>
+                <strong id="adminUserName">Admin</strong>
             </a>
             <ul class="dropdown-menu text-small shadow" aria-labelledby="dropdownUser2">
                 <li><a class="dropdown-item" href="/">사용자 홈으로</a></li>
                 <li>
                     <hr class="dropdown-divider">
                 </li>
-                <li><a class="dropdown-item" href="#">로그아웃</a></li>
+                <li><a class="dropdown-item" href="#" onclick="adminLogout(); return false;">
+                        <i class="fas fa-sign-out-alt me-1"></i>관리자 로그아웃
+                    </a></li>
             </ul>
         </div>
     </div>
 
     <!-- Main Content -->
-    <div class="main-content">
+    <div class="main-content" id="adminMainContent" style="display: none !important;">
         <!-- Top Bar -->
         <div class="d-flex justify-content-between align-items-center mb-4 bg-white p-3 rounded shadow-sm">
             <h5 class="m-0 fw-bold">{% block page_title %}Dashboard{% endblock %}</h5>
@@ -96,7 +259,7 @@
                     <input type="text" class="form-control bg-light border-start-0" placeholder="Search resources...">
                 </div>
                 <div class="text-end">
-                    <div class="fw-bold">Super Admin</div>
+                    <div class="fw-bold" id="adminTopName">Admin</div>
                     <small class="text-success" style="font-size: 0.7rem;">FULL ACCESS</small>
                 </div>
             </div>
@@ -107,6 +270,107 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="/static/js/script.js"></script>
+
+    <script>
+        // 페이지 로드 시 어드민 인증 상태 확인
+        document.addEventListener('DOMContentLoaded', function () {
+            checkAdminAuth();
+        });
+
+        async function checkAdminAuth() {
+            try {
+                const resp = await fetch('/api/auth/admin/check', { credentials: 'same-origin' });
+                const data = await resp.json();
+
+                if (data.is_admin) {
+                    showAdminContent();
+                    // 사용자 이름 표시
+                    const meResp = await fetch('/api/auth/me', { credentials: 'same-origin' });
+                    const meData = await meResp.json();
+                    if (meData.success && meData.user) {
+                        const name = meData.user.name || 'Admin';
+                        document.getElementById('adminUserName').textContent = name;
+                        document.getElementById('adminTopName').textContent = name;
+                    }
+                } else {
+                    showAdminAuth();
+                }
+            } catch (e) {
+                showAdminAuth();
+            }
+        }
+
+        function showAdminAuth() {
+            document.getElementById('adminAuthOverlay').style.display = 'flex';
+            document.getElementById('adminSidebar').style.display = 'none';
+            document.getElementById('adminSidebar').style.setProperty('display', 'none', 'important');
+            document.getElementById('adminMainContent').style.display = 'none';
+            document.getElementById('adminMainContent').style.setProperty('display', 'none', 'important');
+            document.getElementById('adminPassword').focus();
+        }
+
+        function showAdminContent() {
+            document.getElementById('adminAuthOverlay').style.display = 'none';
+            document.getElementById('adminSidebar').style.setProperty('display', 'flex', 'important');
+            document.getElementById('adminMainContent').style.setProperty('display', 'block', 'important');
+        }
+
+        async function adminLogin(e) {
+            e.preventDefault();
+
+            const password = document.getElementById('adminPassword').value.trim();
+            if (!password) return;
+
+            const btn = document.getElementById('adminLoginBtn');
+            const spinner = document.getElementById('adminLoginSpinner');
+            const btnText = btn.querySelector('.btn-text');
+            const errorEl = document.getElementById('adminAuthError');
+
+            btn.disabled = true;
+            spinner.classList.remove('d-none');
+            btnText.classList.add('d-none');
+            errorEl.style.display = 'none';
+
+            try {
+                const resp = await fetch('/api/auth/admin/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ password }),
+                });
+
+                if (resp.ok) {
+                    showAdminContent();
+                    // 페이지 새로고침하여 콘텐츠 제대로 로드
+                    location.reload();
+                } else {
+                    const err = await resp.json();
+                    document.getElementById('adminAuthErrorMsg').textContent =
+                        err.detail || '인증에 실패했습니다.';
+                    errorEl.style.display = 'block';
+                    document.getElementById('adminPassword').value = '';
+                    document.getElementById('adminPassword').focus();
+                }
+            } catch (e) {
+                document.getElementById('adminAuthErrorMsg').textContent = '서버 연결에 실패했습니다.';
+                errorEl.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                spinner.classList.add('d-none');
+                btnText.classList.remove('d-none');
+            }
+        }
+
+        async function adminLogout() {
+            try {
+                await fetch('/api/auth/admin/logout', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                });
+            } catch (e) { }
+            location.href = '/';
+        }
+    </script>
 </body>
 
 </html>

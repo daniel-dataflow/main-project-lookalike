@@ -14,7 +14,7 @@ import logging
 
 from .config import get_settings
 from .database import init_all_databases, close_all_databases
-from .routers import auth_router, products_router, posts_router, search_router
+from .routers import auth_router, products_router, posts_router, search_router, inquiries_router
 
 # ──────────────────────────────────────
 # 로깅 설정
@@ -81,6 +81,7 @@ app.include_router(auth_router)
 app.include_router(products_router)
 app.include_router(posts_router)
 app.include_router(search_router)
+app.include_router(inquiries_router)
 
 
 # ──────────────────────────────────────
@@ -120,6 +121,16 @@ async def admin_infra(request: Request):
 @app.get("/admin/batch", response_class=HTMLResponse)
 async def admin_batch(request: Request):
     return templates.TemplateResponse("admin_batch.html", {"request": request})
+
+
+@app.get("/admin/inquiry", response_class=HTMLResponse)
+async def admin_inquiry(request: Request):
+    return templates.TemplateResponse("admin_inquiry.html", {"request": request})
+
+
+@app.get("/inquiry", response_class=HTMLResponse)
+async def inquiry_page(request: Request):
+    return templates.TemplateResponse("inquiry.html", {"request": request})
 
 
 # ──────────────────────────────────────

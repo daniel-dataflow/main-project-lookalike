@@ -134,6 +134,15 @@ services:
           );
           CREATE INDEX IF NOT EXISTS idx_search_logs_user_id ON search_logs(user_id);
           CREATE INDEX IF NOT EXISTS idx_search_logs_nprice_id ON search_logs(nprice_id);
+          CREATE TABLE IF NOT EXISTS inquiry_board (
+            inquiry_id BIGSERIAL PRIMARY KEY, title VARCHAR(200) NOT NULL, content TEXT,
+            author_id VARCHAR(50) REFERENCES users(user_id), status VARCHAR(20) DEFAULT 'pending',
+            answer TEXT, answered_by VARCHAR(50) REFERENCES users(user_id),
+            answered_at TIMESTAMP, view_count INTEGER DEFAULT 0,
+            create_dt TIMESTAMP DEFAULT NOW(), update_dt TIMESTAMP DEFAULT NOW()
+          );
+          CREATE INDEX IF NOT EXISTS idx_inquiry_board_author_id ON inquiry_board(author_id);
+          CREATE INDEX IF NOT EXISTS idx_inquiry_board_status ON inquiry_board(status);
       EOF
         echo '✅ 프로젝트 테이블 초기화 완료'
         echo '🚀 DB 초기화 완료!'
@@ -520,7 +529,6 @@ services:
     ports: [ "${FASTAPI_PORT}:8900" ]
     volumes:
       - .:/app
-      - ./miniconda3:/opt/miniconda3
     networks: [ main-network ]
     restart: unless-stopped
     deploy:
@@ -530,7 +538,8 @@ services:
         reservations:
           memory: 512M
     command: >
-      bash -c "/opt/miniconda3/envs/ml-env/bin/python -m uvicorn web.backend.app.main:app --host 0.0.0.0 --port 8900"     
+      bash -c "pip install --no-cache-dir -r web/backend/requirements.txt &&
+               python -m uvicorn web.backend.app.main:app --host 0.0.0.0 --port 8900"     
     healthcheck:
       test: [ "CMD-SHELL", "python -c 'import socket; s = socket.socket(socket.AF_INET, socket.SOCK_STREAM); s.connect((\"localhost\", 8900))' || exit 1" ]
       interval: 10s
