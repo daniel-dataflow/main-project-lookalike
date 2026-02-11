@@ -9,15 +9,28 @@
 
 set -e
 
-# .env 파일에서 설정 읽기
+# .env 파일에서 설정 읽기 (source 대신 grep으로 안전하게 파싱)
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-if [ -f "$PROJECT_ROOT/.env" ]; then
-    source "$PROJECT_ROOT/.env"
-else
-    echo "❌ .env 파일을 찾을 수 없습니다 ($PROJECT_ROOT/.env)"
+ENV_FILE="$PROJECT_ROOT/.env"
+
+if [ ! -f "$ENV_FILE" ]; then
+    echo "❌ .env 파일을 찾을 수 없습니다 ($ENV_FILE)"
     exit 1
 fi
+
+# 필요한 변수만 안전하게 추출 (주석, 변수치환 등 무시)
+_env_val() { grep -m1 "^$1=" "$ENV_FILE" | cut -d'=' -f2- | tr -d '\r'; }
+
+POSTGRES_USER=$(_env_val POSTGRES_USER)
+POSTGRES_DB=$(_env_val POSTGRES_DB)
+POSTGRES_PASSWORD=$(_env_val POSTGRES_PASSWORD)
+AIRFLOW_DB=$(_env_val AIRFLOW_DB)
+
+# 기본값 설정
+: "${POSTGRES_USER:=datauser}"
+: "${POSTGRES_DB:=datadb}"
+: "${AIRFLOW_DB:=airflowdb}"
 
 PG_CONTAINER="postgres-main"
 
