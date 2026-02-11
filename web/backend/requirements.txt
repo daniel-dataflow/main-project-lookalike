@@ -1,15 +1,25 @@
+# ============================================================
+# Main Project Lookalike - FastAPI Backend 의존성
+# 설치: pip install -r web/backend/requirements.txt
+# Conda 환경 설치: conda activate ml-env && pip install -r web/backend/requirements.txt
+# ============================================================
+
+# FastAPI 프레임워크
 fastapi==0.109.0
 uvicorn[standard]==0.27.0
+jinja2==3.1.6
 python-multipart==0.0.6
-psycopg2-binary==2.9.9
-pymongo==4.6.1
-redis==5.0.1
 pydantic==2.5.3
 pydantic-settings==2.1.0
 python-dotenv==1.0.0
-jinja2==3.1.6
-elasticsearch==8.11.0
+
+# 인증 (⚠️ passlib 사용하지 않음 — bcrypt 직접 사용)
 bcrypt==4.1.2
-passlib[bcrypt]==1.7.4
-httpx==0.26.0
-email-validator==2.1.0
+httpx==0.28.1
+email-validator==2.3.0
+
+# 데이터베이스
+psycopg2-binary==2.9.9
+redis==5.0.1
+pymongo==4.6.1
+elasticsearch==8.11.0
