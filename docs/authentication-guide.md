@@ -482,9 +482,9 @@ function startSocialLogin(provider) {
 | OAuth 콜백 에러 시 500 | `code` 파라미터가 required | `code`를 Optional로 변경, 에러 핸들링 추가 |
 | 포트 8900 충돌 | VS Code 포트 포워딩 | VS Code Ports 패널에서 포워딩 해제 |
 
-### 새 PC에서 처음 세팅하기
+### 새 PC / 서버에서 처음 세팅하기
 
-새 PC에서는 `docker compose up` 만 하면 `init-db` 서비스가 자동으로 최신 스키마를 생성합니다.
+새 환경에서는 아래 순서대로 진행합니다.
 
 ```bash
 # 1) 프로젝트 클론
@@ -496,9 +496,9 @@ cd main-project-lookalike
 # 3) Docker 서비스 시작 (DB + Redis 자동 초기화)
 docker compose up -d postgresql mongodb redis init-db
 
-# 4) 패키지 설치
-pip install fastapi uvicorn jinja2 python-multipart pydantic-settings \
-  httpx bcrypt email-validator psycopg2-binary redis pymongo
+# 4) Conda 환경 활성화 후 패키지 설치
+conda activate ml-env
+pip install -r web/backend/requirements.txt
 
 # 5) 서버 실행
 POSTGRES_HOST=localhost MONGODB_HOST=localhost REDIS_HOST=localhost \
@@ -508,6 +508,9 @@ python -m uvicorn web.backend.app.main:app --host 0.0.0.0 --port 8900 --reload
 > ✅ `docker-compose.yml`의 `init-db` 서비스에 최신 스키마가 포함되어 있어,
 > `CREATE TABLE IF NOT EXISTS`로 OAuth 컬럼(`provider`, `social_id`, `profile_image`)이
 > 포함된 테이블이 자동 생성됩니다.
+
+> ⚠️ **주의**: `bcrypt==4.1.2`로 버전이 고정되어 있습니다. `bcrypt 5.x`는 호환 문제가 있으므로
+> 반드시 `requirements.txt`를 통해 설치하세요.
 
 ### 기존 DB 마이그레이션 (구 스키마 → 신 스키마)
 
@@ -549,17 +552,24 @@ docker exec postgres-main psql -U datauser -d datadb -c "
 # 프로젝트 루트에서 실행
 cd ~/dev/data-engineer/main-project-lookalike
 
+# Conda 환경 활성화
+conda activate ml-env
+
+# 서버 시작
 POSTGRES_HOST=localhost MONGODB_HOST=localhost REDIS_HOST=localhost \
-/Users/handaeseong/dev/data-engineer/miniconda3/envs/ml-env/bin/python \
--m uvicorn web.backend.app.main:app --host 0.0.0.0 --port 8900 --reload
+python -m uvicorn web.backend.app.main:app --host 0.0.0.0 --port 8900 --reload
 ```
 
-### 필수 패키지
+### 필수 패키지 (requirements.txt)
+
+패키지는 `web/backend/requirements.txt`로 관리됩니다:
 
 ```bash
-pip install fastapi uvicorn jinja2 python-multipart pydantic-settings \
-  httpx bcrypt email-validator psycopg2-binary redis pymongo
+# Conda 환경에서 설치
+conda activate ml-env
+pip install -r web/backend/requirements.txt
 ```
 
-> ⚠️ `passlib`은 사용하지 않음 — `bcrypt`를 직접 사용
+> ⚠️ `passlib`은 사용하지 않음 — `bcrypt`를 직접 사용  
+> ⚠️ `bcrypt`는 반드시 **4.1.2** 버전 사용 (5.x 호환 문제)
 
