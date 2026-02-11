@@ -1,8 +1,8 @@
 #!/bin/bash
 # ============================================================
 # Main Project Lookalike — 통합 Docker 시작 스크립트
-# 위치: ~/main-project-lookalike/script/start_all.sh
-# 실행: bash ~/main-project-lookalike/script/start_all.sh
+# 위치: ~/main-project-lookalike/scripts/start_all.sh
+# 실행: bash ~/main-project-lookalike/scripts/start_all.sh
 # ============================================================
 
 # ──────────────────────────────────────────────

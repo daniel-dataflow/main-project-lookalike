@@ -11,7 +11,7 @@ import json
 import logging
 
 import httpx
-from passlib.context import CryptContext
+import bcrypt
 
 from ..database import get_pg_cursor, get_redis
 from ..models.user import (
@@ -28,19 +28,21 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/auth", tags=["인증"])
 
 # ──────────────────────────────────────
-# 비밀번호 해싱 (bcrypt)
+# 비밀번호 해싱 (bcrypt 직접 사용)
 # ──────────────────────────────────────
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 def _hash_password(password: str) -> str:
     """bcrypt 비밀번호 해싱"""
-    return pwd_context.hash(password)
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
 def _verify_password(plain: str, hashed: str) -> bool:
     """bcrypt 비밀번호 검증"""
-    return pwd_context.verify(plain, hashed)
+    try:
+        return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
+    except Exception:
+        return False
 
 
 # ──────────────────────────────────────
@@ -276,7 +278,7 @@ OAUTH_CONFIGS = {
         "auth_url": "https://kauth.kakao.com/oauth/authorize",
         "token_url": "https://kauth.kakao.com/oauth/token",
         "userinfo_url": "https://kapi.kakao.com/v2/user/me",
-        "scope": "profile_nickname profile_image account_email",
+        "scope": "profile_nickname profile_image",
     },
 }
 
@@ -329,9 +331,21 @@ async def oauth_login(provider: str):
 # OAuth2: 콜백 처리
 # ──────────────────────────────────────
 @router.get("/oauth/{provider}/callback")
-async def oauth_callback(provider: str, code: str, state: str = "", response: Response = None):
+async def oauth_callback(
+    provider: str,
+    code: str = None,
+    state: str = "",
+    error: str = None,
+    error_description: str = None,
+    response: Response = None,
+):
     """OAuth 콜백 - 토큰 교환 → 사용자 정보 조회 → 로그인/가입"""
     settings = get_settings()
+
+    # OAuth 제공자가 에러를 반환한 경우
+    if error or not code:
+        logger.warning(f"OAuth 콜백 에러 ({provider}): error={error}, desc={error_description}")
+        return RedirectResponse(url="/?error=oauth_failed")
 
     if provider not in OAUTH_CONFIGS:
         raise HTTPException(status_code=400, detail="지원하지 않는 OAuth 제공자입니다")

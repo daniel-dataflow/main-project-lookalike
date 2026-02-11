@@ -3,17 +3,18 @@
 # migrate_airflow_db.sh
 # 기존 환경에서 Airflow DB를 datadb에서 airflowdb로 분리하는 스크립트
 # 
-# 사용법: bash migrate_airflow_db.sh
+# 사용법: bash scripts/migrate_airflow_db.sh  (프로젝트 루트에서 실행)
 # ============================================================
 
 set -e
 
-# .env 파일에서 설정 읽기
+# .env 파일에서 설정 읽기 (스크립트 위치 기준 상위 디렉토리)
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-if [ -f "$SCRIPT_DIR/.env" ]; then
-    source "$SCRIPT_DIR/.env"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+if [ -f "$PROJECT_ROOT/.env" ]; then
+    source "$PROJECT_ROOT/.env"
 else
-    echo "❌ .env 파일을 찾을 수 없습니다 ($SCRIPT_DIR/.env)"
+    echo "❌ .env 파일을 찾을 수 없습니다 ($PROJECT_ROOT/.env)"
     exit 1
 fi
 
