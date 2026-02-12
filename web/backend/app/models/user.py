@@ -29,6 +29,8 @@ class UserUpdateRequest(BaseModel):
     name: Optional[str] = Field(None, max_length=50)
     email: Optional[EmailStr] = Field(None, max_length=100)
     profile_image: Optional[str] = Field(None, max_length=512)
+    current_password: Optional[str] = Field(None, description="현재 비밀번호 (비밀번호 변경 시 필수)")
+    new_password: Optional[str] = Field(None, min_length=4, max_length=255, description="새 비밀번호")
 
 
 # ──────────────────────────────────────

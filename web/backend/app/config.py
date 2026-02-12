@@ -3,6 +3,7 @@
 """
 from pydantic_settings import BaseSettings
 from functools import lru_cache
+from typing import Optional
 import os
 
 
@@ -43,6 +44,9 @@ class Settings(BaseSettings):
     NAVER_CLIENT_SECRET: str = ""
     KAKAO_CLIENT_ID: str = ""
     KAKAO_CLIENT_SECRET: str = ""
+    
+    # 리다이렉트 URI (환경변수 설정 제거 - 요청 호스트 기반 동적 생성)
+    # OAUTH_REDIRECT_URI: Optional[str] = None
 
     # === 세션 ===
     SESSION_SECRET_KEY: str = "lookalike-session-secret-change-in-production-2024"
@@ -76,10 +80,7 @@ class Settings(BaseSettings):
     def ELASTICSEARCH_URL(self) -> str:
         return f"http://{self.ELASTICSEARCH_HOST}:{self.ELASTICSEARCH_PORT}"
 
-    @property
-    def OAUTH_REDIRECT_BASE(self) -> str:
-        """OAuth 콜백 URL 베이스 (환경에 따라 자동 설정)"""
-        return f"http://localhost:{self.FASTAPI_PORT}"
+    # OAUTH_REDIRECT_BASE 프로퍼티 제거 (동적 생성을 위해 auth.py에서 처리)
 
     def is_oauth_configured(self, provider: str) -> bool:
         """지정된 OAuth 제공자의 클라이언트 키가 설정되어 있는지 확인"""

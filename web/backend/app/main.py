@@ -5,7 +5,7 @@ Lookalike - FastAPI 메인 애플리케이션
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import uvicorn
@@ -104,6 +104,15 @@ async def product_detail(request: Request, product_id: str):
 
 @app.get("/mypage", response_class=HTMLResponse)
 async def mypage(request: Request):
+    from .routers.auth import _get_session
+    
+    session = _get_session(request)
+    if not session:
+        return RedirectResponse(url="/?error=login_required", status_code=302)
+    
+    # 템플릿에서 사용하기 위해 state에 user 정보 저장
+    request.state.user = session
+        
     return templates.TemplateResponse("mypage.html", {"request": request})
 
 

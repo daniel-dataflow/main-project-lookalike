@@ -232,16 +232,37 @@ async def logout(request: Request, response: Response):
 # ──────────────────────────────────────
 @router.get("/me", response_model=LoginResponse)
 async def get_current_user(request: Request):
-    """현재 로그인한 사용자 정보 조회 (세션 기반)"""
+    """현재 로그인한 사용자 정보 조회 (DB 최신 정보)"""
     session = _get_session(request)
     if not session:
         return LoginResponse(success=False, message="로그인이 필요합니다")
-
-    return LoginResponse(
-        success=True,
-        message="인증된 사용자",
-        user=UserResponse(**session),
-    )
+    
+    user_id = session.get("user_id")
+    
+    try:
+        with get_pg_cursor() as cur:
+            cur.execute(
+                """
+                SELECT user_id, name, email, role, provider, profile_image,
+                       last_login, create_dt
+                FROM users WHERE user_id = %s
+                """,
+                (user_id,),
+            )
+            row = cur.fetchone()
+            
+        if not row:
+            # 세션은 있으나 DB에 사용자가 없는 경우
+            return LoginResponse(success=False, message="사용자 정보를 찾을 수 없습니다")
+            
+        return LoginResponse(
+            success=True,
+            message="인증된 사용자",
+            user=UserResponse(**row),
+        )
+    except Exception as e:
+        logger.error(f"사용자 정보 조회 실패: {e}")
+        return LoginResponse(success=False, message="정보 조회 중 오류 발생")
 
 
 # ──────────────────────────────────────
@@ -284,7 +305,7 @@ OAUTH_CONFIGS = {
 
 
 @router.get("/oauth/{provider}")
-async def oauth_login(provider: str):
+async def oauth_login(provider: str, request: Request):
     """소셜 로그인 시작 - OAuth 제공자로 리다이렉트"""
     settings = get_settings()
 
@@ -295,7 +316,20 @@ async def oauth_login(provider: str):
         raise HTTPException(status_code=400, detail=f"{provider} 로그인이 설정되지 않았습니다")
 
     config = OAUTH_CONFIGS[provider]
-    redirect_uri = f"{settings.OAUTH_REDIRECT_BASE}/api/auth/oauth/{provider}/callback"
+    
+    # 동적 리다이렉트 URI 생성 (접속한 도메인 기준)
+    # request.url_for는 http/https 스킴을 자동으로 처리함 (프록시 설정 필요할 수 있음)
+    redirect_uri = str(request.url_for("oauth_callback", provider=provider))
+    
+    # Docker/Nginx 환경에서 scheme이 반영되지 않을 경우를 대비해 강제로 설정이 필요할 수도 있음.
+    # 여기서는 일단 request.url_for 결과를 신뢰하되, 외부 접속 문제 해결을 위해 
+    # request.headers["host"]를 사용하여 직접 구성하는 방식을 혼용할 수도 있으나
+    # 가장 표준적인 request.url_for를 우선 사용.
+    
+    # 만약 http/https 문제가 발생하면 아래와 같이 직접 구성:
+    # scheme = request.headers.get("x-forwarded-proto", "http")
+    # host = request.headers.get("host")
+    # redirect_uri = f"{scheme}://{host}/api/auth/oauth/{provider}/callback"
 
     # 클라이언트 ID 가져오기
     client_id = getattr(settings, f"{provider.upper()}_CLIENT_ID")
@@ -333,6 +367,7 @@ async def oauth_login(provider: str):
 @router.get("/oauth/{provider}/callback")
 async def oauth_callback(
     provider: str,
+    request: Request,
     code: str = None,
     state: str = "",
     error: str = None,
@@ -351,7 +386,10 @@ async def oauth_callback(
         raise HTTPException(status_code=400, detail="지원하지 않는 OAuth 제공자입니다")
 
     config = OAUTH_CONFIGS[provider]
-    redirect_uri = f"{settings.OAUTH_REDIRECT_BASE}/api/auth/oauth/{provider}/callback"
+    
+    # 토큰 교환 시에도 동일한 redirect_uri를 보내야 함
+    redirect_uri = str(request.url_for("oauth_callback", provider=provider))
+    
     client_id = getattr(settings, f"{provider.upper()}_CLIENT_ID")
     client_secret = getattr(settings, f"{provider.upper()}_CLIENT_SECRET")
 
@@ -504,29 +542,52 @@ async def get_user(user_id: str):
 # 사용자 정보 수정
 # ──────────────────────────────────────
 @router.put("/users/{user_id}", response_model=UserResponse)
-async def update_user(user_id: str, req: UserUpdateRequest):
-    """사용자 정보 수정"""
+async def update_user(user_id: str, req: UserUpdateRequest, request: Request, response: Response):
+    """사용자 정보 수정 (비밀번호 변경만 가능, 이메일 사용자 전용)"""
+    # 1. 세션 확인 (로그인 여부)
+    session = _get_session(request)
+    if not session or session.get("user_id") != user_id:
+        raise HTTPException(status_code=403, detail="권한이 없습니다")
+
     try:
-        updates = []
-        values = []
-
-        if req.name is not None:
-            updates.append("name = %s")
-            values.append(req.name)
-        if req.email is not None:
-            updates.append("email = %s")
-            values.append(req.email)
-        if req.profile_image is not None:
-            updates.append("profile_image = %s")
-            values.append(req.profile_image)
-
-        if not updates:
-            raise HTTPException(status_code=400, detail="수정할 항목이 없습니다")
-
-        updates.append("update_dt = NOW()")
-        values.append(user_id)
-
         with get_pg_cursor() as cur:
+            # 2. 현재 사용자 정보 조회
+            cur.execute(
+                "SELECT * FROM users WHERE user_id = %s",
+                (user_id,),
+            )
+            current_user = cur.fetchone()
+            if not current_user:
+                raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다")
+
+            # 소셜 로그인 사용자는 수정 불가
+            if current_user["provider"] != "email":
+                raise HTTPException(status_code=403, detail="소셜 로그인 사용자는 회원정보를 수정할 수 없습니다")
+
+            updates = []
+            values = []
+
+            # 3. 비밀번호 변경 로직
+            if req.new_password:
+                if not req.current_password:
+                    raise HTTPException(status_code=400, detail="현재 비밀번호를 입력해주세요")
+                
+                if not _verify_password(req.current_password, current_user["password"]):
+                    raise HTTPException(status_code=400, detail="현재 비밀번호가 일치하지 않습니다")
+                
+                updates.append("password = %s")
+                values.append(_hash_password(req.new_password))
+            
+            # 이름, 이메일, 프로필 이미지 변경은 허용하지 않음
+            pass
+
+            if not updates:
+                raise HTTPException(status_code=400, detail="수정할 내용이 없습니다 (비밀번호 변경만 가능합니다)")
+
+            updates.append("update_dt = NOW()")
+            values.append(user_id)
+
+            # 4. DB 업데이트
             cur.execute(
                 f"""
                 UPDATE users SET {', '.join(updates)}
@@ -538,8 +599,9 @@ async def update_user(user_id: str, req: UserUpdateRequest):
             )
             row = cur.fetchone()
 
-        if not row:
-            raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다")
+            # 5. 비밀번호 변경 후 로그아웃 처리 (세션 삭제)
+            # 보안을 위해 비밀번호 변경 시 기존 세션을 만료시킵니다.
+            _delete_session(request, response)
 
         return UserResponse(**row)
 
@@ -547,6 +609,36 @@ async def update_user(user_id: str, req: UserUpdateRequest):
         raise
     except Exception as e:
         logger.error(f"사용자 수정 실패: {e}")
+        raise HTTPException(status_code=500, detail="서버 오류")
+
+
+# ──────────────────────────────────────
+# 회원 탈퇴
+# ──────────────────────────────────────
+@router.delete("/users/{user_id}")
+async def delete_user(user_id: str, request: Request, response: Response):
+    """회원 탈퇴 (DB 삭제 + 로그아웃)"""
+    # 1. 권한 확인
+    session = _get_session(request)
+    if not session or session.get("user_id") != user_id:
+        raise HTTPException(status_code=403, detail="권한이 없습니다")
+
+    try:
+        with get_pg_cursor() as cur:
+            # 2. 사용자 삭제
+            cur.execute("DELETE FROM users WHERE user_id = %s", (user_id,))
+            if cur.rowcount == 0:
+                raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다")
+        
+        # 3. 로그아웃 (세션 삭제)
+        _delete_session(request, response)
+        
+        return {"success": True, "message": "회원 탈퇴가 완료되었습니다"}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"회원 탈퇴 실패: {e}")
         raise HTTPException(status_code=500, detail="서버 오류")
 
 

@@ -1,64 +1,269 @@
 {% extends "base.html" %}
 
-{% block title %}Lookalike - 마이페이지{% endblock %}
-
 {% block content %}
-<div class="mb-4">
-    <h4 class="fw-bold">안녕하세요, 홍길동님!</h4>
+<div class="container py-5" style="max-width: 600px;">
+    <!-- 프로필 섹션 -->
+    <div class="text-center mb-5">
+        <div class="position-relative d-inline-block">
+            {% if request.state.user.profile_image %}
+            <img src="{{ request.state.user.profile_image }}" class="rounded-circle shadow-sm"
+                style="width: 120px; height: 120px; object-fit: cover;" alt="프로필 이미지">
+            {% else %}
+            <div class="bg-light rounded-circle d-flex align-items-center justify-content-center shadow-sm"
+                style="width: 120px; height: 120px;">
+                <i class="fas fa-user fs-1 text-secondary"></i>
+            </div>
+            {% endif %}
+            <button class="btn btn-dark btn-sm rounded-circle position-absolute bottom-0 end-0 border-white border-2"
+                style="width: 36px; height: 36px;">
+                <i class="fas fa-camera"></i>
+            </button>
+        </div>
+        <h4 class="fw-bold mt-3">{{ request.state.user.name }}</h4>
+        {% if request.state.user.email %}
+        <p class="text-muted">{{ request.state.user.email }}</p>
+        {% endif %}
+    </div>
+
+    <!-- 메뉴 리스트 -->
+    <div class="list-group shadow-sm border-0 rounded-3">
+        <div class="list-group-item p-3 border-0 border-bottom" id="passwordChangeItem">
+            <a href="#" class="d-flex align-items-center text-decoration-none text-dark" data-bs-toggle="modal"
+                data-bs-target="#editProfileModal" id="editProfileLink">
+                <div class="bg-light rounded-circle d-flex align-items-center justify-content-center me-3"
+                    style="width: 48px; height: 48px;">
+                    <i class="fas fa-key fs-5 text-secondary"></i>
+                </div>
+                <div class="flex-grow-1">
+                    <h6 class="mb-0 fw-bold">비밀번호 변경</h6>
+                    <small class="text-muted">로그인 비밀번호를 변경합니다</small>
+                </div>
+                <i class="fas fa-chevron-right text-muted"></i>
+            </a>
+        </div>
+
+        <a href="#" class="list-group-item list-group-item-action d-flex align-items-center p-3 border-0 border-bottom">
+            <div class="bg-light rounded-circle d-flex align-items-center justify-content-center me-3"
+                style="width: 48px; height: 48px;">
+                <i class="fas fa-search fs-5 text-secondary"></i>
+            </div>
+            <div class="flex-grow-1">
+                <h6 class="mb-0 fw-bold">검색 히스토리</h6>
+                <small class="text-muted">최근 검색한 상품들 확인</small>
+            </div>
+            <i class="fas fa-chevron-right text-muted"></i>
+        </a>
+
+        <a href="/inquiry"
+            class="list-group-item list-group-item-action d-flex align-items-center p-3 border-0 border-bottom">
+            <div class="bg-light rounded-circle d-flex align-items-center justify-content-center me-3"
+                style="width: 48px; height: 48px;">
+                <i class="far fa-comment-dots fs-5 text-secondary"></i>
+            </div>
+            <div class="flex-grow-1">
+                <h6 class="mb-0 fw-bold">문의 게시판</h6>
+                <small class="text-muted">질문과 답변을 주고 받는 게시판</small>
+            </div>
+            <i class="fas fa-chevron-right text-muted"></i>
+        </a>
+
+        <a href="#" class="list-group-item list-group-item-action d-flex align-items-center p-3 border-0"
+            id="withdrawLink">
+            <div class="bg-light rounded-circle d-flex align-items-center justify-content-center me-3"
+                style="width: 48px; height: 48px;">
+                <i class="far fa-sad-tear fs-5 text-secondary"></i>
+            </div>
+            <div class="flex-grow-1">
+                <h6 class="mb-0 fw-bold">회원탈퇴</h6>
+            </div>
+            <i class="fas fa-chevron-right text-muted"></i>
+        </a>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- 비밀번호 변경 모달                            -->
+    <!-- ============================================ -->
+    <div class="modal fade" id="editProfileModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow-lg">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold">비밀번호 변경</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editProfileForm" novalidate>
+                        <div class="mb-3">
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="currentPassword"
+                                    placeholder="현재 비밀번호 (필수)" required>
+                                <button class="btn btn-outline-secondary toggle-password" type="button"
+                                    onclick="togglePassword('currentPassword', this)">
+                                    <i class="fas fa-eye-slash"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="newPassword"
+                                    placeholder="새 비밀번호 (4자리 이상)" required>
+                                <button class="btn btn-outline-secondary toggle-password" type="button"
+                                    onclick="togglePassword('newPassword', this)">
+                                    <i class="fas fa-eye-slash"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="newPasswordConfirm"
+                                    placeholder="새 비밀번호 확인" required>
+                                <button class="btn btn-outline-secondary toggle-password" type="button"
+                                    onclick="togglePassword('newPasswordConfirm', this)">
+                                    <i class="fas fa-eye-slash"></i>
+                                </button>
+                            </div>
+                            <div class="form-text text-danger small d-none" id="passwordMismatch">비밀번호가 일치하지 않습니다.</div>
+                        </div>
+
+                        <div class="d-grid mt-4">
+                            <button type="submit" class="btn btn-dark btn-lg" id="saveProfileBtn">
+                                <span class="btn-text">변경하기</span>
+                                <span class="spinner-border spinner-border-sm d-none" role="status"></span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
-<div class="list-group shadow-sm border-0 rounded-3">
-    <a href="#" class="list-group-item list-group-item-action d-flex align-items-center p-3 border-0 border-bottom">
-        <div class="bg-light rounded-circle d-flex align-items-center justify-content-center me-3"
-            style="width: 48px; height: 48px;">
-            <i class="far fa-user fs-5 text-secondary"></i>
-        </div>
-        <div class="flex-grow-1">
-            <h6 class="mb-0 fw-bold">회원정보 수정</h6>
-            <small class="text-muted">이메일, 비밀번호, 개인정보 수정</small>
-        </div>
-        <i class="fas fa-chevron-right text-muted"></i>
-    </a>
+<script>
+    function togglePassword(inputId, btn) {
+        const input = document.getElementById(inputId);
+        const icon = btn.querySelector('i');
 
-    <a href="#" class="list-group-item list-group-item-action d-flex align-items-center p-3 border-0 border-bottom">
-        <div class="bg-light rounded-circle d-flex align-items-center justify-content-center me-3"
-            style="width: 48px; height: 48px;">
-            <i class="fas fa-search fs-5 text-secondary"></i>
-        </div>
-        <div class="flex-grow-1">
-            <h6 class="mb-0 fw-bold">검색 히스토리</h6>
-            <small class="text-muted">최근 검색한 상품들 확인</small>
-        </div>
-        <i class="fas fa-chevron-right text-muted"></i>
-    </a>
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.classList.remove('fa-eye-slash');
+            icon.classList.add('fa-eye');
+        } else {
+            input.type = 'password';
+            icon.classList.remove('fa-eye');
+            icon.classList.add('fa-eye-slash');
+        }
+    }
 
-    <a href="/inquiry"
-        class="list-group-item list-group-item-action d-flex align-items-center p-3 border-0 border-bottom">
-        <div class="bg-light rounded-circle d-flex align-items-center justify-content-center me-3"
-            style="width: 48px; height: 48px;">
-            <i class="far fa-comment-dots fs-5 text-secondary"></i>
-        </div>
-        <div class="flex-grow-1">
-            <h6 class="mb-0 fw-bold">문의 게시판</h6>
-            <small class="text-muted">질문과 답변을 주고 받는 게시판</small>
-        </div>
-        <i class="fas fa-chevron-right text-muted"></i>
-    </a>
+    document.addEventListener('DOMContentLoaded', async function () {
+        const modal = document.getElementById('editProfileModal');
+        const form = document.getElementById('editProfileForm');
+        const editLink = document.getElementById('editProfileLink');
+        const passwordChangeItem = document.getElementById('passwordChangeItem');
+        const withdrawLink = document.getElementById('withdrawLink');
 
-    <a href="#" class="list-group-item list-group-item-action d-flex align-items-center p-3 border-0">
-        <div class="bg-light rounded-circle d-flex align-items-center justify-content-center me-3"
-            style="width: 48px; height: 48px;">
-            <i class="far fa-sad-tear fs-5 text-secondary"></i>
-        </div>
-        <div class="flex-grow-1">
-            <h6 class="mb-0 fw-bold">회원탈퇴</h6>
-            <small class="text-muted">회원 탈퇴 및 개인정보 삭제</small>
-        </div>
-        <i class="fas fa-chevron-right text-muted"></i>
-    </a>
-</div>
+        let originalUser = null;
 
-<div class="mt-4 px-3">
-    <button class="btn btn-outline-danger w-100 border-0 text-start ps-0">회원탈퇴</button>
-</div>
+        // 페이지 로드 시 사용자 정보 확인
+        try {
+            const resp = await fetch('/api/auth/me');
+            const data = await resp.json();
+
+            if (data.success && data.user) {
+                originalUser = data.user;
+
+                // 1. 소셜 로그인 유저 체크
+                if (data.user.provider !== 'email') {
+                    // 소셜 유저는 비밀번호 변경 항목 자체를 숨김
+                    if (passwordChangeItem) passwordChangeItem.style.display = 'none';
+                }
+            }
+        } catch (e) {
+            console.error('사용자 정보 로드 실패:', e);
+        }
+
+        // 회원탈퇴 클릭
+        if (withdrawLink) {
+            withdrawLink.addEventListener('click', async function (e) {
+                e.preventDefault();
+                if (!confirm('정말로 탈퇴하시겠습니까? 탈퇴 후 복구할 수 없습니다.')) return;
+
+                try {
+                    const resp = await fetch(`/api/auth/users/${originalUser.user_id}`, {
+                        method: 'DELETE'
+                    });
+                    const result = await resp.json();
+
+                    if (resp.ok) {
+                        alert('탈퇴 처리되었습니다. 이용해 주셔서 감사합니다.');
+                        window.location.href = "/";
+                    } else {
+                        alert(result.detail || '탈퇴 처리에 실패했습니다.');
+                    }
+                } catch (err) {
+                    console.error(err);
+                    alert('서버 오류가 발생했습니다.');
+                }
+            });
+        }
+
+        // 저장 버튼 클릭
+        form.addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            const currentPassword = document.getElementById('currentPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const newPasswordConfirm = document.getElementById('newPasswordConfirm').value;
+
+            // 유효성 검사
+            if (!currentPassword) return alert('현재 비밀번호를 입력해주세요.');
+            if (!newPassword || newPassword.length < 4) return alert('새 비밀번호는 4자리 이상이어야 합니다.');
+            if (newPassword !== newPasswordConfirm) {
+                document.getElementById('passwordMismatch').classList.remove('d-none');
+                return;
+            } else {
+                document.getElementById('passwordMismatch').classList.add('d-none');
+            }
+
+            // 업데이트할 데이터 구성
+            const updateData = {
+                current_password: currentPassword,
+                new_password: newPassword
+            };
+
+            // 로딩 표시
+            const btn = document.getElementById('saveProfileBtn');
+            const spinner = btn.querySelector('.spinner-border');
+            const btnText = btn.querySelector('.btn-text');
+
+            btn.disabled = true;
+            spinner.classList.remove('d-none');
+            btnText.classList.add('d-none');
+
+            try {
+                const resp = await fetch(`/api/auth/users/${originalUser.user_id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updateData)
+                });
+
+                const result = await resp.json();
+
+                if (resp.ok) {
+                    alert('비밀번호가 변경되었습니다. 다시 로그인해주세요.');
+                    window.location.href = "/"; // 로그아웃 처리 효과를 위해 홈으로 이동
+                } else {
+                    alert(result.detail || '비밀번호 변경에 실패했습니다.');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('서버 오류가 발생했습니다.');
+            } finally {
+                btn.disabled = false;
+                spinner.classList.add('d-none');
+                btnText.classList.remove('d-none');
+            }
+        });
+    });
+</script>
 {% endblock %}

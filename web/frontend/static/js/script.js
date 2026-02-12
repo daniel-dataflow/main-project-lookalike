@@ -256,6 +256,7 @@ async function handleLogout(e) {
         currentUser = null;
         updateUIForLoggedOut();
         showToast('로그아웃 되었습니다', 'info');
+        window.location.href = "/";
     } catch (err) {
         showToast('로그아웃 처리 중 오류가 발생했습니다', 'error');
     }
