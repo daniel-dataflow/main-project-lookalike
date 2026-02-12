@@ -83,7 +83,7 @@
     <div class="bg-white rounded-4 shadow-sm" style="overflow: hidden;" id="adminInquiryListSection">
         <div class="table-responsive">
             <table class="table table-hover mb-0 align-middle">
-                <thead class="table-light">
+                <thead class="table-light d-none d-md-table-header-group">
                     <tr>
                         <th style="width: 60px;" class="text-center">번호</th>
                         <th>제목</th>
@@ -228,10 +228,27 @@
         background-color: #f0f4ff !important;
     }
 
+    #statusFilter {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 4px;
+    }
+
+    #statusFilter::-webkit-scrollbar {
+        height: 4px;
+    }
+
+    #statusFilter::-webkit-scrollbar-thumb {
+        background-color: #ddd;
+        border-radius: 4px;
+    }
+
     #statusFilter .nav-link {
         font-size: 0.85rem;
         font-weight: 500;
         color: #6c757d;
+        white-space: nowrap;
     }
 
     #statusFilter .nav-link.active {
@@ -295,26 +312,58 @@
                 const hasAnswer = (item.comment_count || 0) > 0;
                 return `
             <tr class="inquiry-row" onclick="viewAdminInquiry(${item.inquiry_board_id})">
-                <td class="text-center text-muted">${item.inquiry_board_id}</td>
+                <!-- [데스크탑] 번호 -->
+                <td class="text-center text-muted d-none d-md-table-cell">${item.inquiry_board_id}</td>
+                
+                <!-- 제목 (모바일에서는 여기에 모든 정보 표시) -->
                 <td>
-                    <div class="fw-semibold" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 350px;">
+                    <!-- [모바일] 상단: 번호 + 상태 뱃지 -->
+                    <div class="d-flex justify-content-between align-items-center mb-2 d-md-none">
+                        <span class="badge bg-light text-secondary border">#${item.inquiry_board_id}</span>
+                        <span class="admin-status-badge ${hasAnswer ? 'admin-status-answered' : 'admin-status-pending'}">
+                            ${hasAnswer ? '답변완료' : '대기중'}
+                        </span>
+                    </div>
+
+                    <!-- 제목 텍스트 -->
+                    <div class="fw-semibold text-break mb-1" style="max-width: 100%;">
                         ${escapeHtml(item.title)}
                     </div>
+
+                    <!-- [모바일] 하단 정보: 작성자, 날짜, 버튼 -->
+                    <div class="d-md-none text-muted small mt-3 d-flex justify-content-between align-items-center">
+                        <div>
+                            <span class="me-2"><i class="far fa-user me-1"></i>${escapeHtml(item.author_name || '-')}</span>
+                            <span><i class="far fa-clock me-1"></i>${formatDate(item.create_dt)}</span>
+                        </div>
+                        <button class="btn btn-sm btn-outline-dark rounded-pill px-3 ms-2"
+                            onclick="event.stopPropagation(); viewAdminInquiry(${item.inquiry_board_id});">
+                            ${hasAnswer ? '보기' : '답변'}
+                        </button>
+                    </div>
                 </td>
-                <td>
+                
+                <!-- [데스크탑] 작성자 -->
+                <td class="d-none d-md-table-cell">
                     <span class="text-muted" style="font-size: 0.85rem;">${escapeHtml(item.author_name || item.author_id || '-')}</span>
                 </td>
-                <td class="text-center">
+                
+                <!-- [데스크탑] 상태 -->
+                <td class="text-center d-none d-md-table-cell">
                     <span class="admin-status-badge ${hasAnswer ? 'admin-status-answered' : 'admin-status-pending'}">
                         ${hasAnswer
                         ? '<i class="fas fa-check-circle"></i> 답변완료'
                         : '<i class="fas fa-clock"></i> 대기중'}
                     </span>
                 </td>
-                <td class="text-center text-muted" style="font-size: 0.8rem;">
+                
+                <!-- [데스크탑] 작성일 -->
+                <td class="text-center text-muted d-none d-md-table-cell" style="font-size: 0.8rem;">
                     ${formatDate(item.create_dt)}
                 </td>
-                <td class="text-center">
+                
+                <!-- [데스크탑] 관리 -->
+                <td class="text-center d-none d-md-table-cell">
                     <button class="btn btn-sm btn-outline-dark rounded-pill px-3"
                         onclick="event.stopPropagation(); viewAdminInquiry(${item.inquiry_board_id});">
                         ${hasAnswer ? '보기' : '답변'}
