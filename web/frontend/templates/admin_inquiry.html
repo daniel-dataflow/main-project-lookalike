@@ -253,7 +253,7 @@
     async function loadAdminInquiries(page = 1) {
         adminCurrentPage = page;
         try {
-            let url = `/api/inquiries/admin/list?page=${page}&page_size=15`;
+            let url = `/api/inquiries/admin/list?page=${page}&page_size=10`;
             if (adminCurrentFilter) {
                 url += `&status_filter=${adminCurrentFilter}`;
             }
