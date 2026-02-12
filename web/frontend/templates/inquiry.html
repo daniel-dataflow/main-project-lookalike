@@ -294,7 +294,7 @@
     async function loadInquiries(page = 1) {
         inquiryCurrentPage = page;
         try {
-            const resp = await fetch(`/api/inquiries?page=${page}&page_size=10`, { credentials: 'same-origin' });
+            const resp = await fetch(`/api/inquiries?page=${page}&page_size=5`, { credentials: 'same-origin' });
             if (resp.status === 401) {
                 document.getElementById('requireLoginMsg').classList.remove('d-none');
                 document.getElementById('inquiryListSection').classList.add('d-none');
