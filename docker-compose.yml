@@ -1,54 +1,33 @@
-# ──────────────────────────────────────────────
-# 네트워크
-# ──────────────────────────────────────────────
 networks:
   main-network:
     driver: bridge
+    # name: main-project-network
 
-# ──────────────────────────────────────────────
-# 볼륨
-# ──────────────────────────────────────────────
 volumes:
-  postgres_data:
-    name: main_postgres_data
-  mongo_data:
-    name: main_mongo_data
-  redis_data:
-    name: main_redis_data
-  es_data:
-    name: main_es_data
-  zookeeper_data:
-    name: main_zookeeper_data
-  zookeeper_logs:
-    name: main_zookeeper_logs
-  kafka_data:
-    name: main_kafka_data
-  spark_master_logs:
-    name: main_spark_master_logs
-  spark_worker1_logs:
-    name: main_spark_worker1_logs
-  namenode_data:
-    name: main_namenode_data
-  datanode_data:
-    name: main_datanode_data
-  airflow_logs:
-    name: main_airflow_logs
-  airflow_plugins:
-    name: main_airflow_plugins
+  postgres_data: { name: main_postgres_data }
+  mongo_data: { name: main_mongo_data }
+  redis_data: { name: main_redis_data }
+  es_data: { name: main_es_data }
+  zookeeper_data: { name: main_zookeeper_data }
+  zookeeper_logs: { name: main_zookeeper_logs }
+  kafka_data: { name: main_kafka_data }
+  namenode_data: { name: main_namenode_data }
+  datanode_data: { name: main_datanode_data }
+  spark_logs: { name: main_spark_logs }
+  spark_work: { name: main_spark_work }
+  airflow_logs: { name: main_airflow_logs }
+  airflow_plugins: { name: main_airflow_plugins }
 
-# ──────────────────────────────────────────────
-# 서비스
-# ──────────────────────────────────────────────
 services:
+
   # ============================================================
-  # 1. PostgreSQL
+  # 1. PostgreSQL 15-alpine
   # ============================================================
   postgresql:
     image: postgres:15-alpine
     container_name: postgres-main
     hostname: postgresql
-    env_file:
-      - .env
+    env_file: [ .env ]
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -58,24 +37,22 @@ services:
       - "${EXTERNAL_POSTGRES_PORT}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    networks:
-      - main-network
+    networks: [ main-network ]
     restart: unless-stopped
     deploy:
       resources:
-        limits:
-          memory: 1G
-        reservations:
-          memory: 512M
+        limits: { memory: 1G }
+        reservations: { memory: 512M }
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}" ]
+      # ✅ FIX ①: $${} → ${} — env_file 변수는 컨테이너 내부에서 $VAR 으로 참조
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
       interval: 5s
       timeout: 5s
       retries: 5
       start_period: 10s
 
   # ============================================================
-  # 1-1. DB 초기화 (Airflow DB + 프로젝트 테이블)
+  # 1-1. DB 초기화 (최초 1회)
   # ============================================================
   init-db:
     image: postgres:15-alpine
@@ -85,72 +62,22 @@ services:
     env_file: [ .env ]
     environment:
       PGPASSWORD: ${POSTGRES_PASSWORD}
-    command: >
-      bash -c "
-        echo '🔧 DB 초기화 시작...'
-
-        psql -h postgresql -U $${POSTGRES_USER} -d postgres -tc \"SELECT 1 FROM pg_database WHERE datname='$${AIRFLOW_DB}'\" | grep -q 1 || createdb -h postgresql -U $${POSTGRES_USER} $${AIRFLOW_DB}
-        echo '✅ Airflow DB 준비 완료'
-
-        psql -h postgresql -U $${POSTGRES_USER} -d $${POSTGRES_DB} <<'EOF'
-          CREATE TABLE IF NOT EXISTS users (
-            user_id VARCHAR(50) PRIMARY KEY, password VARCHAR(255), name VARCHAR(50),
-            email VARCHAR(100) UNIQUE, role VARCHAR(20) DEFAULT 'USER',
-            provider VARCHAR(20) DEFAULT 'email', social_id VARCHAR(255),
-            profile_image VARCHAR(512),
-            last_login TIMESTAMP DEFAULT NOW(), create_dt TIMESTAMP DEFAULT NOW(), update_dt TIMESTAMP DEFAULT NOW()
-          );
-          CREATE UNIQUE INDEX IF NOT EXISTS idx_users_social ON users(provider, social_id);
-          CREATE TABLE IF NOT EXISTS inquiry_board (
-            inquiry_board_id BIGSERIAL PRIMARY KEY, title VARCHAR(200) NOT NULL, content TEXT,
-            author_id VARCHAR(50) REFERENCES users(user_id), view_count INTEGER DEFAULT 0,
-            is_notice BOOLEAN DEFAULT FALSE, create_dt TIMESTAMP DEFAULT NOW(), update_dt TIMESTAMP DEFAULT NOW()
-          );
-          CREATE TABLE IF NOT EXISTS comments (
-            comment_id BIGSERIAL PRIMARY KEY, inquiry_board_id BIGINT REFERENCES inquiry_board(inquiry_board_id) ON DELETE CASCADE,
-            author_id VARCHAR(50) REFERENCES users(user_id), comment_text TEXT, create_dt TIMESTAMP DEFAULT NOW()
-          );
-          CREATE INDEX IF NOT EXISTS idx_comments_inquiry_board_id ON comments(inquiry_board_id);
-          CREATE TABLE IF NOT EXISTS products (
-            product_id BIGSERIAL PRIMARY KEY, origine_prod_id VARCHAR(50), model_code VARCHAR(50),
-            prod_name VARCHAR(50), base_price INTEGER, category_code VARCHAR(50),
-            img_hdfs_path VARCHAR(512), create_dt TIMESTAMP DEFAULT NOW(), update_dt TIMESTAMP DEFAULT NOW()
-          );
-          CREATE TABLE IF NOT EXISTS naver_prices (
-            nprice_id BIGSERIAL PRIMARY KEY, product_id BIGINT REFERENCES products(product_id),
-            rank SMALLINT, price INTEGER, mall_name VARCHAR(100), mall_url VARCHAR(500),
-            create_dt TIMESTAMP DEFAULT NOW()
-          );
-          CREATE INDEX IF NOT EXISTS idx_naver_prices_product_id ON naver_prices(product_id);
-          CREATE TABLE IF NOT EXISTS product_features (
-            product_id BIGINT PRIMARY KEY REFERENCES products(product_id),
-            detected_desc VARCHAR(1000), create_dt TIMESTAMP DEFAULT NOW()
-          );
-          CREATE TABLE IF NOT EXISTS search_logs (
-            log_id BIGSERIAL PRIMARY KEY, user_id VARCHAR(50) REFERENCES users(user_id),
-            input_img_path VARCHAR(512), input_text TEXT, applied_category VARCHAR(50),
-            nprice_id BIGINT REFERENCES naver_prices(nprice_id),
-            create_dt TIMESTAMP DEFAULT NOW(), update_dt TIMESTAMP DEFAULT NOW()
-          );
-          CREATE INDEX IF NOT EXISTS idx_search_logs_user_id ON search_logs(user_id);
-          CREATE INDEX IF NOT EXISTS idx_search_logs_nprice_id ON search_logs(nprice_id);
-          CREATE INDEX IF NOT EXISTS idx_inquiry_board_author_id ON inquiry_board(author_id);
-      EOF
-        echo '✅ 프로젝트 테이블 초기화 완료'
-        echo '🚀 DB 초기화 완료!'
-      "
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_DB: ${POSTGRES_DB}
+      AIRFLOW_DB: ${AIRFLOW_DB}
+    volumes:
+      - ./scripts/init-db.sh:/init-db.sh:ro
+    command: [ "sh", "/init-db.sh" ]
     networks: [ main-network ]
     restart: "no"
 
   # ============================================================
-  # 2. MongoDB
+  # 2. MongoDB 7.0
   # ============================================================
   mongodb:
     image: mongo:7.0
     container_name: mongo-main
     hostname: mongodb
-    env_file:
-      - .env
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGODB_USER}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGODB_PASSWORD}
@@ -159,15 +86,12 @@ services:
       - "${EXTERNAL_MONGODB_PORT}:27017"
     volumes:
       - mongo_data:/data/db
-    networks:
-      - main-network
+    networks: [ main-network ]
     restart: unless-stopped
     deploy:
       resources:
-        limits:
-          memory: 1G
-        reservations:
-          memory: 512M
+        limits: { memory: 1G }
+        reservations: { memory: 512M }
     healthcheck:
       test: [ "CMD-SHELL", "mongosh --eval \"db.adminCommand('ping')\" --quiet" ]
       interval: 5s
@@ -176,79 +100,70 @@ services:
       start_period: 15s
 
   # ============================================================
-  # 3. Redis
+  # 3. Redis 7-alpine
   # ============================================================
   redis:
     image: redis:7-alpine
     container_name: redis-main
     hostname: redis
-    env_file:
-      - .env
+    environment:
+      TZ: ${TZ}
     command: redis-server --requirepass ${REDIS_PASSWORD}
     ports:
       - "${EXTERNAL_REDIS_PORT}:6379"
     volumes:
       - redis_data:/data
-    networks:
-      - main-network
+    networks: [ main-network ]
     restart: unless-stopped
     deploy:
       resources:
-        limits:
-          memory: 512M
-        reservations:
-          memory: 256M
+        limits: { memory: 512M }
+        reservations: { memory: 256M }
     healthcheck:
-      test: [ "CMD-SHELL", "redis-cli -a $${REDIS_PASSWORD} ping | grep PONG" ]
+      # ✅ FIX ①: $${REDIS_PASSWORD} → ${REDIS_PASSWORD}
+      test: [ "CMD-SHELL", "redis-cli -a ${REDIS_PASSWORD} ping | grep PONG" ]
       interval: 5s
       timeout: 5s
       retries: 5
       start_period: 5s
 
   # ============================================================
-  # 4. Elasticsearch
+  # 4. Elasticsearch 8.11.0
   # ============================================================
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
     container_name: elasticsearch-main
     hostname: elasticsearch
-    env_file:
-      - .env
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
-      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+      - ES_JAVA_OPTS=-Xms1g -Xmx1g
       - TZ=${TZ}
     ports:
       - "${EXTERNAL_ELASTICSEARCH_PORT}:9200"
       - "9300:9300"
     volumes:
       - es_data:/usr/share/elasticsearch/data
-    networks:
-      - main-network
+    networks: [ main-network ]
     restart: unless-stopped
     deploy:
       resources:
-        limits:
-          memory: 2G
-        reservations:
-          memory: 1G
+        limits: { memory: 2G }
+        reservations: { memory: 1G }
     healthcheck:
-      test: [ "CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health | grep -q '\"status\":\"green\"\\|\"status\":\"yellow\"'" ]
+      test: [ "CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health | grep -qE '\"status\":\"(green|yellow)\"'" ]
       interval: 10s
       timeout: 10s
       retries: 5
       start_period: 30s
 
   # ============================================================
-  # 5. Zookeeper
+  # 5. Zookeeper (Confluent 7.5.0)
   # ============================================================
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
     container_name: zookeeper-main
     hostname: zookeeper
-    env_file:
-      - .env
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
@@ -261,18 +176,18 @@ services:
     volumes:
       - zookeeper_data:/var/lib/zookeeper/data
       - zookeeper_logs:/var/lib/zookeeper/log
-    networks:
-      - main-network
+    networks: [ main-network ]
     restart: unless-stopped
     deploy:
       resources:
-        limits:
-          memory: 512M
-        reservations:
-          memory: 256M
+        limits: { memory: 512M }
+        reservations: { memory: 256M }
 
   # ============================================================
-  # 6. Kafka
+  # 6. Kafka (Confluent 7.5.0)
+  #    내/외부 리스너 분리
+  #    · INTERNAL://kafka:9092  — 컨테이너 간 통신
+  #    · EXTERNAL://localhost:${KAFKA_PORT}  — 호스트 직접 접근
   # ============================================================
   kafka:
     image: confluentinc/cp-kafka:7.5.0
@@ -280,165 +195,128 @@ services:
     hostname: kafka
     depends_on:
       - zookeeper
-    env_file:
-      - .env
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:${KAFKA_PORT}
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:9092,EXTERNAL://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://localhost:${KAFKA_PORT}
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
       TZ: ${TZ}
     ports:
-      - "${KAFKA_PORT}:9092"
+      - "${KAFKA_PORT}:9093"
     volumes:
       - kafka_data:/var/lib/kafka/data
-    networks:
-      - main-network
+    networks: [ main-network ]
     restart: unless-stopped
     deploy:
       resources:
-        limits:
-          memory: 1G
-        reservations:
-          memory: 512M
+        limits: { memory: 1G }
+        reservations: { memory: 512M }
+    healthcheck:
+      test: [ "CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092 > /dev/null 2>&1" ]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
 
   # ============================================================
-  # 7. Hadoop NameNode
+  # 7. Hadoop NameNode — apache/hadoop:3.3.6
+  #
+  # ✅ FIX ④: conf 파일 마운트 제거 → command에서 직접 XML 생성
+  #    이유: conf 파일이 없으면 Docker가 빈 디렉토리로 마운트해
+  #          /opt/hadoop/etc/hadoop/core-site.xml 이 디렉토리가 돼버림
   # ============================================================
   namenode:
-    image: bde2020/hadoop-namenode:2.0.0-hadoop3.2.1-java8
+    image: apache/hadoop:3.3.6
     container_name: namenode-main
     hostname: namenode
-    env_file:
-      - .env
+    user: root
     environment:
-      - CLUSTER_NAME=hadoop-cluster
-      - CORE_CONF_fs_defaultFS=hdfs://namenode:9000
-      - CORE_CONF_hadoop_http_staticuser_user=root
-      - CORE_CONF_hadoop_proxyuser_hue_hosts=*
-      - CORE_CONF_hadoop_proxyuser_hue_groups=*
-      - HDFS_CONF_dfs_webhdfs_enabled=true
-      - HDFS_CONF_dfs_permissions_enabled=false
-      - HDFS_CONF_dfs_namenode_datanode_registration_ip___hostname___check=false
       - TZ=${TZ}
     ports:
       - "${HADOOP_NAMENODE_WEBUI_PORT}:9870"
       - "${HDFS_NAMENODE_PORT}:9000"
     volumes:
       - namenode_data:/hadoop/dfs/name
-    networks:
-      - main-network
+    networks: [ main-network ]
     restart: unless-stopped
     deploy:
       resources:
-        limits:
-          memory: 1G
+        limits: { memory: 1G }
+    command: >
+      bash -c "
+        mkdir -p /opt/hadoop/etc/hadoop
+
+        echo '<?xml version=\"1.0\"?><configuration><property><name>fs.defaultFS</name><value>hdfs://namenode:9000</value></property><property><name>hadoop.http.staticuser.user</name><value>root</value></property></configuration>' > /opt/hadoop/etc/hadoop/core-site.xml
+        
+        echo '<?xml version=\"1.0\"?><configuration><property><name>dfs.namenode.name.dir</name><value>/hadoop/dfs/name</value></property><property><name>dfs.replication</name><value>1</value></property><property><name>dfs.permissions.enabled</name><value>false</value></property><property><name>dfs.webhdfs.enabled</name><value>true</value></property><property><name>dfs.namenode.datanode.registration.ip-hostname-check</name><value>false</value></property></configuration>' > /opt/hadoop/etc/hadoop/hdfs-site.xml
+
+        hdfs namenode -format -nonInteractive -force 2>/dev/null || true
+        hdfs namenode
+      "
+    healthcheck:
+      # curl 대신 bash 내장 기능으로 9870 포트 확인
+      test: [ "CMD-SHELL", "bash -c '</dev/tcp/localhost/9870'" ]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
 
   # ============================================================
-  # 8. Hadoop DataNode
+  # 8. Hadoop DataNode — apache/hadoop:3.3.6
   # ============================================================
   datanode:
-    image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
+    image: apache/hadoop:3.3.6
     container_name: datanode-main
     hostname: datanode
+    user: root
     depends_on:
-      - namenode
-    env_file:
-      - .env
+      namenode: { condition: service_healthy }
     environment:
-      - CORE_CONF_fs_defaultFS=hdfs://namenode:9000
-      - CORE_CONF_hadoop_http_staticuser_user=root
-      - HDFS_CONF_dfs_webhdfs_enabled=true
-      - HDFS_CONF_dfs_permissions_enabled=false
-      - SERVICE_PRECONDITION=namenode:9870
       - TZ=${TZ}
     ports:
       - "${HADOOP_DATANODE_WEBUI_PORT}:9864"
     volumes:
       - datanode_data:/hadoop/dfs/data
-    networks:
-      - main-network
+    networks: [ main-network ]
     restart: unless-stopped
     deploy:
       resources:
-        limits:
-          memory: 1G
+        limits: { memory: 1G }
+    command: >
+      bash -c "
+        mkdir -p /opt/hadoop/etc/hadoop
+        echo '<?xml version=\"1.0\"?><configuration><property><name>fs.defaultFS</name><value>hdfs://namenode:9000</value></property><property><name>hadoop.http.staticuser.user</name><value>root</value></property></configuration>' > /opt/hadoop/etc/hadoop/core-site.xml       
+        echo '<?xml version=\"1.0\"?><configuration><property><name>dfs.datanode.data.dir</name><value>/hadoop/dfs/data</value></property><property><name>dfs.replication</name><value>1</value></property><property><name>dfs.permissions.enabled</name><value>false</value></property></configuration>' > /opt/hadoop/etc/hadoop/hdfs-site.xml
+        hdfs datanode
+      "
+    healthcheck:
+      # 9864 포트 확인
+      test: [ "CMD-SHELL", "bash -c '</dev/tcp/localhost/9864'" ]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
 
   # ============================================================
-  # 9. Hadoop ResourceManager
-  # ============================================================
-  resourcemanager:
-    image: bde2020/hadoop-resourcemanager:2.0.0-hadoop3.2.1-java8
-    container_name: resourcemanager-main
-    hostname: resourcemanager
-    depends_on:
-      - namenode
-    env_file:
-      - .env
-    environment:
-      - CORE_CONF_fs_defaultFS=hdfs://namenode:9000
-      - YARN_CONF_yarn_resourcemanager_hostname=resourcemanager
-      - YARN_CONF_yarn_resourcemanager_bind___host=0.0.0.0
-      - SERVICE_PRECONDITION=namenode:9870
-      - TZ=${TZ}
-    ports:
-      - "${HADOOP_RESOURCEMANAGER_WEBUI_PORT}:8088"
-    networks:
-      - main-network
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-
-  # ============================================================
-  # 10. Hadoop NodeManager
-  # ============================================================
-  nodemanager:
-    image: bde2020/hadoop-nodemanager:2.0.0-hadoop3.2.1-java8
-    container_name: nodemanager-main
-    hostname: nodemanager
-    depends_on:
-      - resourcemanager
-    env_file:
-      - .env
-    environment:
-      - CORE_CONF_fs_defaultFS=hdfs://namenode:9000
-      - YARN_CONF_yarn_resourcemanager_hostname=resourcemanager
-      - YARN_CONF_yarn_nodemanager_bind___host=0.0.0.0
-      - SERVICE_PRECONDITION=namenode:9870 resourcemanager:8088
-      - TZ=${TZ}
-    ports:
-      - "${HADOOP_NODEMANAGER_WEBUI_PORT}:8042"
-    networks:
-      - main-network
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 1G
-
-  # ============================================================
-  # 11. Spark Master
+  # 9. Spark Master — apache/spark:3.5.3
+  #
+  # ✅ FIX ③⑤: SPARK_MODE 제거 + spark-defaults.conf 마운트 제거
+  #    apache/spark 공식 이미지는 SPARK_MODE 환경변수 미지원 (Bitnami 전용)
+  #    spark.hadoop.fs.defaultFS 는 environment로 직접 전달
   # ============================================================
   spark-master:
-    image: bde2020/spark-master:3.3.0-hadoop3.3
+    image: apache/spark:3.5.3
     container_name: spark-master-main
     hostname: spark-master
     depends_on:
-      - namenode
-    env_file:
-      - .env
+      namenode: { condition: service_healthy }
     environment:
-      - SPARK_MODE=master
-      - SPARK_MASTER_HOST=spark-master
-      - SPARK_MASTER_PORT=7077
-      - SPARK_MASTER_WEBUI_PORT=8080
-      - CORE_CONF_fs_defaultFS=hdfs://namenode:9000
       - SPARK_NO_DAEMONIZE=true
       - TZ=${TZ}
     ports:
@@ -446,57 +324,69 @@ services:
       - "${SPARK_MASTER_PORT}:7077"
       - "${SPARK_REST_PORT}:6066"
     volumes:
-      - ./data-pipeline/spark/jobs:/opt/spark-jobs
-      - ./data-pipeline/spark/notebooks:/opt/spark-notebooks
-      - spark_master_logs:/spark/logs
-    networks:
-      - main-network
+      - ./data-pipeline/spark/jobs:/opt/spark/work-dir/jobs
+      - spark_logs:/opt/spark/logs
+    networks: [ main-network ]
     restart: unless-stopped
     deploy:
       resources:
-        limits:
-          memory: 1G
-        reservations:
-          memory: 512M
+        limits: { memory: 1G }
+        reservations: { memory: 512M }
+    command: >
+      bash -c "
+        mkdir -p /opt/spark/conf
+        
+        echo 'spark.master spark://spark-master:7077' > /opt/spark/conf/spark-defaults.conf
+        echo 'spark.hadoop.fs.defaultFS hdfs://namenode:9000' >> /opt/spark/conf/spark-defaults.conf
+        echo 'spark.eventLog.enabled false' >> /opt/spark/conf/spark-defaults.conf
+        echo 'spark.driver.memory 512m' >> /opt/spark/conf/spark-defaults.conf
+        echo 'spark.executor.memory 1g' >> /opt/spark/conf/spark-defaults.conf
+
+        /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
+      "
+    healthcheck:
+      # 8080 포트 확인
+      test: [ "CMD-SHELL", "bash -c '</dev/tcp/localhost/8080'" ]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 20s
 
   # ============================================================
-  # 12. Spark Worker
+  # 10. Spark Worker — apache/spark:3.5.3
   # ============================================================
   spark-worker-1:
-    image: bde2020/spark-worker:3.3.0-hadoop3.3
+    image: apache/spark:3.5.3
     container_name: spark-worker-1-main
     hostname: spark-worker-1
     depends_on:
-      - spark-master
-    env_file:
-      - .env
+      spark-master: { condition: service_healthy }
     environment:
-      - SPARK_MODE=worker
-      - SPARK_MASTER_URL=spark://spark-master:7077
-      - SPARK_WORKER_CORES=2
-      - SPARK_WORKER_MEMORY=2g
-      - SPARK_WORKER_WEBUI_PORT=8081
-      - CORE_CONF_fs_defaultFS=hdfs://namenode:9000
       - SPARK_NO_DAEMONIZE=true
       - TZ=${TZ}
     ports:
       - "${SPARK_WORKER1_WEBUI_PORT}:8081"
     volumes:
-      - ./data-pipeline/spark/jobs:/opt/spark-jobs
-      - ./data-pipeline/spark/notebooks:/opt/spark-notebooks
-      - spark_worker1_logs:/spark/logs
-    networks:
-      - main-network
+      - ./data-pipeline/spark/jobs:/opt/spark/work-dir/jobs
+      - spark_work:/opt/spark/work
+    networks: [ main-network ]
     restart: unless-stopped
     deploy:
       resources:
-        limits:
-          memory: 2G
-        reservations:
-          memory: 1G
+        limits: { memory: 2G }
+        reservations: { memory: 1G }
+    command: >
+      bash -c "
+        mkdir -p /opt/spark/conf
+        
+        echo 'spark.master spark://spark-master:7077' > /opt/spark/conf/spark-defaults.conf
+        echo 'spark.hadoop.fs.defaultFS hdfs://namenode:9000' >> /opt/spark/conf/spark-defaults.conf
+
+        /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker --cores 2 --memory 2g --webui-port 8081 spark://spark-master:7077
+      "
 
   # ============================================================
-  # 13. FastAPI (Dockerfile 없이)
+  # 11. FastAPI
   # ============================================================
   fastapi:
     image: python:3.11-slim
@@ -514,107 +404,181 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_DB=${POSTGRES_DB}
       - MONGODB_HOST=mongodb
+      - MONGODB_PORT=27017
       - REDIS_HOST=redis
+      - REDIS_PORT=6379
       - TZ=${TZ}
       - PYTHONUNBUFFERED=1
     working_dir: /app
-    ports: [ "${FASTAPI_PORT}:8900" ]
+    ports:
+      - "${FASTAPI_PORT}:8900"
     volumes:
       - .:/app
     networks: [ main-network ]
     restart: unless-stopped
     deploy:
       resources:
-        limits:
-          memory: 1G
-        reservations:
-          memory: 512M
+        limits: { memory: 1G }
+        reservations: { memory: 512M }
     command: >
       bash -c "pip install --no-cache-dir -r web/backend/requirements.txt &&
-               python -m uvicorn web.backend.app.main:app --host 0.0.0.0 --port 8900"     
+               python -m uvicorn web.backend.app.main:app --host 0.0.0.0 --port 8900 --reload"
     healthcheck:
-      test: [ "CMD-SHELL", "python -c 'import socket; s = socket.socket(socket.AF_INET, socket.SOCK_STREAM); s.connect((\"localhost\", 8900))' || exit 1" ]
-      interval: 10s
+      test: [ "CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8900/health\")'" ]
+      interval: 15s
       timeout: 5s
       retries: 3
       start_period: 60s
 
   # ============================================================
-  # 14. Airflow Webserver (Dockerfile 없이)
+  # 12. Airflow Webserver — apache/airflow:2.10.4-python3.11
   # ============================================================
   airflow-webserver:
-    image: apache/airflow:3.0.3-python3.11
+    image: apache/airflow:2.10.4-python3.11
     container_name: airflow-webserver-main
     hostname: airflow-webserver
     user: "50000:0"
     depends_on:
       init-db: { condition: service_completed_successfully }
-    env_file: [ .env ]
     environment:
       - AIRFLOW_HOME=/opt/airflow
       - AIRFLOW__CORE__EXECUTOR=LocalExecutor
-      - AIRFLOW__AUTH__MANAGER=airflow.auth.managers.simple.simple_auth_manager.SimpleAuthManager
-      - AIRFLOW__API__AUTH_BACKENDS=airflow.api.auth.backend.default
-      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgresql:5432/${AIRFLOW_DB}
-      - AIRFLOW__CORE__FERNET_KEY=ZmDfcTF7_60GrrY167zsiPd67pEvs0aGOv2oasOM1Pg=
       - AIRFLOW__CORE__LOAD_EXAMPLES=False
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgresql:5432/${AIRFLOW_DB}
+      - AIRFLOW__CORE__FERNET_KEY=${AIRFLOW_FERNET_KEY}
+      - AIRFLOW__WEBSERVER__SECRET_KEY=${AIRFLOW_WEBSERVER_SECRET_KEY}
+      - AIRFLOW__WEBSERVER__EXPOSE_CONFIG=True
+      - AIRFLOW__CONN__SPARK_DEFAULT=spark://spark-master:7077
       - TZ=${TZ}
-    ports: [ "${AIRFLOW_WEBSERVER_PORT}:8080" ]
+    ports:
+      - "${AIRFLOW_WEBSERVER_PORT}:8080"
     volumes:
-      - ./data-pipeline/airflow:/opt/airflow
+      - ./data-pipeline/airflow/dags:/opt/airflow/dags
+      - ./data-pipeline/airflow/plugins:/opt/airflow/plugins
       - airflow_logs:/opt/airflow/logs
-      - airflow_plugins:/opt/airflow/plugins
     networks: [ main-network ]
     restart: unless-stopped
     deploy:
       resources:
-        limits:
-          memory: 2G
-        reservations:
-          memory: 1G
+        limits: { memory: 2G }
+        reservations: { memory: 1G }
     command: >
       bash -c "
-        pip install --no-cache-dir apache-airflow-providers-postgres psycopg2-binary
+        echo '패키지 설치 중...' &&
+        pip install --no-cache-dir apache-airflow-providers-apache-spark==4.10.0 apache-airflow-providers-postgres==5.12.0 psycopg2-binary pyspark==3.5.3 &&
+        echo 'DB 마이그레이션 중...' &&
         airflow db migrate &&
-        airflow api-server"
+        echo 'Admin 계정 생성 중...' &&
+        airflow users create --username admin --firstname Admin --lastname User --role Admin --email admin@example.com --password '${AIRFLOW_ADMIN_PASSWORD}' || true &&
+        echo '웹서버 시작!' &&
+        airflow webserver
+      "
     healthcheck:
-      test: [ "CMD-SHELL", "python -c \"import socket, sys; s = socket.socket(socket.AF_INET, socket.SOCK_STREAM); result = s.connect_ex(('localhost', 8080)); sys.exit(result)\"" ]
+      test: [ "CMD-SHELL", "python -c 'import urllib.request; resp = urllib.request.urlopen(\"http://localhost:8080/health\"); exit(0 if b\"healthy\" in resp.read() else 1)'" ]
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 120s
+      start_period: 180s
 
   # ============================================================
-  # 15. Airflow Scheduler (Dockerfile 없이)
+  # 13. Airflow Scheduler — apache/airflow:2.10.4-python3.11
   # ============================================================
   airflow-scheduler:
-    image: apache/airflow:3.0.3-python3.11
+    image: apache/airflow:2.10.4-python3.11
     container_name: airflow-scheduler-main
     hostname: airflow-scheduler
     user: "50000:0"
     depends_on:
-      airflow-webserver: { condition: service_started }
-    env_file: [ .env ]
+      airflow-webserver: { condition: service_healthy }
     environment:
       - AIRFLOW_HOME=/opt/airflow
       - AIRFLOW__CORE__EXECUTOR=LocalExecutor
-      - AIRFLOW__AUTH__MANAGER=airflow.auth.managers.simple.simple_auth_manager.SimpleAuthManager
-      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgresql:5432/${AIRFLOW_DB}
-      - AIRFLOW__CORE__FERNET_KEY=ZmDfcTF7_60GrrY167zsiPd67pEvs0aGOv2oasOM1Pg=
       - AIRFLOW__CORE__LOAD_EXAMPLES=False
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgresql:5432/${AIRFLOW_DB}
+      - AIRFLOW__CORE__FERNET_KEY=${AIRFLOW_FERNET_KEY}
+      - AIRFLOW__CONN__SPARK_DEFAULT=spark://spark-master:7077
       - TZ=${TZ}
     volumes:
-      - ./data-pipeline/airflow:/opt/airflow
+      - ./data-pipeline/airflow/dags:/opt/airflow/dags
+      - ./data-pipeline/airflow/plugins:/opt/airflow/plugins
       - airflow_logs:/opt/airflow/logs
-      - airflow_plugins:/opt/airflow/plugins
     networks: [ main-network ]
     restart: unless-stopped
+    deploy:
+      resources:
+        limits: { memory: 2G }
+        reservations: { memory: 1G }
     command: >
-      bash -c "pip install --no-cache-dir apache-airflow-providers-postgres apache-airflow-providers-apache-spark psycopg2-binary &&
-               airflow scheduler"
+      bash -c "
+        pip install --no-cache-dir
+          apache-airflow-providers-apache-spark==4.10.0
+          apache-airflow-providers-postgres==5.12.0
+          psycopg2-binary
+          pyspark==3.5.3 &&
+        airflow scheduler
+      "
     healthcheck:
-      test: [ "CMD-SHELL", "airflow jobs check --job-type SchedulerJob --hostname \"$${HOSTNAME}\"" ]
+      test: [ "CMD-SHELL", "airflow jobs check --job-type SchedulerJob --hostname \"$$HOSTNAME\"" ]
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 120s
+      start_period: 180s
+  # ============================================================
+  # 14. Airflow Triggerer — apache/airflow:2.10.4-python3.11
+  # ============================================================
+  # airflow-triggerer:
+  #   image: apache/airflow:2.10.4-python3.11
+  #   container_name: airflow-triggerer-main
+  #   hostname: airflow-triggerer
+  #   user: "50000:0"
+  #   depends_on:
+  #     airflow-webserver: { condition: service_healthy }
+  #   environment:
+  #     - AIRFLOW_HOME=/opt/airflow
+  #     - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+  #     - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgresql:5432/${AIRFLOW_DB}
+  #     - AIRFLOW__CORE__FERNET_KEY=${AIRFLOW_FERNET_KEY}
+  #     - TZ=${TZ}
+  #   volumes:
+  #     - ./data-pipeline/airflow/dags:/opt/airflow/dags
+  #     - airflow_logs:/opt/airflow/logs
+  #   networks: [main-network]
+  #   restart: unless-stopped
+  #   deploy:
+  #     resources:
+  #       limits:       { memory: 512M }
+  #       reservations: { memory: 256M }
+  #   command: >
+  #     bash -c "
+  #       pip install --no-cache-dir
+  #         apache-airflow-providers-apache-spark==4.10.0
+  #         psycopg2-binary &&
+  #       airflow triggerer
+  #     "
+  #   # healthcheck:
+  #   #   test: ["CMD-SHELL", "airflow jobs check --job-type TriggererJob --hostname \"$$HOSTNAME\" --limit 1"]
+  #   #   interval: 30s
+  #   #   timeout: 10s
+  #   #   retries: 5
+  #   #   start_period: 180s
+
+  # ================================================================
+  #  .env 필수 추가 항목 (start_all.sh가 자동 생성)
+  # ================================================================
+  #  AIRFLOW_FERNET_KEY=<자동생성>
+  #  AIRFLOW_WEBSERVER_SECRET_KEY=<자동생성>
+  #  AIRFLOW_ADMIN_PASSWORD=admin1234!
+  #  AIRFLOW_DB=airflowdb          ← 기존 .env에 이미 존재
+
+  # ================================================================
+  #  서비스 기동 순서 (의존성 체인)
+  # ================================================================
+  #
+  #  postgresql ──→ init-db ──→ airflow-webserver ──→ airflow-scheduler
+  #                                               └──→ airflow-triggerer
+  #  postgresql ──→ fastapi
+  #  mongodb    ──→ fastapi
+  #  redis      ──→ fastapi
+  #  zookeeper  ──→ kafka
+  #  namenode   ──→ datanode
+  #  namenode   ──→ spark-master ──→ spark-worker-1
