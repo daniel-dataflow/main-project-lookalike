@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block title %}최근 본 상품 - Lookalike{% endblock %}
+
+{% block content %}
+<div class="row mb-3 align-items-center">
+    <div class="col">
+        <h4 class="fw-bold mb-0">최근 본 상품</h4>
+        <small class="text-muted">오늘 5개 상품을 확인했어요</small>
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-link text-decoration-none text-secondary p-0" style="font-size: 0.9rem;">전체 삭제</button>
+    </div>
+</div>
+
+<div class="alert alert-warning py-2 mb-4 d-flex align-items-center" role="alert"
+    style="background-color: #fff9e6; border: none; color: #b58105;">
+    <i class="far fa-clock me-2"></i>
+    <span style="font-size: 0.9rem;">오늘 본 상품만 표시됩니다</span>
+</div>
+
+<!-- Mock Data List -->
+<div class="d-flex flex-column gap-3">
+    <!-- Item 1 -->
+    <div class="recent-item p-3 d-flex position-relative bg-white shadow-sm">
+        <div class="position-relative">
+            <img src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=200" alt="Product"
+                class="recent-img me-3">
+        </div>
+        <div class="flex-grow-1">
+            <div class="text-secondary small mb-1">StyleHub</div>
+            <h6 class="fw-bold mb-1">트렌디 캐주얼 아웃핏</h6>
+            <div class="sale-price" style="font-size: 1rem; color: #0d6efd;">89,000원</div>
+            <div class="text-muted small mt-2">2시간 전</div>
+        </div>
+        <button class="btn btn-link text-secondary position-absolute top-0 end-0 p-3">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+
+    <!-- Item 2 -->
+    <div class="recent-item p-3 d-flex position-relative bg-white shadow-sm">
+        <div class="position-relative">
+            <img src="https://images.unsplash.com/photo-1434389677669-e08b4cac3105?w=200" alt="Product"
+                class="recent-img me-3">
+        </div>
+        <div class="flex-grow-1">
+            <div class="text-secondary small mb-1">Urban Wear</div>
+            <h6 class="fw-bold mb-1">스타일리시 어반 재킷</h6>
+            <div class="sale-price" style="font-size: 1rem; color: #0d6efd;">156,000원</div>
+            <div class="text-muted small mt-2">3시간 전</div>
+        </div>
+        <button class="btn btn-link text-secondary position-absolute top-0 end-0 p-3">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+
+    <!-- Item 3 -->
+    <div class="recent-item p-3 d-flex position-relative bg-white shadow-sm">
+        <div class="position-relative">
+            <img src="https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=200" alt="Product"
+                class="recent-img me-3">
+        </div>
+        <div class="flex-grow-1">
+            <div class="text-secondary small mb-1">Daily Chic</div>
+            <h6 class="fw-bold mb-1">데일리 캐주얼 원피스</h6>
+            <div class="sale-price" style="font-size: 1rem; color: #0d6efd;">72,000원</div>
+            <div class="text-muted small mt-2">5시간 전</div>
+        </div>
+        <button class="btn btn-link text-secondary position-absolute top-0 end-0 p-3">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+
+    <!-- Item 4 -->
+    <div class="recent-item p-3 d-flex position-relative bg-white shadow-sm">
+        <div class="position-relative">
+            <img src="https://images.unsplash.com/photo-1491553895911-0055eca6402d?w=200" alt="Product"
+                class="recent-img me-3">
+        </div>
+        <div class="flex-grow-1">
+            <div class="text-secondary small mb-1">Sneaker Lab</div>
+            <h6 class="fw-bold mb-1">클래식 스니커즈</h6>
+            <div class="sale-price" style="font-size: 1rem; color: #0d6efd;">129,000원</div>
+            <div class="text-muted small mt-2">6시간 전</div>
+        </div>
+        <button class="btn btn-link text-secondary position-absolute top-0 end-0 p-3">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+</div>
+{% endblock %}
