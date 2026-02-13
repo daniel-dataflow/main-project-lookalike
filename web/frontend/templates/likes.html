@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+
+{% block title %}좋아요 - Lookalike{% endblock %}
+
+{% block content %}
+<div class="row mb-3 align-items-center">
+    <div class="col">
+        <h4 class="fw-bold mb-0">좋아요</h4>
+        <small class="text-muted">5개의 상품</small>
+    </div>
+    <div class="col-auto d-flex gap-3">
+        <a href="#" class="text-decoration-none text-secondary" style="font-size: 0.9rem;">리스트</a>
+        <a href="#" class="text-decoration-none text-secondary" style="font-size: 0.9rem;">전체 삭제</a>
+    </div>
+</div>
+
+<div class="row row-cols-2 row-cols-md-3 row-cols-lg-4 g-3">
+    <!-- Item 1 -->
+    <div class="col">
+        <div class="like-card bg-white shadow-sm">
+            <div class="position-relative">
+                <span class="discount-badge">15%</span>
+                <img src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=300" alt="Product"
+                    class="like-card-img">
+                <button class="btn position-absolute top-0 end-0 p-2 text-white">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="p-3">
+                <div class="text-secondary small mb-1">StyleHub</div>
+                <h6 class="fw-bold mb-1 text-truncate">트렌디 캐주얼 아웃핏</h6>
+                <div class="d-flex align-items-center gap-2 mt-2">
+                    <span class="original-price">89,000원</span>
+                    <span class="sale-price">75,650원</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Item 2 -->
+    <div class="col">
+        <div class="like-card bg-white shadow-sm">
+            <div class="position-relative">
+                <span class="discount-badge">20%</span>
+                <img src="https://images.unsplash.com/photo-1434389677669-e08b4cac3105?w=300" alt="Product"
+                    class="like-card-img">
+                <button class="btn position-absolute top-0 end-0 p-2 text-white">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="p-3">
+                <div class="text-secondary small mb-1">Urban Wear</div>
+                <h6 class="fw-bold mb-1 text-truncate">스타일리시 어반 재킷</h6>
+                <div class="d-flex align-items-center gap-2 mt-2">
+                    <span class="original-price">156,000원</span>
+                    <span class="sale-price">124,800원</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Item 3 -->
+    <div class="col">
+        <div class="like-card bg-white shadow-sm">
+            <div class="position-relative">
+                <span class="discount-badge">10%</span>
+                <img src="https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=300" alt="Product"
+                    class="like-card-img">
+                <button class="btn position-absolute top-0 end-0 p-2 text-white">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="p-3">
+                <div class="text-secondary small mb-1">Daily Chic</div>
+                <h6 class="fw-bold mb-1 text-truncate">데일리 캐주얼 원피스</h6>
+                <div class="d-flex align-items-center gap-2 mt-2">
+                    <span class="original-price">72,000원</span>
+                    <span class="sale-price">64,800원</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Item 4 (Sold Out Example) -->
+    <div class="col">
+        <div class="like-card bg-white shadow-sm">
+            <div class="position-relative">
+                <div
+                    class="d-flex align-items-center justify-content-center position-absolute w-100 h-100 bg-black bg-opacity-75 text-white fw-bold">
+                    품절
+                </div>
+                <img src="https://images.unsplash.com/photo-1491553895911-0055eca6402d?w=300" alt="Product"
+                    class="like-card-img">
+                <button class="btn position-absolute top-0 end-0 p-2 text-white">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="p-3">
+                <div class="text-secondary small mb-1">Sneaker Lab</div>
+                <h6 class="fw-bold mb-1 text-truncate">클래식 스니커즈</h6>
+                <div class="d-flex align-items-center gap-2 mt-2">
+                    <span class="sale-price text-dark">129,000원</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

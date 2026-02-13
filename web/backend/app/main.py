@@ -142,6 +142,21 @@ async def inquiry_page(request: Request):
     return templates.TemplateResponse("inquiry.html", {"request": request})
 
 
+@app.get("/recent", response_class=HTMLResponse)
+async def recent_viewed(request: Request):
+    return templates.TemplateResponse("recent_viewed.html", {"request": request})
+
+
+@app.get("/likes", response_class=HTMLResponse)
+async def likes(request: Request):
+    return templates.TemplateResponse("likes.html", {"request": request})
+
+
+@app.get("/search-history", response_class=HTMLResponse)
+async def search_history(request: Request):
+    return templates.TemplateResponse("search_history.html", {"request": request})
+
+
 # ──────────────────────────────────────
 # 헬스체크 & 상태
 # ──────────────────────────────────────
