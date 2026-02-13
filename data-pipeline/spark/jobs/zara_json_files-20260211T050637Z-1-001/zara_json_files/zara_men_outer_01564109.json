@@ -1,0 +1,28 @@
+{
+    "goodsNo": "01564109",
+    "goodsNm": "핀 스트라이프 수트 블레이저",
+    "brandName": "ZARA",
+    "thumbnailImageUrl": "https://static.zara.net/assets/public/bb99/a849/fb0b420baa91/772baab2b615/01564109801-p/01564109801-p.jpg?ts=1770109403715&w=560",
+    "color_name": "다크 그레이",
+    "colors": [],
+    "price": 189900,
+    "size_stock": [],
+    "is_sold_out": false,
+    "goodsImages": [
+        "https://static.zara.net/assets/public/bb99/a849/fb0b420baa91/772baab2b615/01564109801-p/01564109801-p.jpg",
+        "https://static.zara.net/assets/public/5c47/540b/df644079ac90/3b53b79b548f/05755404802-f1/05755404802-f1.jpg",
+        "https://static.zara.net/assets/public/8034/3b97/4e034f908525/bb2935a824f0/01564110801-f1/01564110801-f1.jpg",
+        "https://static.zara.net/assets/public/0064/fc8c/af654e6ead82/593ba6622433/13300720800-f1/13300720800-f1.jpg",
+        "https://static.zara.net/assets/public/d0f1/d372/ebc54e1cbf65/7ec02c1b2cfc/06399312800-f1/06399312800-f1.jpg",
+        "https://static.zara.net/assets/public/ff9e/21f2/a17246ab87db/a93a12a6679e/12470720800-f1/12470720800-f1.jpg",
+        "https://static.zara.net/assets/public/f29c/4da4/2feb4491a193/f1c5bdf97281/01564109801-a1/01564109801-a1.jpg",
+        "https://static.zara.net/stdstatic/8.1.0/images/transparent-background.png"
+    ],
+    "goodsMaterial": {
+        "description": "울 23% 혼방 소재 릴랙스 핏 블레이저. 노치드 라펠 칼라. 버튼 커프스 마감 긴소매 디자인. 가슴 부분 파이핑 포켓과 골반 부분 플랩 포켓. 안감 포켓 디테일. 뒷면 중앙 밑단에 트임이 있음. 앞면 버튼 여밈.",
+        "겉감": "60% 폴리에스터, 23% 모, 17% 비스코스",
+        "안감": "100% 폴리에스터"
+    },
+    "url": "https://www.zara.com/kr/ko/%E1%84%91%E1%85%B5%E1%86%AB-%E1%84%89%E1%85%B3%E1%84%90%E1%85%B3%E1%84%85%E1%85%A1%E1%84%8B%E1%85%B5%E1%84%91%E1%85%B3-%E1%84%89%E1%85%AE%E1%84%90%E1%85%B3-%E1%84%87%E1%85%B3%E1%86%AF%E1%84%85%E1%85%A6%E1%84%8B%E1%85%B5%E1%84%8C%E1%85%A5-p01564109.html",
+    "scraped_at": "2026-02-11 13:11:45"
+}

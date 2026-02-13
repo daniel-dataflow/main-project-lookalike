@@ -1,0 +1,26 @@
+{
+    "goodsNo": "06983363",
+    "goodsNm": "핀 스트라이프 크롭핏 수트 블레이저",
+    "brandName": "ZARA",
+    "thumbnailImageUrl": "https://static.zara.net/assets/public/5a49/c37e/f2fb418eb411/1978ff380d8c/06983363922-p/06983363922-p.jpg?ts=1770109402658&w=560",
+    "color_name": "다크 그레이",
+    "colors": [],
+    "price": 189900,
+    "size_stock": [],
+    "is_sold_out": false,
+    "goodsImages": [
+        "https://static.zara.net/assets/public/5a49/c37e/f2fb418eb411/1978ff380d8c/06983363922-p/06983363922-p.jpg",
+        "https://static.zara.net/assets/public/ff9e/21f2/a17246ab87db/a93a12a6679e/12470720800-f1/12470720800-f1.jpg",
+        "https://static.zara.net/assets/public/2a34/474c/089d47139bc2/1a5b3ebdb213/06983363922-a1/06983363922-a1.jpg",
+        "https://static.zara.net/stdstatic/8.1.0/images/transparent-background.png"
+    ],
+    "goodsMaterial": {
+        "description": "비스코스 혼방 소재의 크롭핏 블레이저. 노치 라펠 칼라 긴소매. 배색 안감. 옆면 힙 포켓. 안감 포켓 디테일. 앞면 버튼 여밈.",
+        "겉감": "65% 폴리에스터, 35% 비스코스",
+        "안감": "몸통\n100% 면, 100% 면, 소매\n65% 비스코스\n35% 폴리에스터, 65% 비스코스, 35% 폴리에스터",
+        "몸통": "100% 면",
+        "소매": "65% 비스코스, 35% 폴리에스터"
+    },
+    "url": "https://www.zara.com/kr/ko/%E1%84%91%E1%85%B5%E1%86%AB-%E1%84%89%E1%85%B3%E1%84%90%E1%85%B3%E1%84%85%E1%85%A1%E1%84%8B%E1%85%B5%E1%84%91%E1%85%B3-%E1%84%8F%E1%85%B3%E1%84%85%E1%85%A9%E1%86%B8-%E1%84%91%E1%85%B5%E1%86%BA-%E1%84%87%E1%85%B3%E1%86%AF%E1%84%85%E1%85%A6%E1%84%8B%E1%85%B5%E1%84%8C%E1%85%A5-p06983363.html",
+    "scraped_at": "2026-02-11 13:11:50"
+}

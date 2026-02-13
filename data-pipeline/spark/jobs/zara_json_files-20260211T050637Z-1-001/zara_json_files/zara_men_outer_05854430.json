@@ -1,0 +1,24 @@
+{
+    "goodsNo": "05854430",
+    "goodsNm": "울 혼방 체크 더블 브레스트 블레이저",
+    "brandName": "ZARA",
+    "thumbnailImageUrl": "https://static.zara.net/assets/public/b0be/da99/f6ba49f28fb1/dcf6ed4fc12d/05854430700-p/05854430700-p.jpg?ts=1764756468953&w=560",
+    "color_name": "브라운",
+    "colors": [],
+    "price": 209900,
+    "size_stock": [],
+    "is_sold_out": false,
+    "goodsImages": [
+        "https://static.zara.net/assets/public/b0be/da99/f6ba49f28fb1/dcf6ed4fc12d/05854430700-p/05854430700-p.jpg",
+        "https://static.zara.net/assets/public/8d93/604d/72a84eec928f/605f579169cd/02823400700-f1/02823400700-f1.jpg",
+        "https://static.zara.net/assets/public/af09/a7c0/40334d398ebe/8853de4846bc/05854430700-a1/05854430700-a1.jpg",
+        "https://static.zara.net/stdstatic/8.1.0/images/transparent-background.png"
+    ],
+    "goodsMaterial": {
+        "description": "울 혼방 소재의 릴랙스핏 블레이저. 피크 라펠 칼라 디자인. 버튼 커프스 마감 긴소매. 가슴과 골반 부분 파이핑 포켓. 안감 포켓 디테일. 뒷면 중앙 밑단 트임. 앞면 더블 브레스트 버튼 여밈.",
+        "겉감": "50% 폴리에스터, 47% 모, 3% 나일론",
+        "안감": "100% 폴리에스터"
+    },
+    "url": "https://www.zara.com/kr/ko/%E1%84%8B%E1%85%AE%E1%86%AF-%E1%84%92%E1%85%A9%E1%86%AB%E1%84%87%E1%85%A1%E1%86%BC-%E1%84%8E%E1%85%A6%E1%84%8F%E1%85%B3-%E1%84%83%E1%85%A5%E1%84%87%E1%85%B3%E1%86%AF-%E1%84%87%E1%85%B3%E1%84%85%E1%85%A6%E1%84%89%E1%85%B3%E1%84%90%E1%85%B3-%E1%84%87%E1%85%B3%E1%86%AF%E1%84%85%E1%85%A6%E1%84%8B%E1%85%B5%E1%84%8C%E1%85%A5-p05854430.html",
+    "scraped_at": "2026-02-11 13:11:55"
+}

@@ -1,0 +1,25 @@
+{
+    "goodsNo": "04294463",
+    "goodsNm": "100% 울 수트 블레이저",
+    "brandName": "ZARA",
+    "thumbnailImageUrl": "https://static.zara.net/assets/public/aa67/d8e7/1d394cf7aa29/26605fe5a8bb/04294463422-p/04294463422-p.jpg?ts=1770109333141&w=560",
+    "color_name": "",
+    "colors": [],
+    "price": 279900,
+    "size_stock": [],
+    "is_sold_out": false,
+    "goodsImages": [
+        "https://static.zara.net/assets/public/aa67/d8e7/1d394cf7aa29/26605fe5a8bb/04294463422-p/04294463422-p.jpg",
+        "https://static.zara.net/assets/public/8368/e5f3/e54a4421b93a/6386e2cb9afa/04111438800-f1/04111438800-f1.jpg",
+        "https://static.zara.net/assets/public/7f55/3c20/9e934b7ca5bc/1fd578e9419b/04295463422-f1/04295463422-f1.jpg",
+        "https://static.zara.net/assets/public/33cc/3162/36e343a385df/c2e1fd6c8b46/04294463422-a1/04294463422-a1.jpg",
+        "https://static.zara.net/stdstatic/8.1.0/images/transparent-background.png"
+    ],
+    "goodsMaterial": {
+        "description": "레귤러 핏 울 블레이저 (안감 제외). 노치드 라펠 칼라와 버튼 커프스 마감 긴소매 디자인. 가슴 부분 파이핑 포켓과 골반 부분 플랩 포켓. 내부 포켓 디테일. 뒷면 중앙 밑단 트임. 앞면 버튼 여밈. Origins 스페셜 컬렉션.",
+        "겉감": "100% 모",
+        "안감": "52% 비스코스, 48% 폴리에스터"
+    },
+    "url": "https://www.zara.com/kr/ko/100-%E1%84%8B%E1%85%AE%E1%86%AF-%E1%84%89%E1%85%AE%E1%84%90%E1%85%B3-%E1%84%87%E1%85%B3%E1%86%AF%E1%84%85%E1%85%A6%E1%84%8B%E1%85%B5%E1%84%8C%E1%85%A5-p04294463.html",
+    "scraped_at": "2026-02-11 13:11:45"
+}

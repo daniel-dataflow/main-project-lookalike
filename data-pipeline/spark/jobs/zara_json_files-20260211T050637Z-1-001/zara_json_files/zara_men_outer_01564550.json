@@ -1,0 +1,26 @@
+{
+    "goodsNo": "01564550",
+    "goodsNm": "더블 브레스트 울 수트 블레이저 LIMITED EDITION",
+    "brandName": "ZARA",
+    "thumbnailImageUrl": "https://static.zara.net/assets/public/b116/127a/77e64355b756/b90627d26461/01564550401-p/01564550401-p.jpg?ts=1770109286181&w=560",
+    "color_name": "네이비",
+    "colors": [],
+    "price": 209900,
+    "size_stock": [],
+    "is_sold_out": false,
+    "goodsImages": [
+        "https://static.zara.net/assets/public/b116/127a/77e64355b756/b90627d26461/01564550401-p/01564550401-p.jpg",
+        "https://static.zara.net/assets/public/1129/01c5/4438451db23a/d413309b3544/04408147737-f1/04408147737-f1.jpg",
+        "https://static.zara.net/assets/public/5209/c8a1/6f2a44feb95c/c962408a2b4b/01564551401-000-f1/01564551401-000-f1.jpg",
+        "https://static.zara.net/assets/public/88c7/733f/c815402e89d7/bb29ca61203a/12499620800-f1/12499620800-f1.jpg",
+        "https://static.zara.net/assets/public/452b/f91a/5a3d44a38d8c/ea37d9579ca9/01564550401-a1/01564550401-a1.jpg",
+        "https://static.zara.net/stdstatic/8.1.0/images/transparent-background.png"
+    ],
+    "goodsMaterial": {
+        "description": "울 혼방 소재의 레귤러 핏 블레이저. 버튼이 달린 커프스 마감 긴소매 피크 라펠 칼라 디자인. 가슴 부분 파이핑 포켓과 골반 부분 플랩 포켓. 내부 포켓 디테일. 앞면 더블 브레스트 버튼 여밈.",
+        "겉감": "55% 폴리에스터, 45% 모",
+        "안감": "100% 폴리에스터"
+    },
+    "url": "https://www.zara.com/kr/ko/limited-edition-%E1%84%8B%E1%85%AE%E1%86%AF-%E1%84%83%E1%85%A5%E1%84%87%E1%85%B3%E1%86%AF-%E1%84%87%E1%85%B3%E1%84%85%E1%85%A6%E1%84%89%E1%85%B3%E1%84%90%E1%85%B3-%E1%84%89%E1%85%AE%E1%84%90%E1%85%B3-%E1%84%87%E1%85%B3%E1%86%AF%E1%84%85%E1%85%A6%E1%84%8B%E1%85%B5%E1%84%8C%E1%85%A5-p01564550.html",
+    "scraped_at": "2026-02-11 13:11:36"
+}

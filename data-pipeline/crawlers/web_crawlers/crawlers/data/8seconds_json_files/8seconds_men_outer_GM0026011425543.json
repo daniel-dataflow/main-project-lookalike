@@ -1,0 +1,84 @@
+{
+    "goodsNo": "GM0026011425543",
+    "goodsNm": "페이크 레더 빈티지 워싱 블루종 - 브라운",
+    "is_sold_out": false,
+    "price": 89900,
+    "other_color_ids": [],
+    "size_stock": [
+        {
+            "size": "M",
+            "stock_qty": 73,
+            "is_sold_out": false
+        },
+        {
+            "size": "L",
+            "stock_qty": 153,
+            "is_sold_out": false
+        },
+        {
+            "size": "XL",
+            "stock_qty": 139,
+            "is_sold_out": false
+        },
+        {
+            "size": "XXL",
+            "stock_qty": 112,
+            "is_sold_out": false
+        }
+    ],
+    "goodsImages": [
+        "https://img.ssfshop.com/goods/8SBR/26/01/14/GM0026011425543_0_THNAIL_ORGINL_20260206173334158.jpg",
+        "https://img.ssfshop.com/goods/8SBR/26/01/14/GM0026011425543_1_THNAIL_ORGINL_20260206173334158.jpg",
+        "https://img.ssfshop.com/goods/8SBR/26/01/14/GM0026011425543_2_THNAIL_ORGINL_20260206173334158.jpg",
+        "https://img.ssfshop.com/goods/8SBR/26/01/14/GM0026011425543_3_THNAIL_ORGINL_20260206173334158.jpg",
+        "https://img.ssfshop.com/goods/8SBR/26/01/14/GM0026011425543_4_THNAIL_ORGINL_20260206173334158.jpg",
+        "https://img.ssfshop.com/goods/8SBR/26/01/14/GM0026011425543_5_THNAIL_ORGINL_20260206173334158.jpg",
+        "https://img.ssfshop.com/goods/8SBR/26/01/14/GM0026011425543_6_THNAIL_ORGINL_20260206173334158.jpg",
+        "https://img.ssfshop.com/goods/8SBR/26/01/14/GM0026011425543_7_THNAIL_ORGINL_20260206173334158.jpg",
+        "https://img.ssfshop.com/goods/8SBR/26/01/14/GM0026011425543_8_THNAIL_ORGINL_20260206173334158.jpg",
+        "https://img.ssfshop.com/goods/8SBR/26/01/14/GM0026011425543_9_THNAIL_ORGINL_20260206173334158.jpg",
+        "https://img.ssfshop.com/goods/8SBR/26/01/14/GM0026011425543_10_THNAIL_ORGINL_20260206173334158.jpg",
+        "https://img.ssfshop.com/goods/8SBR/26/01/14/GM0026011425543_11_THNAIL_ORGINL_20260206173334158.jpg"
+    ],
+    "goodsMaterial": {},
+    "sizeChart": [
+        {
+            "SIZE": "XS",
+            "8seconds": "90",
+            "신체사이즈(cm)": "S",
+            "가슴둘레": "90"
+        },
+        {
+            "SIZE": "S",
+            "8seconds": "95",
+            "신체사이즈(cm)": "M",
+            "가슴둘레": "95"
+        },
+        {
+            "SIZE": "M",
+            "8seconds": "100",
+            "신체사이즈(cm)": "L",
+            "가슴둘레": "100"
+        },
+        {
+            "SIZE": "L",
+            "8seconds": "105",
+            "신체사이즈(cm)": "XL",
+            "가슴둘레": "105"
+        },
+        {
+            "SIZE": "XL",
+            "8seconds": "110",
+            "신체사이즈(cm)": "XXL",
+            "가슴둘레": "110"
+        },
+        {
+            "SIZE": "XXL",
+            "8seconds": "115",
+            "신체사이즈(cm)": "3XL",
+            "가슴둘레": "115"
+        }
+    ],
+    "url": "https://www.ssfshop.com/8-seconds/GM0026011425543/good?brandShopNo=BDMA07A01&brndShopId=8SBSS",
+    "scraped_at": "2026-02-10 07:00:03"
+}

@@ -1,0 +1,28 @@
+{
+    "goodsNo": "04457232",
+    "goodsNm": "컴포트 수트 더블 브레스트 블레이저",
+    "brandName": "ZARA",
+    "thumbnailImageUrl": "https://static.zara.net/assets/public/f930/d229/048f4f55abd8/dcd7f7283c6d/04457232500-p/04457232500-p.jpg?ts=1770110528838&w=560",
+    "color_name": "초록",
+    "colors": [],
+    "price": 149900,
+    "size_stock": [],
+    "is_sold_out": false,
+    "goodsImages": [
+        "https://static.zara.net/assets/public/f930/d229/048f4f55abd8/dcd7f7283c6d/04457232500-p/04457232500-p.jpg",
+        "https://static.zara.net/assets/public/1ea5/b7ba/c89f4b6abe0f/33cc1d732f44/04408147250000-f1/04408147250000-f1.jpg",
+        "https://static.zara.net/assets/public/a3b7/1b80/4d6149ad8a62/7c2b218e04ff/04404232500-f1/04404232500-f1.jpg",
+        "https://static.zara.net/assets/public/ff9e/21f2/a17246ab87db/a93a12a6679e/12470720800-f1/12470720800-f1.jpg",
+        "https://static.zara.net/assets/public/6838/78d6/197043358802/cfd36d1937bf/04457232500-a1/04457232500-a1.jpg",
+        "https://static.zara.net/stdstatic/8.1.0/images/transparent-background.png"
+    ],
+    "goodsMaterial": {
+        "description": "비스코스 혼방 소재의 레귤러핏 블레이저. 노치드 라펠 칼라와 버튼이 달린 커프스 마감 긴소매 디자인. 가슴 부분 파이핑 포켓과 골반 부분 플랩 포켓. 내부 포켓 디테일. 뒷면 중앙 밑단 트임. 앞면 더블 버튼 여밈.",
+        "겉감": "54% 폴리에스터, 39% 비스코스, 7% 폴리우레탄",
+        "안감": "몸통\n100% 폴리에스터, 100% 폴리에스터, 소매\n95% 폴리에스터\n5% 폴리우레탄, 95% 폴리에스터, 5% 폴리우레탄",
+        "몸통": "100% 폴리에스터",
+        "소매": "95% 폴리에스터, 5% 폴리우레탄"
+    },
+    "url": "https://www.zara.com/kr/ko/%E1%84%8F%E1%85%A5%E1%86%B7%E1%84%91%E1%85%A9%E1%84%90%E1%85%B3-%E1%84%89%E1%85%AE%E1%84%90%E1%85%B3-%E1%84%83%E1%85%A5%E1%84%87%E1%85%B3%E1%86%AF-%E1%84%87%E1%85%B3%E1%84%85%E1%85%A6%E1%84%89%E1%85%B3%E1%84%90%E1%85%B3-%E1%84%87%E1%85%B3%E1%86%AF%E1%84%85%E1%85%A6%E1%84%8B%E1%85%B5%E1%84%8C%E1%85%A5-p04457232.html",
+    "scraped_at": "2026-02-11 13:12:26"
+}

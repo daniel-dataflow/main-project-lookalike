@@ -1,0 +1,24 @@
+{
+    "goodsNo": "05070203",
+    "goodsNm": "울 헤링본 스트럭처 수트 블레이저",
+    "brandName": "ZARA",
+    "thumbnailImageUrl": "https://static.zara.net/assets/public/b285/8381/66784e079ce3/32a152393ab0/05070203802-p/05070203802-p.jpg?ts=1770109285817&w=560",
+    "color_name": "그레이",
+    "colors": [],
+    "price": 189900,
+    "size_stock": [],
+    "is_sold_out": false,
+    "goodsImages": [
+        "https://static.zara.net/assets/public/b285/8381/66784e079ce3/32a152393ab0/05070203802-p/05070203802-p.jpg",
+        "https://static.zara.net/assets/public/ca7e/a287/a6704e26974d/962b8135e723/05070204802-f1/05070204802-f1.jpg",
+        "https://static.zara.net/assets/public/2b85/44d1/d9a2470d901f/98b647025247/05070203802-a1/05070203802-a1.jpg",
+        "https://static.zara.net/stdstatic/8.1.0/images/transparent-background.png"
+    ],
+    "goodsMaterial": {
+        "description": "울 혼방 소재의 릴랙스 핏 블레이저. 피크 라펠 칼라와 버튼 커프스 마감 긴소매. 가슴 부분 파이핑 포켓과 골반 부분 플랩 포켓. 내부 포켓 디테일. 앞면 더블 브레스트 버튼 여밈.",
+        "겉감": "65% 폴리에스터, 35% 모",
+        "안감": "100% 폴리에스터"
+    },
+    "url": "https://www.zara.com/kr/ko/%E1%84%8B%E1%85%AE%E1%86%AF-%E1%84%92%E1%85%A6%E1%84%85%E1%85%B5%E1%86%BC%E1%84%87%E1%85%A9%E1%86%AB-%E1%84%89%E1%85%B3%E1%84%90%E1%85%B3%E1%84%85%E1%85%A5%E1%86%A8%E1%84%8E%E1%85%A5-%E1%84%89%E1%85%AE%E1%84%90%E1%85%B3-%E1%84%87%E1%85%B3%E1%86%AF%E1%84%85%E1%85%A6%E1%84%8B%E1%85%B5%E1%84%8C%E1%85%A5-p05070203.html",
+    "scraped_at": "2026-02-11 13:11:34"
+}

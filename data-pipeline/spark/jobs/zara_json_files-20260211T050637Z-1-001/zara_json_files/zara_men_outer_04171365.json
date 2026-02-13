@@ -1,0 +1,26 @@
+{
+    "goodsNo": "04171365",
+    "goodsNm": "100% 울 수트 블레이저",
+    "brandName": "ZARA",
+    "thumbnailImageUrl": "https://static.zara.net/assets/public/639a/7b46/c5f945f89c2b/887a5291e39b/04171365800-10-p/04171365800-10-p.jpg?ts=1770109644048&w=560",
+    "color_name": "블랙",
+    "colors": [],
+    "price": 279900,
+    "size_stock": [],
+    "is_sold_out": false,
+    "goodsImages": [
+        "https://static.zara.net/assets/public/639a/7b46/c5f945f89c2b/887a5291e39b/04171365800-10-p/04171365800-10-p.jpg",
+        "https://static.zara.net/assets/public/649f/6315/52eb459ab6af/7a4ef36f1cb0/12478720800-f1/12478720800-f1.jpg",
+        "https://static.zara.net/assets/public/8c67/31b2/583f482d884c/95fff887a9db/04171365800-10-a1/04171365800-10-a1.jpg",
+        "https://static.zara.net/stdstatic/8.1.0/images/transparent-background.png"
+    ],
+    "goodsMaterial": {
+        "description": "레귤러 핏 울 블레이저 (안감 제외). 노치 라펠 칼라. 버튼이 달린 커프스 마감 긴소매 디자인. 골반 부분 플랩 포켓. 내부 포켓 디테일. 뒷면 중앙 밑단 트임. 앞면 버튼 여밈.",
+        "겉감": "100% 모",
+        "안감": "몸통\n62% 면\n38% 폴리에스터, 62% 면, 38% 폴리에스터, 소매\n95% 폴리에스터\n5% 폴리우레탄, 95% 폴리에스터, 5% 폴리우레탄",
+        "몸통": "62% 면, 38% 폴리에스터",
+        "소매": "95% 폴리에스터, 5% 폴리우레탄"
+    },
+    "url": "https://www.zara.com/kr/ko/100-%E1%84%8B%E1%85%AE%E1%86%AF-%E1%84%89%E1%85%AE%E1%84%90%E1%85%B3-%E1%84%87%E1%85%B3%E1%86%AF%E1%84%85%E1%85%A6%E1%84%8B%E1%85%B5%E1%84%8C%E1%85%A5-p04171365.html",
+    "scraped_at": "2026-02-11 13:12:01"
+}

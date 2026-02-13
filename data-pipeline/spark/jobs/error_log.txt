@@ -1,0 +1,62 @@
+26/02/09 04:58:41 WARN Utils: Your hostname, lookalike resolves to a loopback address: 127.0.1.1; using 192.168.209.154 instead (on interface ens33)
+26/02/09 04:58:41 WARN Utils: Set SPARK_LOCAL_IP if you need to bind to another address
+:: loading settings :: url = jar:file:/home/lookalike/main-project-lookalike/miniconda3/envs/ml-env/lib/python3.11/site-packages/pyspark/jars/ivy-2.5.1.jar!/org/apache/ivy/core/settings/ivysettings.xml
+Ivy Default Cache set to: /home/lookalike/.ivy2/cache
+The jars for the packages stored in: /home/lookalike/.ivy2/jars
+org.postgresql#postgresql added as a dependency
+org.mongodb.spark#mongo-spark-connector_2.12 added as a dependency
+:: resolving dependencies :: org.apache.spark#spark-submit-parent-8b57d71a-6d99-41ba-8205-499d15a3b767;1.0
+	confs: [default]
+	found org.postgresql#postgresql;42.5.0 in central
+	found org.checkerframework#checker-qual;3.5.0 in central
+	found org.mongodb.spark#mongo-spark-connector_2.12;10.1.1 in central
+	found org.mongodb#mongodb-driver-sync;4.8.2 in central
+	[4.8.2] org.mongodb#mongodb-driver-sync;[4.8.1,4.8.99)
+	found org.mongodb#bson;4.8.2 in central
+	found org.mongodb#mongodb-driver-core;4.8.2 in central
+	found org.mongodb#bson-record-codec;4.8.2 in central
+:: resolution report :: resolve 758ms :: artifacts dl 16ms
+	:: modules in use:
+	org.checkerframework#checker-qual;3.5.0 from central in [default]
+	org.mongodb#bson;4.8.2 from central in [default]
+	org.mongodb#bson-record-codec;4.8.2 from central in [default]
+	org.mongodb#mongodb-driver-core;4.8.2 from central in [default]
+	org.mongodb#mongodb-driver-sync;4.8.2 from central in [default]
+	org.mongodb.spark#mongo-spark-connector_2.12;10.1.1 from central in [default]
+	org.postgresql#postgresql;42.5.0 from central in [default]
+	---------------------------------------------------------------------
+	|                  |            modules            ||   artifacts   |
+	|       conf       | number| search|dwnlded|evicted|| number|dwnlded|
+	---------------------------------------------------------------------
+	|      default     |   7   |   1   |   0   |   0   ||   7   |   0   |
+	---------------------------------------------------------------------
+:: retrieving :: org.apache.spark#spark-submit-parent-8b57d71a-6d99-41ba-8205-499d15a3b767
+	confs: [default]
+	0 artifacts copied, 7 already retrieved (0kB/7ms)
+26/02/09 04:58:42 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+📂 Reading from: hdfs://localhost:9000/raw/uniqlo/20260205/*.html
+Traceback (most recent call last):
+  File "/home/lookalike/main-project-lookalike/data-pipeline/spark/jobs/fashion_batch_job_UQ.py", line 117, in <module>
+    .withColumn("category_code", concat(col("gender"), lit("_"), col("subuniqlo_category")))
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/lookalike/main-project-lookalike/miniconda3/envs/ml-env/lib/python3.11/site-packages/pyspark/sql/dataframe.py", line 4789, in withColumn
+    return DataFrame(self._jdf.withColumn(colName, col._jc), self.sparkSession)
+                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/lookalike/main-project-lookalike/miniconda3/envs/ml-env/lib/python3.11/site-packages/py4j/java_gateway.py", line 1322, in __call__
+    return_value = get_return_value(
+                   ^^^^^^^^^^^^^^^^^
+  File "/home/lookalike/main-project-lookalike/miniconda3/envs/ml-env/lib/python3.11/site-packages/pyspark/errors/exceptions/captured.py", line 175, in deco
+    raise converted from None
+pyspark.errors.exceptions.captured.AnalysisException: [UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name `subuniqlo_category` cannot be resolved. Did you mean one of the following? [`sub_category`, `file_path`, `html_content`, `gender`, `img_hdfs_path`].;
+'Project [file_path#2, html_content#3, info#8, idx#20L, product_id#25, img_hdfs_path#31, gender#39, sub_category#47, concat(gender#39, _, 'subuniqlo_category) AS category_code#56]
++- Project [file_path#2, html_content#3, info#8, idx#20L, product_id#25, img_hdfs_path#31, gender#39, regexp_extract(file_path#2, 8seconds_[A-Za-z]+_([A-Za-z]+)_, 1) AS sub_category#47]
+   +- Project [file_path#2, html_content#3, info#8, idx#20L, product_id#25, img_hdfs_path#31, regexp_extract(file_path#2, uniqlo_([A-Za-z]+)_, 1) AS gender#39]
+      +- Project [file_path#2, html_content#3, info#8, idx#20L, product_id#25, concat(/raw/uniqlo/20260205/image, /, info#8.model_code, .jpg) AS img_hdfs_path#31]
+         +- Project [file_path#2, html_content#3, info#8, idx#20L, format_string(UQ%04d, ((idx#20L + cast(5 as bigint)) - cast(1 as bigint))) AS product_id#25]
+            +- Project [file_path#2, html_content#3, info#8, (monotonically_increasing_id() + cast(1 as bigint)) AS idx#20L]
+               +- Project [file_path#2, html_content#3, parse_details(html_content#3)#7 AS info#8]
+                  +- Project [input_file_name() AS file_path#2, value#0 AS html_content#3]
+                     +- Relation [value#0] text
+

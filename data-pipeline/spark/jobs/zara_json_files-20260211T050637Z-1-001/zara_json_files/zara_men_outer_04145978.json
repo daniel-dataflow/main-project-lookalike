@@ -1,0 +1,30 @@
+{
+    "goodsNo": "04145978",
+    "goodsNm": "울 수트 블레이저",
+    "brandName": "ZARA",
+    "thumbnailImageUrl": "https://static.zara.net/assets/public/52bb/9009/2fd442be8855/72a78b57ec62/04145978700-p/04145978700-p.jpg?ts=1770109240660&w=560",
+    "color_name": "브라운",
+    "colors": [],
+    "price": 209900,
+    "size_stock": [],
+    "is_sold_out": false,
+    "goodsImages": [
+        "https://static.zara.net/assets/public/52bb/9009/2fd442be8855/72a78b57ec62/04145978700-p/04145978700-p.jpg",
+        "https://static.zara.net/assets/public/96ec/3bef/9ec6480fb202/5c638eae73e7/04408147700-f1/04408147700-f1.jpg",
+        "https://static.zara.net/assets/public/3bcb/00dd/04b240f69ce8/959cc53a940c/04144978700-f1/04144978700-f1.jpg",
+        "https://static.zara.net/assets/public/4895/fb8c/ec314a729b5d/e89985d5eeb6/12470720700-f1/12470720700-f1.jpg",
+        "https://static.zara.net/assets/public/75cd/0a06/b6bc4ee680be/ff09b98ddd8f/09569413800-f1/09569413800-f1.jpg",
+        "https://static.zara.net/assets/public/ab96/9a98/388842b6a910/390945f4c900/05919405800-f1/05919405800-f1.jpg",
+        "https://static.zara.net/assets/public/36bf/32f0/c9194983a20e/a92d066f1aa2/04145978700-a1/04145978700-a1.jpg",
+        "https://static.zara.net/stdstatic/8.1.0/images/transparent-background.png"
+    ],
+    "goodsMaterial": {
+        "description": "울 소재 릴랙스 핏 블레이저. 노치드 라펠 칼라 디자인. 버튼 커프스 마감 긴소매. 골반 부분 파이핑 포켓. 내부 포켓 디테일. 대비되는 색상의 안감. 뒷면 중앙 밑단 트임. 앞면 버튼 여밈.",
+        "겉감": "50% 모, 50% 폴리에스터",
+        "안감": "몸통\n100% 면, 100% 면, 소매\n95% 폴리에스터\n5% 폴리우레탄, 95% 폴리에스터, 5% 폴리우레탄",
+        "몸통": "100% 면",
+        "소매": "95% 폴리에스터, 5% 폴리우레탄"
+    },
+    "url": "https://www.zara.com/kr/ko/%E1%84%8B%E1%85%AE%E1%86%AF-%E1%84%89%E1%85%AE%E1%84%90%E1%85%B3-%E1%84%87%E1%85%B3%E1%86%AF%E1%84%85%E1%85%A6%E1%84%8B%E1%85%B5%E1%84%8C%E1%85%A5-p04145978.html",
+    "scraped_at": "2026-02-11 13:12:06"
+}

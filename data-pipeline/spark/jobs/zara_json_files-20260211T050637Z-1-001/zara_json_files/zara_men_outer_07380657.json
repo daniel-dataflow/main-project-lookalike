@@ -1,0 +1,26 @@
+{
+    "goodsNo": "07380657",
+    "goodsNm": "BLAZER TRAJE 릴렉스핏 SOSHIOTSUKI X ZARA",
+    "brandName": "ZARA",
+    "thumbnailImageUrl": "https://static.zara.net/assets/public/beec/6120/f8f840fd9cc8/302a83abedad/07380657800-p/07380657800-p.jpg?ts=1764679963479&w=560",
+    "color_name": "블랙",
+    "colors": [],
+    "price": 279900,
+    "size_stock": [],
+    "is_sold_out": false,
+    "goodsImages": [
+        "https://static.zara.net/assets/public/beec/6120/f8f840fd9cc8/302a83abedad/07380657800-p/07380657800-p.jpg",
+        "https://static.zara.net/assets/public/0f4e/f9b9/274f4d33913b/4de1dd220153/09598434807-f1/09598434807-f1.jpg",
+        "https://static.zara.net/assets/public/42e4/319a/825f4465bf36/c1f442ff7a82/07380661250-f1/07380661250-f1.jpg",
+        "https://static.zara.net/assets/public/4e18/f85a/190e4a1e8938/f188eaca276f/07380658800-f1/07380658800-f1.jpg",
+        "https://static.zara.net/assets/public/7de2/5743/c310430ab17c/d6c6681f2748/07380657800-a1/07380657800-a1.jpg",
+        "https://static.zara.net/stdstatic/8.1.0/images/transparent-background.png"
+    ],
+    "goodsMaterial": {
+        "description": "라이오셀 및 면 혼방 소재로 제작된 릴렉스핏 블레이저. 노치 라펠 칼라 디자인. 버튼 커프스 마감 긴소매. 하프 안감. 가슴 부분 파이핑 포켓 및 골반 부분 플랩 포켓. 내부 포켓 디테일. 뒷면 중앙 밑단 트임. 앞면 버튼 여밈. Soshiotsuki x ZARA 스페셜 컬렉션.",
+        "겉감": "68% 리오셀, 32% 면",
+        "안감": "100% 폴리에스터"
+    },
+    "url": "https://www.zara.com/kr/ko/blazer-traje-%E1%84%85%E1%85%B5%E1%86%AF%E1%84%85%E1%85%A6%E1%86%A8%E1%84%89%E1%85%B3%E1%84%91%E1%85%B5%E1%86%BA-soshiotsuki-x-zara-p07380657.html",
+    "scraped_at": "2026-02-11 13:11:40"
+}

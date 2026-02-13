@@ -1,0 +1,26 @@
+{
+    "goodsNo": "09621410",
+    "goodsNm": "논아이론 테크니컬 수트 블레이저",
+    "brandName": "ZARA",
+    "thumbnailImageUrl": "https://static.zara.net/assets/public/fd60/e1bb/100a487b8575/1d24cf6de2f4/09621410401-p/09621410401-p.jpg?ts=1770109403247&w=560",
+    "color_name": "네이비",
+    "colors": [],
+    "price": 149900,
+    "size_stock": [],
+    "is_sold_out": false,
+    "goodsImages": [
+        "https://static.zara.net/assets/public/fd60/e1bb/100a487b8575/1d24cf6de2f4/09621410401-p/09621410401-p.jpg",
+        "https://static.zara.net/assets/public/6635/b6db/00664fc1a7d0/c3d65c4f4350/06674430717-f1/06674430717-f1.jpg",
+        "https://static.zara.net/assets/public/9be1/c2f7/cd384dac98b5/a11c413d035c/09621410401-a1/09621410401-a1.jpg",
+        "https://static.zara.net/stdstatic/8.1.0/images/transparent-background.png"
+    ],
+    "goodsMaterial": {
+        "description": "세탁 후 다림질이 거의 필요 없는 통기성 좋은 테크니컬 원단으로 제작된 레귤러 핏 블레이저. 노치 라펠 칼라와 버튼 커프스 마감 긴소매 디자인. 내부 안감 없음. 가슴 부분 파이핑 포켓과 골반 부분 플랩 포켓. 내부 포켓 디테일. 뒷면 밑단 트임. 앞면 버튼 여밈.",
+        "겉감": "100% 폴리에스터",
+        "안감": "몸통\n100% 폴리에스터, 100% 폴리에스터, 소매\n95% 폴리에스터\n5% 폴리우레탄, 95% 폴리에스터, 5% 폴리우레탄",
+        "몸통": "100% 폴리에스터",
+        "소매": "95% 폴리에스터, 5% 폴리우레탄"
+    },
+    "url": "https://www.zara.com/kr/ko/%E1%84%82%E1%85%A9%E1%86%AB%E1%84%8B%E1%85%A1%E1%84%8B%E1%85%B5%E1%84%85%E1%85%A9%E1%86%AB-%E1%84%90%E1%85%A6%E1%84%8F%E1%85%B3%E1%84%82%E1%85%B5%E1%84%8F%E1%85%A5%E1%86%AF-%E1%84%89%E1%85%AE%E1%84%90%E1%85%B3-%E1%84%87%E1%85%B3%E1%86%AF%E1%84%85%E1%85%A6%E1%84%8B%E1%85%B5%E1%84%8C%E1%85%A5-p09621410.html",
+    "scraped_at": "2026-02-11 13:11:48"
+}

@@ -1,0 +1,26 @@
+{
+    "goodsNo": "04283333",
+    "goodsNm": "100% 린넨 수트 블레이저",
+    "brandName": "ZARA",
+    "thumbnailImageUrl": "https://static.zara.net/assets/public/5bbb/a667/a18144458a91/9b2aba299dcb/04283333052-p/04283333052-p.jpg?ts=1770109241463&w=560",
+    "color_name": "라이트 베이지",
+    "colors": [],
+    "price": 189900,
+    "size_stock": [],
+    "is_sold_out": false,
+    "goodsImages": [
+        "https://static.zara.net/assets/public/5bbb/a667/a18144458a91/9b2aba299dcb/04283333052-p/04283333052-p.jpg",
+        "https://static.zara.net/assets/public/8c97/cb78/77f74246bd4e/908a38c0e946/03090110052-f1/03090110052-f1.jpg",
+        "https://static.zara.net/assets/public/70c2/840c/bea944f88b9f/b0b6e82a7736/04285333052-f1/04285333052-f1.jpg",
+        "https://static.zara.net/assets/public/88c7/733f/c815402e89d7/bb29ca61203a/12499620800-f1/12499620800-f1.jpg",
+        "https://static.zara.net/assets/public/56e7/855c/77504258a6fd/1e536330f1b5/04283333052-a1/04283333052-a1.jpg",
+        "https://static.zara.net/stdstatic/8.1.0/images/transparent-background.png"
+    ],
+    "goodsMaterial": {
+        "description": "린넨 소재 레귤러핏 블레이저. 내부 하프 안감. 노치드 라펠 칼라와 버튼 커프스 마감 긴소매. 가슴 부분 파이핑 포켓과 골반 부분 플랩 포켓. 내부 포켓 디테일. 뒷면 밑단 트임 디테일. 앞면 버튼 여밈.",
+        "겉감": "100% 마",
+        "안감": "100% 폴리에스터"
+    },
+    "url": "https://www.zara.com/kr/ko/100-%E1%84%85%E1%85%B5%E1%86%AB%E1%84%82%E1%85%A6%E1%86%AB-%E1%84%89%E1%85%AE%E1%84%90%E1%85%B3-%E1%84%87%E1%85%B3%E1%86%AF%E1%84%85%E1%85%A6%E1%84%8B%E1%85%B5%E1%84%8C%E1%85%A5-p04283333.html",
+    "scraped_at": "2026-02-11 13:12:25"
+}

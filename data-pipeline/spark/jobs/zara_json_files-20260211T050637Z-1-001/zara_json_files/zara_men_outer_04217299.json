@@ -1,0 +1,26 @@
+{
+    "goodsNo": "04217299",
+    "goodsNm": "부클 하운드 투스 블레이저",
+    "brandName": "ZARA",
+    "thumbnailImageUrl": "https://static.zara.net/assets/public/10b6/26be/609f40ad9776/e147e58b0da4/04217299801-p/04217299801-p.jpg?ts=1766482351017&w=560",
+    "color_name": "다크 그레이",
+    "colors": [],
+    "price": 189900,
+    "size_stock": [],
+    "is_sold_out": false,
+    "goodsImages": [
+        "https://static.zara.net/assets/public/10b6/26be/609f40ad9776/e147e58b0da4/04217299801-p/04217299801-p.jpg",
+        "https://static.zara.net/assets/public/c868/d822/49ae49f4a581/ef7c50972944/05584390250-f1/05584390250-f1.jpg",
+        "https://static.zara.net/assets/public/8d93/604d/72a84eec928f/605f579169cd/02823400700-f1/02823400700-f1.jpg",
+        "https://static.zara.net/assets/public/bea9/d8e0/37004e46a79d/e87bd12ea311/12272720802-f1/12272720802-f1.jpg",
+        "https://static.zara.net/assets/public/3c2d/a9c6/1e3d4cfcaca7/f1f5ab385fec/04217299801-a1/04217299801-a1.jpg",
+        "https://static.zara.net/stdstatic/8.1.0/images/transparent-background.png"
+    ],
+    "goodsMaterial": {
+        "description": "면 혼방 레귤러핏 블레이저. 노치드 라펠 칼라와 버튼 커프스 마감 긴소매 디자인. 골반 플랩 포켓. 안감 포켓 디테일. 뒷면 밑단 트임. 앞면 버튼 여밈.",
+        "겉감": "41% 면, 37% 폴리에스터, 14% 모, 7% 비스코스, 1% 기타섬유",
+        "안감": "100% 폴리에스터"
+    },
+    "url": "https://www.zara.com/kr/ko/%E1%84%92%E1%85%A1%E1%84%8B%E1%85%AE%E1%86%AB%E1%84%83%E1%85%B3-%E1%84%90%E1%85%AE%E1%84%89%E1%85%B3-%E1%84%87%E1%85%AE%E1%84%8F%E1%85%B3%E1%86%AF%E1%84%85%E1%85%A6-%E1%84%87%E1%85%B3%E1%86%AF%E1%84%85%E1%85%A6%E1%84%8B%E1%85%B5%E1%84%8C%E1%85%A5-p04217299.html",
+    "scraped_at": "2026-02-11 13:11:56"
+}

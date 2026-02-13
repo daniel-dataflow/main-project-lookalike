@@ -1,0 +1,57 @@
+{
+    "goodsNo": "E483831-000_09",
+    "display_goods_no": "483831",
+    "goodsNm": "블록테크코트",
+    "brandName": "UNIQLO",
+    "thumbnailImageUrl": "https://image.uniqlo.com/UQ/ST3/AsianCommon/imagesgoods/483831/chip/goods_09_483831_chip.jpg",
+    "price": 149000,
+    "is_sold_out": false,
+    "size_stock": [
+        {
+            "size": "S",
+            "is_sold_out": false,
+            "stock_qty": 999
+        },
+        {
+            "size": "M",
+            "is_sold_out": false,
+            "stock_qty": 999
+        },
+        {
+            "size": "L",
+            "is_sold_out": false,
+            "stock_qty": 999
+        }
+    ],
+    "colors": [
+        {
+            "color_code": "09",
+            "color_name": "BLACK",
+            "icon_url": "https://image.uniqlo.com/UQ/ST3/AsianCommon/imagesgoods/483831/chip/goods_09_483831_chip.jpg"
+        },
+        {
+            "color_code": "39",
+            "color_name": "DARK BROWN",
+            "icon_url": "https://image.uniqlo.com/UQ/ST3/AsianCommon/imagesgoods/483831/chip/goods_39_483831_chip.jpg"
+        },
+        {
+            "color_code": "56",
+            "color_name": "OLIVE",
+            "icon_url": "https://image.uniqlo.com/UQ/ST3/AsianCommon/imagesgoods/483831/chip/goods_56_483831_chip.jpg"
+        }
+    ],
+    "goodsImages": [
+        "https://image.uniqlo.com/UQ/ST3/kr/imagesgoods/483831/item/krgoods_09_483831_3x4.jpg",
+        "https://image.uniqlo.com/UQ/ST3/kr/imagesgoods/483831/sub/krgoods_483831_sub3_3x4.jpg",
+        "https://image.uniqlo.com/UQ/ST3/kr/imagesgoods/483831/sub/krgoods_483831_sub4_3x4.jpg",
+        "https://image.uniqlo.com/UQ/ST3/AsianCommon/imagesgoods/483831/sub/goods_483831_sub11_3x4.jpg",
+        "https://image.uniqlo.com/UQ/ST3/AsianCommon/imagesgoods/483831/sub/goods_483831_sub14_3x4.jpg"
+    ],
+    "goodsMaterial": {
+        "description": "- 오버사이즈 실루엣.\n\n*방수 지퍼는 아니므로 지퍼 내부로 물이 스며들 가능성이 있습니다. 귀중품 취급에 주의하시기 바랍니다.\n\n※ 다량의 또는 센 물살과의 직접적인 접촉 시 누수 가능성이 있으므로 주의하시기 바랍니다.\n※ 완벽한 방수 제품이 아닙니다.\n※ 발수 효과는 영구적이지 않으며 세탁 등에 의해 기능이 저하될 수 있습니다.\n※ 제품 상세 속 이미지는 기능성의 이해를 돕기 위한 이미지로 상품의 실제 기능과는 상이할 수 있습니다. - 핏: 여유있는 핏(오버사이즈)\n- 포켓(주머니): 있음 - 게재된 이미지에는 판매 예정이 없는 컬러가 포함되어 있을 수 있으며, 모니터사양에 따라 제품의 컬러가 실제와 다소 차이가 날 수 있습니다. ",
+        "material_info": {}
+    },
+    "url": "https://www.uniqlo.com/kr/ko/products/E483831-000?colorDisplayCode=09",
+    "scraped_at": "2026-02-10 13:59:08",
+    "color_name": "BLACK"
+}

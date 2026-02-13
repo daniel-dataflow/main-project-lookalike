@@ -1,0 +1,27 @@
+{
+    "goodsNo": "04153228",
+    "goodsNm": "워시드 이펙트 수트 블레이저",
+    "brandName": "ZARA",
+    "thumbnailImageUrl": "https://static.zara.net/assets/public/602a/8ef8/8ed1492596a9/f4554d454c36/04153228932-p/04153228932-p.jpg?ts=1770109574644&w=560",
+    "color_name": "토프 그레이",
+    "colors": [],
+    "price": 189900,
+    "size_stock": [],
+    "is_sold_out": false,
+    "goodsImages": [
+        "https://static.zara.net/assets/public/602a/8ef8/8ed1492596a9/f4554d454c36/04153228932-p/04153228932-p.jpg",
+        "https://static.zara.net/assets/public/2a4d/1f95/dfbd4c349cab/a3dcad1ad406/04038519505-f1/04038519505-f1.jpg",
+        "https://static.zara.net/assets/public/2604/71f1/c0504fb49341/2ae1de9e1be7/04154228832-f1/04154228832-f1.jpg",
+        "https://static.zara.net/assets/public/9488/2528/51ed4713affe/2844b9d1d280/13895720700-f1/13895720700-f1.jpg",
+        "https://static.zara.net/assets/public/88c7/733f/c815402e89d7/bb29ca61203a/12499620800-f1/12499620800-f1.jpg",
+        "https://static.zara.net/assets/public/982d/db4a/62fa457fb300/c827703e3565/04153228932-a1/04153228932-a1.jpg",
+        "https://static.zara.net/stdstatic/8.1.0/images/transparent-background.png"
+    ],
+    "goodsMaterial": {
+        "description": "코튼 혼방 소재로 제작된 릴랙스드핏 블레이저. 노치드 라펠 칼라. 긴소매 디자인. 안감 없음. 가슴 부분 파이핑 포켓과 골반 부분 플랩 포켓. 안감 포켓 디테일. 뒷면 트임 밑단. 워시드 페이크. 앞면 버튼 여밈.",
+        "겉감": "98% 면, 2% 폴리우레탄",
+        "안감": "100% 폴리에스터"
+    },
+    "url": "https://www.zara.com/kr/ko/%E1%84%91%E1%85%A6%E1%84%8B%E1%85%B5%E1%84%8F%E1%85%B3-%E1%84%8B%E1%85%AF%E1%84%89%E1%85%B5%E1%86%BC-%E1%84%89%E1%85%AE%E1%84%90%E1%85%B3-%E1%84%87%E1%85%B3%E1%86%AF%E1%84%85%E1%85%A6%E1%84%8B%E1%85%B5%E1%84%8C%E1%85%A5-p04153228.html",
+    "scraped_at": "2026-02-11 13:11:38"
+}

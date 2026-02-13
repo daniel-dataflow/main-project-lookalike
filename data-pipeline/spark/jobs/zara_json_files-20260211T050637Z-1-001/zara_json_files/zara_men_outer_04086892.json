@@ -1,0 +1,30 @@
+{
+    "goodsNo": "04086892",
+    "goodsNm": "AARON LEVINE X ZARA 트윌 100% 울 수트 블레이저",
+    "brandName": "ZARA",
+    "thumbnailImageUrl": "https://static.zara.net/assets/public/27f0/f908/9c6643e2bf4f/314d8e6c2b12/04086892922-p/04086892922-p.jpg?ts=1763995846096&w=560",
+    "color_name": "다크 그레이",
+    "colors": [],
+    "price": 259900,
+    "size_stock": [],
+    "is_sold_out": false,
+    "goodsImages": [
+        "https://static.zara.net/assets/public/27f0/f908/9c6643e2bf4f/314d8e6c2b12/04086892922-p/04086892922-p.jpg",
+        "https://static.zara.net/assets/public/88b4/00f9/263a440b91ec/2533e89efd7a/04696380401000-f1/04696380401000-f1.jpg",
+        "https://static.zara.net/assets/public/3f6e/1d77/8a264239aa03/9f03f6e15c11/01887369250-f1/01887369250-f1.jpg",
+        "https://static.zara.net/assets/public/f771/a269/fed342abbb45/d60f89f0ad87/04107892922000-f1/04107892922000-f1.jpg",
+        "https://static.zara.net/assets/public/ae4b/026f/cee849f789e6/739534eef797/13210720202-f1/13210720202-f1.jpg",
+        "https://static.zara.net/assets/public/167f/77c6/a6114fb49014/287b2091cef5/12681720800-f1/12681720800-f1.jpg",
+        "https://static.zara.net/assets/public/891e/dd16/34f645b29c48/1ec9d81037bb/04086892922-a1/04086892922-a1.jpg",
+        "https://static.zara.net/stdstatic/8.1.0/images/transparent-background.png"
+    ],
+    "goodsMaterial": {
+        "description": "모델 신장: 188 cm | 사이즈: L 사선 구조의 울 소재 레귤러 핏 블레이저. 노치드 라펠 칼라 디자인. 버튼이 있는 커프스 마감 긴소매. 가슴 부분 파이핑 포켓과 골반 부분 플랩 포켓. 내부 포켓 디테일. 뒷면 밑단 트임. 앞면 버튼 여밈. Aaron Levine x ZARA 특별 컬렉션.",
+        "겉감": "100% 모",
+        "안감": "몸통\n100% 비스코스, 100% 비스코스, 소매\n65% 비스코스\n35% 폴리에스터, 65% 비스코스, 35% 폴리에스터",
+        "몸통": "100% 비스코스",
+        "소매": "65% 비스코스, 35% 폴리에스터"
+    },
+    "url": "https://www.zara.com/kr/ko/%E1%84%8B%E1%85%A1%E1%84%85%E1%85%A9%E1%86%AB-%E1%84%85%E1%85%A6%E1%84%87%E1%85%A1%E1%84%8B%E1%85%B5%E1%86%AB-x-%E1%84%8C%E1%85%A1%E1%84%85%E1%85%A1-%E1%84%90%E1%85%B3%E1%84%8B%E1%85%B1%E1%86%AF-100-%E1%84%8B%E1%85%AE%E1%86%AF-%E1%84%89%E1%85%AE%E1%84%90%E1%85%B3-%E1%84%87%E1%85%B3%E1%86%AF%E1%84%85%E1%85%A6%E1%84%8B%E1%85%B5%E1%84%8C%E1%85%A5-p04086892.html",
+    "scraped_at": "2026-02-11 13:12:35"
+}

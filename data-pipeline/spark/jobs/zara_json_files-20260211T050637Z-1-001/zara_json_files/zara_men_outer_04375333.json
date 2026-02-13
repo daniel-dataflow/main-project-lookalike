@@ -1,0 +1,27 @@
+{
+    "goodsNo": "04375333",
+    "goodsNm": "100% 린넨 수트 블레이저",
+    "brandName": "ZARA",
+    "thumbnailImageUrl": "https://static.zara.net/assets/public/8a6b/5f56/fb1c43a6bc01/a4b32be5b5c3/04375333485-p/04375333485-p.jpg?ts=1770109368280&w=560",
+    "color_name": "블루 / 그레이",
+    "colors": [],
+    "price": 189900,
+    "size_stock": [],
+    "is_sold_out": false,
+    "goodsImages": [
+        "https://static.zara.net/assets/public/8a6b/5f56/fb1c43a6bc01/a4b32be5b5c3/04375333485-p/04375333485-p.jpg",
+        "https://static.zara.net/assets/public/ca57/7c6f/40d541f88e22/1d5166298202/02632401710-f1/02632401710-f1.jpg",
+        "https://static.zara.net/assets/public/1ea5/b7ba/c89f4b6abe0f/33cc1d732f44/04408147250000-f1/04408147250000-f1.jpg",
+        "https://static.zara.net/assets/public/8e6b/d749/45584c66b09d/bd0913267ff5/04380333485-f1/04380333485-f1.jpg",
+        "https://static.zara.net/assets/public/166e/a082/cd304695af68/4a59502bb42b/12770620800-f1/12770620800-f1.jpg",
+        "https://static.zara.net/assets/public/e073/6c9e/04284fc39b95/d6070f1b9c4d/04375333485-a1/04375333485-a1.jpg",
+        "https://static.zara.net/stdstatic/8.1.0/images/transparent-background.png"
+    ],
+    "goodsMaterial": {
+        "description": "린넨 소재 레귤러 핏 블레이저. 안감 하프 디자인. 노치 라펠 칼라 버튼 커프스 마감 긴소매. 가슴 부분 파이핑 포켓과 골반 부분 플랩 포켓 디테일. 내부 포켓 디테일. 뒷면 밑단 트임 디테일. 앞면 버튼 여밈.",
+        "겉감": "100% 마",
+        "안감": "100% 폴리에스터"
+    },
+    "url": "https://www.zara.com/kr/ko/100-%E1%84%85%E1%85%B5%E1%86%AB%E1%84%82%E1%85%A6%E1%86%AB-%E1%84%89%E1%85%AE%E1%84%90%E1%85%B3-%E1%84%87%E1%85%B3%E1%86%AF%E1%84%85%E1%85%A6%E1%84%8B%E1%85%B5%E1%84%8C%E1%85%A5-p04375333.html",
+    "scraped_at": "2026-02-11 13:12:15"
+}

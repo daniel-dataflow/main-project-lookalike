@@ -1,0 +1,77 @@
+{
+    "goodsNo": "E481666-000_57",
+    "display_goods_no": "481666",
+    "goodsNm": "발마칸코트",
+    "brandName": "UNIQLO",
+    "thumbnailImageUrl": "https://image.uniqlo.com/UQ/ST3/AsianCommon/imagesgoods/481666/chip/goods_57_481666_chip.jpg",
+    "price": 59900,
+    "is_sold_out": false,
+    "size_stock": [
+        {
+            "size": "S",
+            "is_sold_out": false,
+            "stock_qty": 999
+        },
+        {
+            "size": "M",
+            "is_sold_out": false,
+            "stock_qty": 999
+        },
+        {
+            "size": "L",
+            "is_sold_out": false,
+            "stock_qty": 999
+        },
+        {
+            "size": "XL",
+            "is_sold_out": false,
+            "stock_qty": 999
+        },
+        {
+            "size": "XXL",
+            "is_sold_out": false,
+            "stock_qty": 999
+        },
+        {
+            "size": "3XL",
+            "is_sold_out": false,
+            "stock_qty": 999
+        },
+        {
+            "size": "4XL",
+            "is_sold_out": false,
+            "stock_qty": 999
+        }
+    ],
+    "colors": [
+        {
+            "color_code": "57",
+            "color_name": "OLIVE",
+            "icon_url": "https://image.uniqlo.com/UQ/ST3/AsianCommon/imagesgoods/481666/chip/goods_57_481666_chip.jpg"
+        },
+        {
+            "color_code": "09",
+            "color_name": "BLACK",
+            "icon_url": "https://image.uniqlo.com/UQ/ST3/AsianCommon/imagesgoods/481666/chip/goods_09_481666_chip.jpg"
+        }
+    ],
+    "goodsImages": [
+        "https://image.uniqlo.com/UQ/ST3/AsianCommon/imagesgoods/481666/item/goods_57_481666_3x4.jpg",
+        "https://image.uniqlo.com/UQ/ST3/AsianCommon/imagesgoods/481666/sub/goods_481666_sub1_3x4.jpg",
+        "https://image.uniqlo.com/UQ/ST3/AsianCommon/imagesgoods/481666/sub/goods_481666_sub5_3x4.jpg",
+        "https://image.uniqlo.com/UQ/ST3/AsianCommon/imagesgoods/481666/sub/goods_481666_sub14_3x4.jpg"
+    ],
+    "goodsMaterial": {
+        "description": "- 적당히 여유 있는 릴랙스 실루엣.\n- 무릎 밑까지 오는 기장으로 비지니스 룩부터 클린 캐주얼 룩까지 폭넓은 스타일링을 연출할 수 있는 아이템. ",
+        "material_info": {
+            "소재": "겉감: 50% 폴리에스터 ( 재생섬유 ), 33% 모, 17% 폴리에스터/ 안감: 100% 폴리에스터/ 주머니 천: 100% 폴리에스터",
+            "세탁 방법": "세탁 불가능, 드라이클리닝 가능, 건조기 사용 불가능 - 세탁망에 넣어 세탁 하십시오. - 다림질용 천을 덧대어 다림질 해 주십시오. - 스팀 다리미는 사용하지 마십시오. - 마찰에 의해 이염의 우려가 있습니다. - 소재의 특성상, 보풀이 발생하기 쉬우므로 아래와 같은 점에 주의하시기 바랍니다: 가방이나 벨트에 의한 마찰 등, 과도한 마찰은 보풀이 발생하는 원인이 되므로 주의해 주십시오. 또한 보풀이 발생한 경우에는 보풀 제거기 또는 가위로 조심스럽게 제거하여 주십시오.",
+            "제조국": "China, People's Republic of",
+            "제조연월": "2025. 03 컬러 상단표시",
+            "제조사/수입자": "에프알엘코리아 주식회사"
+        }
+    },
+    "url": "https://www.uniqlo.com/kr/ko/products/E481666-000?colorDisplayCode=57",
+    "scraped_at": "2026-02-10 13:59:09",
+    "color_name": "OLIVE"
+}

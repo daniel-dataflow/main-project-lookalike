@@ -1,0 +1,26 @@
+{
+    "goodsNo": "04173374",
+    "goodsNm": "100% 린넨 수트 더블 브레스트 블레이저",
+    "brandName": "ZARA",
+    "thumbnailImageUrl": "https://static.zara.net/assets/public/f739/74f5/629542e49011/b6cee39d3d0a/04173374700-p/04173374700-p.jpg?ts=1770109367654&w=560",
+    "color_name": "브라운",
+    "colors": [],
+    "price": 279900,
+    "size_stock": [],
+    "is_sold_out": false,
+    "goodsImages": [
+        "https://static.zara.net/assets/public/f739/74f5/629542e49011/b6cee39d3d0a/04173374700-p/04173374700-p.jpg",
+        "https://static.zara.net/assets/public/f13c/5aa0/91864d1eae97/4e1eec6f7fa8/07380660700-f1/07380660700-f1.jpg",
+        "https://static.zara.net/assets/public/96e8/7386/b2c54478be4c/d78766e64dab/04173374700-a1/04173374700-a1.jpg",
+        "https://static.zara.net/stdstatic/8.1.0/images/transparent-background.png"
+    ],
+    "goodsMaterial": {
+        "description": "린넨 소재 레귤러핏 블레이저. 노치 라펠 칼라, 버튼 커프스 마감 긴소매 디자인. 골반 부분 플랩 포켓. 안감 포켓 디테일. 뒷면 중앙 트임 밑단. 더블 브레스트 스타일 앞면 버튼 여밈.",
+        "겉감": "100% 마",
+        "안감": "몸통\n62% 면\n38% 폴리에스터, 62% 면, 38% 폴리에스터, 소매\n95% 폴리에스터\n5% 폴리우레탄, 95% 폴리에스터, 5% 폴리우레탄",
+        "몸통": "62% 면, 38% 폴리에스터",
+        "소매": "95% 폴리에스터, 5% 폴리우레탄"
+    },
+    "url": "https://www.zara.com/kr/ko/100-%E1%84%85%E1%85%B5%E1%86%AB%E1%84%82%E1%85%A6%E1%86%AB-%E1%84%89%E1%85%AE%E1%84%90%E1%85%B3-%E1%84%83%E1%85%A5%E1%84%87%E1%85%B3%E1%86%AF-%E1%84%87%E1%85%B3%E1%84%85%E1%85%A6%E1%84%89%E1%85%B3%E1%84%90%E1%85%B3-%E1%84%87%E1%85%B3%E1%86%AF%E1%84%85%E1%85%A6%E1%84%8B%E1%85%B5%E1%84%8C%E1%85%A5-p04173374.html",
+    "scraped_at": "2026-02-11 13:12:12"
+}

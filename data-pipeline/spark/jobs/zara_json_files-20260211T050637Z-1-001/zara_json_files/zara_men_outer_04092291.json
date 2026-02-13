@@ -1,0 +1,28 @@
+{
+    "goodsNo": "04092291",
+    "goodsNm": "체크 스트럭처 수트 블레이저",
+    "brandName": "ZARA",
+    "thumbnailImageUrl": "https://static.zara.net/assets/public/d0cc/ff51/8edf48048045/57cdb33b4184/04092291801-p/04092291801-p.jpg?ts=1770109241309&w=560",
+    "color_name": "다크 그레이",
+    "colors": [],
+    "price": 189900,
+    "size_stock": [],
+    "is_sold_out": false,
+    "goodsImages": [
+        "https://static.zara.net/assets/public/d0cc/ff51/8edf48048045/57cdb33b4184/04092291801-p/04092291801-p.jpg",
+        "https://static.zara.net/assets/public/efcc/0dce/4a8f43f6a5ca/a231722e20ae/04493144800000-f1/04493144800000-f1.jpg",
+        "https://static.zara.net/assets/public/f105/4162/7e65490b893a/ac4e67ad35e0/04093291801-f1/04093291801-f1.jpg",
+        "https://static.zara.net/assets/public/d8ac/8864/6fc041fea2c1/83dcb844f04d/09569417401-f1/09569417401-f1.jpg",
+        "https://static.zara.net/assets/public/88fd/0002/3858461e8cc1/c3917a647343/13205720800-f1/13205720800-f1.jpg",
+        "https://static.zara.net/assets/public/7d00/363c/cc1245aab432/94643d524b92/12405720707-f1/12405720707-f1.jpg",
+        "https://static.zara.net/assets/public/9fbe/53d7/6c6141e29afd/c3babe9aeb38/04092291801-a1/04092291801-a1.jpg",
+        "https://static.zara.net/stdstatic/8.1.0/images/transparent-background.png"
+    ],
+    "goodsMaterial": {
+        "description": "울 혼방 레귤러 핏 블레이저. 노치드 라펠 칼라. 버튼 디테일 커프스 마감 긴소매. 가슴 부분 파이핑 포켓과 골반 부분 플랩 포켓. 안감 포켓 디테일. 뒷면 트임 밑단. 앞면 버튼 여밈.",
+        "겉감": "61% 폴리에스터, 23% 모, 16% 비스코스",
+        "안감": "100% 폴리에스터"
+    },
+    "url": "https://www.zara.com/kr/ko/%E1%84%8E%E1%85%A6%E1%84%8F%E1%85%B3-%E1%84%89%E1%85%B3%E1%84%90%E1%85%B3%E1%84%85%E1%85%A5%E1%86%A8%E1%84%8E%E1%85%A5-%E1%84%89%E1%85%AE%E1%84%90%E1%85%B3-%E1%84%87%E1%85%B3%E1%86%AF%E1%84%85%E1%85%A6%E1%84%8B%E1%85%B5%E1%84%8C%E1%85%A5-p04092291.html",
+    "scraped_at": "2026-02-11 13:12:05"
+}

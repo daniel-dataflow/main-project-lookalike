@@ -1,0 +1,29 @@
+{
+    "goodsNo": "04088893",
+    "goodsNm": "AARON LEVINE X ZARA 울 수트 더블 브레스트 블레이저",
+    "brandName": "ZARA",
+    "thumbnailImageUrl": "https://static.zara.net/assets/public/731e/72ad/d7ec4e07b38a/6da368f814b8/04088893700-p/04088893700-p.jpg?ts=1763998849571&w=560",
+    "color_name": "브라운",
+    "colors": [],
+    "price": 259900,
+    "size_stock": [],
+    "is_sold_out": false,
+    "goodsImages": [
+        "https://static.zara.net/assets/public/731e/72ad/d7ec4e07b38a/6da368f814b8/04088893700-p/04088893700-p.jpg",
+        "https://static.zara.net/assets/public/a450/b77b/8e6148149578/93bb9aa98d6c/04696380807000-f1/04696380807000-f1.jpg",
+        "https://static.zara.net/assets/public/fb10/5081/d88c4e38923d/2ead28070796/04068987403000-f1/04068987403000-f1.jpg",
+        "https://static.zara.net/assets/public/bfaf/73aa/48d24b9fba5f/01090cac6d5e/04108893700-f1/04108893700-f1.jpg",
+        "https://static.zara.net/assets/public/167f/77c6/a6114fb49014/287b2091cef5/12681720800-f1/12681720800-f1.jpg",
+        "https://static.zara.net/assets/public/177d/723d/6f0c4a5bacda/04e64990d586/04088893700-a1/04088893700-a1.jpg",
+        "https://static.zara.net/stdstatic/8.1.0/images/transparent-background.png"
+    ],
+    "goodsMaterial": {
+        "description": "모델 신장: 188 cm | 사이즈: L 플란넬 마감 울 소재의 레귤러핏 블레이저. 피크 라펠 칼라와 버튼 커프스 마감 긴소매 디자인. 가슴 부분 파이핑 포켓과 골반 부분 플랩 포켓 디테일. 안감 포켓 디테일. 뒷면 중앙 트임 밑단. 더블 브레스트 스타일 앞면 버튼 여밈. Aaron Levine x ZARA 스페셜 컬렉션.",
+        "겉감": "100% 모",
+        "안감": "몸통\n100% 비스코스, 100% 비스코스, 소매\n65% 비스코스\n35% 폴리에스터, 65% 비스코스, 35% 폴리에스터",
+        "몸통": "100% 비스코스",
+        "소매": "65% 비스코스, 35% 폴리에스터"
+    },
+    "url": "https://www.zara.com/kr/ko/aaron-levine-x-zara-%E1%84%8B%E1%85%AE%E1%86%AF-%E1%84%89%E1%85%AE%E1%84%90%E1%85%B3-%E1%84%83%E1%85%A5%E1%84%87%E1%85%B3%E1%86%AF-%E1%84%87%E1%85%B3%E1%84%85%E1%85%A6%E1%84%89%E1%85%B3%E1%84%90%E1%85%B3-%E1%84%87%E1%85%B3%E1%86%AF%E1%84%85%E1%85%A6%E1%84%8B%E1%85%B5%E1%84%8C%E1%85%A5-p04088893.html",
+    "scraped_at": "2026-02-11 13:12:31"
+}

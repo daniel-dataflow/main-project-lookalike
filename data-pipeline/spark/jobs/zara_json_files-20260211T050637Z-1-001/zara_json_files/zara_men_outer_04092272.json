@@ -1,0 +1,26 @@
+{
+    "goodsNo": "04092272",
+    "goodsNm": "핀 스트라이프 수트 블레이저",
+    "brandName": "ZARA",
+    "thumbnailImageUrl": "https://static.zara.net/assets/public/c3e5/5c0a/d5ff45d49956/ac13e0b667fa/04092272401-p/04092272401-p.jpg?ts=1770109240434&w=560",
+    "color_name": "네이비",
+    "colors": [],
+    "price": 189900,
+    "size_stock": [],
+    "is_sold_out": false,
+    "goodsImages": [
+        "https://static.zara.net/assets/public/c3e5/5c0a/d5ff45d49956/ac13e0b667fa/04092272401-p/04092272401-p.jpg",
+        "https://static.zara.net/assets/public/429c/0554/078b473998c1/cb62a57070c3/05584471250000-f1/05584471250000-f1.jpg",
+        "https://static.zara.net/assets/public/2a74/dd24/82f54ae3ad50/4f6d83d4be2a/04093272401-f1/04093272401-f1.jpg",
+        "https://static.zara.net/assets/public/484f/20bf/fa7241b6af73/3474b39e0354/13343620700-f1/13343620700-f1.jpg",
+        "https://static.zara.net/assets/public/5bea/b2e7/5d484514a2dc/f82a41c31c82/04092272401-a1/04092272401-a1.jpg",
+        "https://static.zara.net/stdstatic/8.1.0/images/transparent-background.png"
+    ],
+    "goodsMaterial": {
+        "description": "비스코스 및 울 혼방 레귤러 핏 블레이저. 노치드 라펠 칼라와 버튼 커프스 마감 긴소매 디자인. 가슴 부분 파이핑 포켓과 골반 부분 플랩 포켓. 내부 포켓 디테일. 뒷면 밑단 트임 디테일. 앞면 버튼 여밈.",
+        "겉감": "53% 폴리에스터, 24% 비스코스, 23% 모",
+        "안감": "100% 폴리에스터"
+    },
+    "url": "https://www.zara.com/kr/ko/%E1%84%91%E1%85%B5%E1%86%AB-%E1%84%89%E1%85%B3%E1%84%90%E1%85%B3%E1%84%85%E1%85%A1%E1%84%8B%E1%85%B5%E1%84%91%E1%85%B3-%E1%84%89%E1%85%AE%E1%84%90%E1%85%B3-%E1%84%87%E1%85%B3%E1%86%AF%E1%84%85%E1%85%A6%E1%84%8B%E1%85%B5%E1%84%8C%E1%85%A5-p04092272.html",
+    "scraped_at": "2026-02-11 13:12:02"
+}

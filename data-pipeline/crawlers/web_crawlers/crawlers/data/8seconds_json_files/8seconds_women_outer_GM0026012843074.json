@@ -1,0 +1,88 @@
+{
+    "goodsNo": "GM0026012843074",
+    "goodsNm": "레더 블루종 오버핏 - 블랙",
+    "is_sold_out": false,
+    "price": 89900,
+    "other_color_ids": [
+        "GM0026012843075",
+        "GM0026012843076"
+    ],
+    "size_stock": [
+        {
+            "size": "XS",
+            "stock_qty": 478,
+            "is_sold_out": false
+        },
+        {
+            "size": "S",
+            "stock_qty": 609,
+            "is_sold_out": false
+        },
+        {
+            "size": "M",
+            "stock_qty": 661,
+            "is_sold_out": false
+        },
+        {
+            "size": "L",
+            "stock_qty": 343,
+            "is_sold_out": false
+        }
+    ],
+    "goodsImages": [
+        "https://img.ssfshop.com/goods/8SBR/26/01/28/GM0026012843074_0_THNAIL_ORGINL_20260205170239204.jpg",
+        "https://img.ssfshop.com/goods/8SBR/26/01/28/GM0026012843074_1_THNAIL_ORGINL_20260205170239204.jpg",
+        "https://img.ssfshop.com/goods/8SBR/26/01/28/GM0026012843074_2_THNAIL_ORGINL_20260205170239204.jpg",
+        "https://img.ssfshop.com/goods/8SBR/26/01/28/GM0026012843074_3_THNAIL_ORGINL_20260205170239204.jpg",
+        "https://img.ssfshop.com/goods/8SBR/26/01/28/GM0026012843074_4_THNAIL_ORGINL_20260205170239204.jpg",
+        "https://img.ssfshop.com/goods/8SBR/26/01/28/GM0026012843074_5_THNAIL_ORGINL_20260205170239204.jpg",
+        "https://img.ssfshop.com/goods/8SBR/26/01/28/GM0026012843074_6_THNAIL_ORGINL_20260205170239204.jpg",
+        "https://img.ssfshop.com/goods/8SBR/26/01/28/GM0026012843074_7_THNAIL_ORGINL_20260205170239204.jpg",
+        "https://img.ssfshop.com/goods/8SBR/26/01/28/GM0026012843074_8_THNAIL_ORGINL_20260205170239204.jpg",
+        "https://img.ssfshop.com/goods/8SBR/26/01/28/GM0026012843074_9_THNAIL_ORGINL_20260205170239204.jpg",
+        "https://img.ssfshop.com/goods/8SBR/26/01/28/GM0026012843074_10_THNAIL_ORGINL_20260205170239204.jpg",
+        "https://img.ssfshop.com/goods/8SBR/26/01/28/GM0026012843074_11_THNAIL_ORGINL_20260205170239204.jpg",
+        "https://img.ssfshop.com/goods/8SBR/26/01/28/GM0026012843074_12_THNAIL_ORGINL_20260205170239204.jpg"
+    ],
+    "goodsMaterial": {},
+    "sizeChart": [
+        {
+            "SIZE": "XS",
+            "8seconds": "90",
+            "신체사이즈(cm)": "S",
+            "가슴둘레": "90"
+        },
+        {
+            "SIZE": "S",
+            "8seconds": "95",
+            "신체사이즈(cm)": "M",
+            "가슴둘레": "95"
+        },
+        {
+            "SIZE": "M",
+            "8seconds": "100",
+            "신체사이즈(cm)": "L",
+            "가슴둘레": "100"
+        },
+        {
+            "SIZE": "L",
+            "8seconds": "105",
+            "신체사이즈(cm)": "XL",
+            "가슴둘레": "105"
+        },
+        {
+            "SIZE": "XL",
+            "8seconds": "110",
+            "신체사이즈(cm)": "XXL",
+            "가슴둘레": "110"
+        },
+        {
+            "SIZE": "XXL",
+            "8seconds": "115",
+            "신체사이즈(cm)": "3XL",
+            "가슴둘레": "115"
+        }
+    ],
+    "url": "https://www.ssfshop.com/8-seconds/GM0026012843074/good?brandShopNo=BDMA07A01&brndShopId=8SBSS",
+    "scraped_at": "2026-02-10 07:05:21"
+}

@@ -1,0 +1,61 @@
+{
+    "goodsNo": "E484613-000_32",
+    "display_goods_no": "484613",
+    "goodsNm": "싱글브레스트코트",
+    "brandName": "UNIQLO",
+    "thumbnailImageUrl": "https://image.uniqlo.com/UQ/ST3/AsianCommon/imagesgoods/484613/chip/goods_32_484613_chip.jpg",
+    "price": 129000,
+    "is_sold_out": false,
+    "size_stock": [
+        {
+            "size": "S",
+            "is_sold_out": false,
+            "stock_qty": 999
+        },
+        {
+            "size": "M",
+            "is_sold_out": false,
+            "stock_qty": 999
+        },
+        {
+            "size": "L",
+            "is_sold_out": false,
+            "stock_qty": 999
+        },
+        {
+            "size": "XL",
+            "is_sold_out": false,
+            "stock_qty": 999
+        }
+    ],
+    "colors": [
+        {
+            "color_code": "69",
+            "color_name": "NAVY",
+            "icon_url": "https://image.uniqlo.com/UQ/ST3/AsianCommon/imagesgoods/484613/chip/goods_69_484613_chip.jpg"
+        },
+        {
+            "color_code": "32",
+            "color_name": "BEIGE",
+            "icon_url": "https://image.uniqlo.com/UQ/ST3/AsianCommon/imagesgoods/484613/chip/goods_32_484613_chip.jpg"
+        }
+    ],
+    "goodsImages": [
+        "https://image.uniqlo.com/UQ/ST3/kr/imagesgoods/484613/item/krgoods_69_484613_3x4.jpg",
+        "https://image.uniqlo.com/UQ/ST3/kr/imagesgoods/484613/sub/krgoods_484613_sub3_3x4.jpg",
+        "https://image.uniqlo.com/UQ/ST3/AsianCommon/imagesgoods/484613/sub/goods_484613_sub14_3x4.jpg"
+    ],
+    "goodsMaterial": {
+        "description": "- 기온에 영향을 받지 않고 연중 내내 착용할 수 있는 소재감으로, 비즈니스부터 클린 캐주얼까지 폭넓게 활용할 수 있습니다.\n\n※ 다량의 또는 센 물살과의 직접적인 접촉 시 누수 가능성이 있으므로 주의하시기 바랍니다.\n※ 발수 효과는 영구적이지 않으며 세탁 등에 의해 기능이 저하될 수 있습니다.\n※ 제품 상세 속 이미지는 기능성의 이해를 돕기 위한 이미지로 상품의 실제 기능과는 상이할 수 있습니다. - 핏: 약간 여유있는 핏(릴랙스)\n- 포켓(주머니): 있음 - 게재된 이미지에는 판매 예정이 없는 컬러가 포함되어 있을 수 있으며, 모니터사양에 따라 제품의 컬러가 실제와 다소 차이가 날 수 있습니다. ",
+        "material_info": {
+            "소재": "겉감: 51% 폴리에스터 ( 재생섬유 ), 49% 폴리에스터/ 안감: 100% 폴리에스터/ 주머니 천: 100% 폴리에스터",
+            "세탁 방법": "손세탁만 가능, 드라이클리닝 불가능, 건조기 사용 불가능 - 짙은 색상은 이염의 우려가 있으니 단독세탁 하십시오. - 형광성분이 없는 세제를 사용하십시오. - 오랜시간 물에 담가 두지 마십시오. - 형태를 가지런히 해서 말려 주십시오. - 다림질용 천을 덧대어 다림질 해 주십시오. - 이 상품은 발수 가공이 되어 있습니다. 가공은 영구적이 아닙니다. 세탁으로 서서히 기능이 약해집니다. -이 상품의 원단은 수지 가공품입니다. 미사용 상태로 보관해 두어도 시간의 경과 및 공기 중의 습도, 자외선, 열, 오염 등으로 인해 열화・박리되는 특성이 있습니다. 습기가 있는 상태 및 마찰로 인해 색이 이염될 수 있으므로 주의하시기 바랍니다. 가정에서 세탁하실 때 건조기는 사용하지 마시고, 바람이 잘 통하는 곳에서 충분히 말리신 다음 보관해 주십시오. 취급 상태에 따라 열화가 촉진될 수 있으므로 주의하시기 바랍니다. 2025년 제조.",
+            "제조국": "Viet Nam, Socialist Republic of",
+            "제조연월": "2025. 11 컬러 상단표시",
+            "제조사/수입자": "에프알엘코리아 주식회사"
+        }
+    },
+    "url": "https://www.uniqlo.com/kr/ko/products/E484613-000?colorDisplayCode=32",
+    "scraped_at": "2026-02-10 13:59:09",
+    "color_name": "BEIGE"
+}

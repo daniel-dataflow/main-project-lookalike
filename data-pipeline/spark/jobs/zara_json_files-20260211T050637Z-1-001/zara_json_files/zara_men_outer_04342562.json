@@ -1,0 +1,25 @@
+{
+    "goodsNo": "04342562",
+    "goodsNm": "핀 스트라이프 수트 더블 브레스트 블레이저",
+    "brandName": "ZARA",
+    "thumbnailImageUrl": "https://static.zara.net/assets/public/3839/0927/72fe4abf8e60/60753b2f3191/04342562802-p/04342562802-p.jpg?ts=1770109403265&w=560",
+    "color_name": "그레이",
+    "colors": [],
+    "price": 189900,
+    "size_stock": [],
+    "is_sold_out": false,
+    "goodsImages": [
+        "https://static.zara.net/assets/public/3839/0927/72fe4abf8e60/60753b2f3191/04342562802-p/04342562802-p.jpg",
+        "https://static.zara.net/assets/public/ca7e/a287/a6704e26974d/962b8135e723/05070204802-f1/05070204802-f1.jpg",
+        "https://static.zara.net/assets/public/649f/6315/52eb459ab6af/7a4ef36f1cb0/12478720800-f1/12478720800-f1.jpg",
+        "https://static.zara.net/assets/public/2258/1ef3/b3924daeab22/ad7d98ef49e3/04342562802-a1/04342562802-a1.jpg",
+        "https://static.zara.net/stdstatic/8.1.0/images/transparent-background.png"
+    ],
+    "goodsMaterial": {
+        "description": "릴렉스핏 블레이저. 피크 라펠 칼라와 버튼 커프스 마감 긴소매. 가슴 부분 파이핑 포켓과 골반 부분 플랩 포켓. 안감 포켓 디테일. 뒷면 중앙 밑단 트임. 앞면 더블 브레스트 버튼 여밈.",
+        "겉감": "60% 비스코스, 20% 면, 20% 폴리에스터",
+        "안감": "100% 폴리에스터"
+    },
+    "url": "https://www.zara.com/kr/ko/%E1%84%91%E1%85%B5%E1%86%AB-%E1%84%89%E1%85%B3%E1%84%90%E1%85%B3%E1%84%85%E1%85%A1%E1%84%8B%E1%85%B5%E1%84%91%E1%85%B3-%E1%84%89%E1%85%AE%E1%84%90%E1%85%B3-%E1%84%83%E1%85%A5%E1%84%87%E1%85%B3%E1%86%AF-%E1%84%87%E1%85%B3%E1%84%85%E1%85%A6%E1%84%89%E1%85%B3%E1%84%90%E1%85%B3-%E1%84%87%E1%85%B3%E1%86%AF%E1%84%85%E1%85%A6%E1%84%8B%E1%85%B5%E1%84%8C%E1%85%A5-p04342562.html",
+    "scraped_at": "2026-02-11 13:12:22"
+}

@@ -1,0 +1,30 @@
+{
+    "goodsNo": "01564700",
+    "goodsNm": "컴포트 수트 블레이저",
+    "brandName": "ZARA",
+    "thumbnailImageUrl": "https://static.zara.net/assets/public/b63f/43eb/681f47e7a473/578617f3082d/01564700716-p/01564700716-p.jpg?ts=1770109402478&w=560",
+    "color_name": "다크 브라운",
+    "colors": [],
+    "price": 149900,
+    "size_stock": [],
+    "is_sold_out": false,
+    "goodsImages": [
+        "https://static.zara.net/assets/public/b63f/43eb/681f47e7a473/578617f3082d/01564700716-p/01564700716-p.jpg",
+        "https://static.zara.net/assets/public/efcc/0dce/4a8f43f6a5ca/a231722e20ae/04493144800000-f1/04493144800000-f1.jpg",
+        "https://static.zara.net/assets/public/584f/d3b0/420b4cfc9853/42cfa67b2425/01564701716-f1/01564701716-f1.jpg",
+        "https://static.zara.net/assets/public/d0f1/d372/ebc54e1cbf65/7ec02c1b2cfc/06399312800-f1/06399312800-f1.jpg",
+        "https://static.zara.net/assets/public/73a7/efe7/9aba44d1a75f/d80bdb4e5972/13313620700-f1/13313620700-f1.jpg",
+        "https://static.zara.net/assets/public/149a/7930/f3e24157965a/c19154160fc1/12796720700-f1/12796720700-f1.jpg",
+        "https://static.zara.net/assets/public/fde8/1f60/2bdd4f3ab5e7/817d17c6aeae/01564700716-a1/01564700716-a1.jpg",
+        "https://static.zara.net/stdstatic/8.1.0/images/transparent-background.png"
+    ],
+    "goodsMaterial": {
+        "description": "비스코스 소재의 슬림핏 블레이저. 노치드 라펠 칼라. 버튼 디테일 커프스 마감 긴소매 디자인. 가슴 부분 파이핑 포켓과 골반 부분 플랩 포켓. 내부 포켓 디테일. 뒷면 트임 디테일. 앞면 버튼 여밈.",
+        "겉감": "54% 폴리에스터, 39% 비스코스, 7% 폴리우레탄",
+        "안감": "몸통\n100% 폴리에스터, 100% 폴리에스터, 소매\n95% 폴리에스터\n5% 폴리우레탄, 95% 폴리에스터, 5% 폴리우레탄",
+        "몸통": "100% 폴리에스터",
+        "소매": "95% 폴리에스터, 5% 폴리우레탄"
+    },
+    "url": "https://www.zara.com/kr/ko/%E1%84%8F%E1%85%A5%E1%86%B7%E1%84%91%E1%85%A9%E1%84%90%E1%85%B3-%E1%84%89%E1%85%AE%E1%84%90%E1%85%B3-%E1%84%87%E1%85%B3%E1%86%AF%E1%84%85%E1%85%A6%E1%84%8B%E1%85%B5%E1%84%8C%E1%85%A5-p01564700.html",
+    "scraped_at": "2026-02-11 13:12:23"
+}

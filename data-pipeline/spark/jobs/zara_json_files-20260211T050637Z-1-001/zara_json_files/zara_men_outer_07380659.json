@@ -1,0 +1,26 @@
+{
+    "goodsNo": "07380659",
+    "goodsNm": "SOSHIOTSUKI X ZARA 플란넬 수트 코트 블레이저",
+    "brandName": "ZARA",
+    "thumbnailImageUrl": "https://static.zara.net/assets/public/1f57/85df/c85647a48041/3e5177c6ffb3/07380659700-p/07380659700-p.jpg?ts=1764680166772&w=560",
+    "color_name": "브라운",
+    "colors": [],
+    "price": 279900,
+    "size_stock": [],
+    "is_sold_out": false,
+    "goodsImages": [
+        "https://static.zara.net/assets/public/1f57/85df/c85647a48041/3e5177c6ffb3/07380659700-p/07380659700-p.jpg",
+        "https://static.zara.net/assets/public/3512/cfcb/ab4f45d780db/58e94e9fb6bd/07380662727-f1/07380662727-f1.jpg",
+        "https://static.zara.net/assets/public/f13c/5aa0/91864d1eae97/4e1eec6f7fa8/07380660700-f1/07380660700-f1.jpg",
+        "https://static.zara.net/assets/public/8ccb/a776/2bbe49bdb3ef/aea396d0e8c0/02241403700-f1/02241403700-f1.jpg",
+        "https://static.zara.net/assets/public/c9ce/d939/2cc84a5d9a1f/bf4f874da450/07380659700-a1/07380659700-a1.jpg",
+        "https://static.zara.net/stdstatic/8.1.0/images/transparent-background.png"
+    ],
+    "goodsMaterial": {
+        "description": "플란넬 마감 울 혼방 소재의 릴랙스 핏 코트 블레이저. 피크 라펠 칼라와 버튼 커프스 마감 긴소매. 가슴 부분 파이핑 포켓과 골반 부분 더블 파이핑 포켓. 내부 포켓 디테일. 더블 브레스트 스타일 앞면 버튼 여밈. Soshiotsuki x ZARA 스페셜 컬렉션.",
+        "겉감": "51% 모, 28% 폴리에스터, 21% 아크릴",
+        "안감": "100% 폴리에스터"
+    },
+    "url": "https://www.zara.com/kr/ko/%E1%84%91%E1%85%B3%E1%86%AF%E1%84%85%E1%85%A1%E1%86%AB%E1%84%82%E1%85%A6%E1%86%AF-%E1%84%8F%E1%85%A9%E1%84%90%E1%85%B3-%E1%84%87%E1%85%B3%E1%86%AF%E1%84%85%E1%85%A6%E1%84%8B%E1%85%B5%E1%84%8C%E1%85%A5-soshiotsuki-x-zara-p07380659.html",
+    "scraped_at": "2026-02-11 13:11:41"
+}

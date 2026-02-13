@@ -1,0 +1,23 @@
+{
+    "goodsNo": "05854408",
+    "goodsNm": "앱스트랙트 자카드 가디건",
+    "brandName": "ZARA",
+    "thumbnailImageUrl": "https://static.zara.net/assets/public/2bec/2b07/0b9f4704a096/9604bde71d14/05854408030-p/05854408030-p.jpg?ts=1770030479227&w=560",
+    "color_name": "블루/블랙",
+    "colors": [],
+    "price": 109900,
+    "size_stock": [],
+    "is_sold_out": false,
+    "goodsImages": [
+        "https://static.zara.net/assets/public/2bec/2b07/0b9f4704a096/9604bde71d14/05854408030-p/05854408030-p.jpg",
+        "https://static.zara.net/assets/public/2cd5/c3b1/fceb453e9d30/8dd5c4de7857/05854408030-a1/05854408030-a1.jpg",
+        "https://static.zara.net/stdstatic/8.1.0/images/transparent-background.png"
+    ],
+    "goodsMaterial": {
+        "description": "울 18% 혼방 소재의 루즈핏 가디건. 브이넥 긴소매 디자인. 골반 부분 패치 포켓 디테일. 앞면 버튼 여밈.",
+        "겉감": "82% 폴리에스터, 18% 모",
+        "안감": "100% 폴리에스터"
+    },
+    "url": "https://www.zara.com/kr/ko/%E1%84%8B%E1%85%A2%E1%86%B8%E1%84%89%E1%85%B3%E1%84%90%E1%85%B3%E1%84%85%E1%85%A2%E1%86%A8%E1%84%90%E1%85%B3-%E1%84%8C%E1%85%A1%E1%84%8F%E1%85%A1%E1%84%83%E1%85%B3-%E1%84%80%E1%85%A1%E1%84%83%E1%85%B5%E1%84%80%E1%85%A5%E1%86%AB-p05854408.html",
+    "scraped_at": "2026-02-11 13:12:30"
+}

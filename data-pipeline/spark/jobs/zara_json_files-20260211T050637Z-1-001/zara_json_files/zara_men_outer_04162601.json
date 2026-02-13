@@ -1,0 +1,28 @@
+{
+    "goodsNo": "04162601",
+    "goodsNm": "LIMITED EDITION 스트라이프 스트럭처 수트 블레이저",
+    "brandName": "ZARA",
+    "thumbnailImageUrl": "https://static.zara.net/assets/public/dab5/1b1a/88354268a13f/884d9f2fa757/04162601802-p/04162601802-p.jpg?ts=1770109368178&w=560",
+    "color_name": "그레이",
+    "colors": [],
+    "price": 209900,
+    "size_stock": [],
+    "is_sold_out": false,
+    "goodsImages": [
+        "https://static.zara.net/assets/public/dab5/1b1a/88354268a13f/884d9f2fa757/04162601802-p/04162601802-p.jpg",
+        "https://static.zara.net/assets/public/ae5e/d37e/2f8642cca9be/87604a631660/04163601802-000-f1/04163601802-000-f1.jpg",
+        "https://static.zara.net/assets/public/ce8d/259a/4d3d4527abc6/c449af81c632/01887401250-f1/01887401250-f1.jpg",
+        "https://static.zara.net/assets/public/7ddc/2240/923542a2a3a6/c74ea67371d7/04164601802-000-f1/04164601802-000-f1.jpg",
+        "https://static.zara.net/assets/public/3e50/dc4b/8f01431e96d2/961a37ed6c2e/02823402800-f1/02823402800-f1.jpg",
+        "https://static.zara.net/assets/public/167f/77c6/a6114fb49014/287b2091cef5/12681720800-f1/12681720800-f1.jpg",
+        "https://static.zara.net/assets/public/85d4/ce4e/23094aec84f9/14bed70031f8/04162601802-a1/04162601802-a1.jpg",
+        "https://static.zara.net/stdstatic/8.1.0/images/transparent-background.png"
+    ],
+    "goodsMaterial": {
+        "description": "울 혼방 소재의 레귤러 핏 블레이저. 노치드 라펠 칼라, 버튼 커프스 마감 긴소매 디자인. 가슴 부분 파이핑 포켓과 골반 부분 플랩 포켓. 안감 포켓 디테일. 뒷면 밑단 트임 디테일. 앞면 버튼 여밈.",
+        "겉감": "54% 폴리에스터, 41% 모, 5% 폴리우레탄",
+        "안감": "65% 비스코스, 35% 폴리에스터"
+    },
+    "url": "https://www.zara.com/kr/ko/limited-edition-%E1%84%89%E1%85%B3%E1%84%90%E1%85%B3%E1%84%85%E1%85%A1%E1%84%8B%E1%85%B5%E1%84%91%E1%85%B3-%E1%84%89%E1%85%B3%E1%84%90%E1%85%B3%E1%84%85%E1%85%A5%E1%86%A8%E1%84%8E%E1%85%A5-%E1%84%89%E1%85%AE%E1%84%90%E1%85%B3-%E1%84%87%E1%85%B3%E1%86%AF%E1%84%85%E1%85%A6%E1%84%8B%E1%85%B5%E1%84%8C%E1%85%A5-p04162601.html",
+    "scraped_at": "2026-02-11 13:12:10"
+}

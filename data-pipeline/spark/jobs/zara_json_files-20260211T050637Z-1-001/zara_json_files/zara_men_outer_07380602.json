@@ -1,0 +1,28 @@
+{
+    "goodsNo": "07380602",
+    "goodsNm": "헤링본 보시 핏 블레이저",
+    "brandName": "ZARA",
+    "thumbnailImageUrl": "https://static.zara.net/assets/public/bb95/5b05/ca4a4f3fbf67/8082bd7d76c7/07380602800-510-p/07380602800-510-p.jpg?ts=1768212599274&w=560",
+    "color_name": "블랙",
+    "colors": [],
+    "price": 189900,
+    "size_stock": [],
+    "is_sold_out": false,
+    "goodsImages": [
+        "https://static.zara.net/assets/public/bb95/5b05/ca4a4f3fbf67/8082bd7d76c7/07380602800-510-p/07380602800-510-p.jpg",
+        "https://static.zara.net/assets/public/45b3/bc81/271448d98fc5/b2076a572812/06907402800-f1/06907402800-f1.jpg",
+        "https://static.zara.net/assets/public/96ec/3bef/9ec6480fb202/5c638eae73e7/04408147700-f1/04408147700-f1.jpg",
+        "https://static.zara.net/assets/public/13bf/8cc6/88814ab69aa2/e84f99e46a0f/04087450800-f1/04087450800-f1.jpg",
+        "https://static.zara.net/assets/public/cbb8/9b54/59d34f87aab9/9d3d4e2974ed/03920425717-f1/03920425717-f1.jpg",
+        "https://static.zara.net/assets/public/8607/a03d/160e414db002/9175ce1ea68f/07484391800-f1/07484391800-f1.jpg",
+        "https://static.zara.net/stdstatic/8.1.0/images/transparent-background.png",
+        "https://static.zara.net/assets/public/a6c1/efe6/ff4940b1b85f/bbad1611deb9/07380602800-510-a1/07380602800-510-a1.jpg"
+    ],
+    "goodsMaterial": {
+        "description": "스트럭처 코튼 소재의 보시 핏 블레이저. 노치 라펠 칼라, 버튼 커프스 마감 긴소매. 골반 부분 플랩 포켓과 내부 포켓 디테일. 뒷면 중앙 밑단 트임. 앞면 버튼 여밈.",
+        "겉감": "100% 면",
+        "안감": "100% 폴리에스터"
+    },
+    "url": "https://www.zara.com/kr/ko/%E1%84%92%E1%85%A6%E1%84%85%E1%85%B5%E1%86%BC%E1%84%87%E1%85%A9%E1%86%AB-%E1%84%87%E1%85%A1%E1%86%A8%E1%84%89%E1%85%B5%E1%84%91%E1%85%B5%E1%86%BA-%E1%84%87%E1%85%B3%E1%86%AF%E1%84%85%E1%85%A6%E1%84%8B%E1%85%B5%E1%84%8C%E1%85%A5-p07380602.html",
+    "scraped_at": "2026-02-11 13:12:27"
+}

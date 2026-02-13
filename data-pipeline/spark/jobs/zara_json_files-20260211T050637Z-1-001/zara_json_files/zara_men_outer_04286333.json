@@ -1,0 +1,27 @@
+{
+    "goodsNo": "04286333",
+    "goodsNm": "100% 린넨 수트 더블 브레스트 블레이저",
+    "brandName": "ZARA",
+    "thumbnailImageUrl": "https://static.zara.net/assets/public/6562/76ec/10024995a7e6/0c16ebc5c201/04286333505-p/04286333505-p.jpg?ts=1770109334248&w=560",
+    "color_name": "카키",
+    "colors": [],
+    "price": 189900,
+    "size_stock": [],
+    "is_sold_out": false,
+    "goodsImages": [
+        "https://static.zara.net/assets/public/6562/76ec/10024995a7e6/0c16ebc5c201/04286333505-p/04286333505-p.jpg",
+        "https://static.zara.net/assets/public/244c/346e/690e4b228562/301aeca54ebb/04408147800000-f1/04408147800000-f1.jpg",
+        "https://static.zara.net/assets/public/8980/c8d1/5c1a4e4f8469/342a257d2ae5/04381333505-f1/04381333505-f1.jpg",
+        "https://static.zara.net/assets/public/d0f1/d372/ebc54e1cbf65/7ec02c1b2cfc/06399312800-f1/06399312800-f1.jpg",
+        "https://static.zara.net/assets/public/88c7/733f/c815402e89d7/bb29ca61203a/12499620800-f1/12499620800-f1.jpg",
+        "https://static.zara.net/assets/public/bd6d/9bd2/c99e4e7e96f5/4579639d02c4/04286333505-a1/04286333505-a1.jpg",
+        "https://static.zara.net/stdstatic/8.1.0/images/transparent-background.png"
+    ],
+    "goodsMaterial": {
+        "description": "린넨 소재 레귤러핏 블레이저. 버튼이 달린 커프스 마감 긴소매 피크 라펠 칼라 디자인. 가슴 부분 파이핑 포켓과 골반 부분 플랩 포켓. 내부 포켓 디테일. 뒷면 중앙 밑단 트임. 앞면 버튼 더블 브레스트 여밈.",
+        "겉감": "100% 마",
+        "안감": "100% 폴리에스터"
+    },
+    "url": "https://www.zara.com/kr/ko/100-%E1%84%85%E1%85%B5%E1%86%AB%E1%84%82%E1%85%A6%E1%86%AB-%E1%84%83%E1%85%A5%E1%84%87%E1%85%B3%E1%86%AF-%E1%84%87%E1%85%B3%E1%84%85%E1%85%A6%E1%84%89%E1%85%B3%E1%84%90%E1%85%B3-%E1%84%89%E1%85%AE%E1%84%90%E1%85%B3-%E1%84%87%E1%85%B3%E1%86%AF%E1%84%85%E1%85%A6%E1%84%8B%E1%85%B5%E1%84%8C%E1%85%A5-p04286333.html",
+    "scraped_at": "2026-02-11 13:12:18"
+}

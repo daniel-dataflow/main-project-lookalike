@@ -1,0 +1,28 @@
+{
+    "goodsNo": "04403232",
+    "goodsNm": "컴포트 수트 블레이저",
+    "brandName": "ZARA",
+    "thumbnailImageUrl": "https://static.zara.net/assets/public/87c8/14a7/4d954421975c/fd9ce66ed9f9/04403232430-p/04403232430-p.jpg?ts=1770109241777&w=560",
+    "color_name": "잉크 블",
+    "colors": [],
+    "price": 149900,
+    "size_stock": [],
+    "is_sold_out": false,
+    "goodsImages": [
+        "https://static.zara.net/assets/public/87c8/14a7/4d954421975c/fd9ce66ed9f9/04403232430-p/04403232430-p.jpg",
+        "https://static.zara.net/assets/public/fcc6/6d10/cd7d4a03a955/85ded373295e/05372420401-f1/05372420401-f1.jpg",
+        "https://static.zara.net/assets/public/4d67/6a23/091844788698/9c0b0ea92385/04480232430-f1/04480232430-f1.jpg",
+        "https://static.zara.net/assets/public/43de/ce18/794e4856adb9/2c65e07dc99f/12400720800-f1/12400720800-f1.jpg",
+        "https://static.zara.net/assets/public/594b/486e/da154e5290b9/50ca83d665d6/04403232430-a1/04403232430-a1.jpg",
+        "https://static.zara.net/stdstatic/8.1.0/images/transparent-background.png"
+    ],
+    "goodsMaterial": {
+        "description": "비스코스 소재의 슬림핏 블레이저. 노치드 라펠 칼라. 버튼 디테일 커프스 마감 긴소매 디자인. 가슴 부분 파이핑 포켓과 골반 부분 플랩 포켓. 안감 포켓 디테일. 뒷면 밑단 트임. 앞면 버튼 여밈.",
+        "겉감": "54% 폴리에스터, 39% 비스코스, 7% 폴리우레탄",
+        "안감": "몸통\n100% 폴리에스터, 100% 폴리에스터, 소매\n95% 폴리에스터\n5% 폴리우레탄, 95% 폴리에스터, 5% 폴리우레탄",
+        "몸통": "100% 폴리에스터",
+        "소매": "95% 폴리에스터, 5% 폴리우레탄"
+    },
+    "url": "https://www.zara.com/kr/ko/%E1%84%8F%E1%85%A5%E1%86%B7%E1%84%91%E1%85%A9%E1%84%90%E1%85%B3-%E1%84%89%E1%85%AE%E1%84%90%E1%85%B3-%E1%84%87%E1%85%B3%E1%86%AF%E1%84%85%E1%85%A6%E1%84%8B%E1%85%B5%E1%84%8C%E1%85%A5-p04403232.html",
+    "scraped_at": "2026-02-11 13:12:07"
+}

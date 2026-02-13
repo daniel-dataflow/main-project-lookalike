@@ -1,0 +1,25 @@
+{
+    "goodsNo": "06230400",
+    "goodsNm": "스웨이드 가죽 릴렉스핏 블레이저 ORIGINS",
+    "brandName": "ZARA",
+    "thumbnailImageUrl": "https://static.zara.net/assets/public/8c51/c919/a3d84685bf8d/9466a6ab390c/06230400832-p/06230400832-p.jpg?ts=1768389753596&w=560",
+    "color_name": "토프 그레이",
+    "colors": [],
+    "price": 499900,
+    "size_stock": [],
+    "is_sold_out": false,
+    "goodsImages": [
+        "https://static.zara.net/assets/public/8c51/c919/a3d84685bf8d/9466a6ab390c/06230400832-p/06230400832-p.jpg",
+        "https://static.zara.net/assets/public/5a0b/5a7c/bede4c8291b2/f14ce6f5e4fd/00840430250-f1/00840430250-f1.jpg",
+        "https://static.zara.net/assets/public/425f/2791/6ab444d4ba3d/933af729ff9c/12662720800-f1/12662720800-f1.jpg",
+        "https://static.zara.net/assets/public/76ba/4c75/c6d545479df7/9c67a04b088d/06230400832-a1/06230400832-a1.jpg",
+        "https://static.zara.net/stdstatic/8.1.0/images/transparent-background.png"
+    ],
+    "goodsMaterial": {
+        "description": "스웨이드 마감 가죽 소재의 릴렉스핏 블레이저. 솔기 마감에 그리스 처리된 느낌의 디테일. 노치 라펠 칼라와 긴소매 디자인. 안감 없음. 골반 부분 패치 포켓. 뒷면 밑단 트임. 앞면 버튼 여밈. 스페셜 컬렉션 Origins.",
+        "겉감": "100% 천연가죽(염소가죽)",
+        "안감": "52% 비스코스, 48% 폴리에스터"
+    },
+    "url": "https://www.zara.com/kr/ko/%E1%84%89%E1%85%B3%E1%84%8B%E1%85%B0%E1%84%8B%E1%85%B5%E1%84%83%E1%85%B3-%E1%84%80%E1%85%A1%E1%84%8C%E1%85%AE%E1%86%A8-%E1%84%87%E1%85%B3%E1%86%AF%E1%84%85%E1%85%A6%E1%84%8B%E1%85%B5%E1%84%8C%E1%85%A5-origins-p06230400.html",
+    "scraped_at": "2026-02-11 13:12:20"
+}

@@ -1,0 +1,25 @@
+{
+    "goodsNo": "04148197",
+    "goodsNm": "스트라이프 플란넬 블레이저",
+    "brandName": "ZARA",
+    "thumbnailImageUrl": "https://static.zara.net/assets/public/dcf8/bba6/22144284a3ed/62e7fb9e63df/04148197401-p/04148197401-p.jpg?ts=1768908861565&w=560",
+    "color_name": "네이비",
+    "colors": [],
+    "price": 209900,
+    "size_stock": [],
+    "is_sold_out": false,
+    "goodsImages": [
+        "https://static.zara.net/assets/public/dcf8/bba6/22144284a3ed/62e7fb9e63df/04148197401-p/04148197401-p.jpg",
+        "https://static.zara.net/assets/public/7453/233a/631d40889df6/461a6c341a8e/05755410803-f1/05755410803-f1.jpg",
+        "https://static.zara.net/assets/public/1ce3/0563/7bc84bc3a549/a0aab6a188d8/12405720800-f1/12405720800-f1.jpg",
+        "https://static.zara.net/assets/public/201b/da17/1bde4d218ccf/5279d0d2007b/04148197401-a1/04148197401-a1.jpg",
+        "https://static.zara.net/stdstatic/8.1.0/images/transparent-background.png"
+    ],
+    "goodsMaterial": {
+        "description": "모델 신장: 189 cm | 사이즈: L 플란넬 마감 면 혼방 소재의 레귤러 핏 블레이저. 노치드 라펠 칼라. 버튼 디테일 커프스 마감 긴소매. 가슴 부분 파이핑 포켓과 골반 부분 플랩 포켓. 안감 포켓 디테일. 뒷면 밑단 트임. 앞면 버튼 여밈.",
+        "겉감": "45% 모, 25% 폴리에스터, 15% 아크릴, 10% 나일론, 5% 기타섬유",
+        "안감": "100% 폴리에스터"
+    },
+    "url": "https://www.zara.com/kr/ko/%E1%84%89%E1%85%B3%E1%84%90%E1%85%B3%E1%84%85%E1%85%A1%E1%84%8B%E1%85%B5%E1%84%91%E1%85%B3-%E1%84%91%E1%85%B3%E1%86%AF%E1%84%85%E1%85%A1%E1%86%AB%E1%84%82%E1%85%A6%E1%86%AF-%E1%84%87%E1%85%B3%E1%86%AF%E1%84%85%E1%85%A6%E1%84%8B%E1%85%B5%E1%84%8C%E1%85%A5-p04148197.html",
+    "scraped_at": "2026-02-11 13:11:53"
+}
