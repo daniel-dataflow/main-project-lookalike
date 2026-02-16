@@ -387,8 +387,33 @@ body {
     background-color: #e9ecef;
 }
 
-.filter-btn.active {
-    background-color: #4a5a4a;
-    /* Olive green */
+
+/* ─── 어드민 대시보드 반응형 스타일 ─── */
+.timestamp-responsive {
+    font-size: 0.75rem;
+    /* 모바일: 작게 */
+}
+
+.dashboard-title {
+    font-size: clamp(1rem, 4vw, 1.25rem);
+}
+
+@media (min-width: 768px) {
+    .timestamp-responsive {
+        font-size: 0.9rem;
+        /* 데스크탑: 기본 */
+    }
+}
+
+/* 새로고침 버튼 스타일 */
+.btn-refresh {
+    background-color: white;
+    border: 1px solid var(--primary-color);
+    color: var(--primary-color);
+    transition: all 0.2s ease;
+}
+
+.btn-refresh:hover {
+    background-color: var(--primary-color);
     color: white;
 }

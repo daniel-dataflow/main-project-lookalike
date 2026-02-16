@@ -2,6 +2,19 @@
 
 {% block page_title %}인프라 모니터링{% endblock %}
 
+{% block header_actions %}
+<div class="d-flex align-items-center">
+    <span class="text-muted me-1 timestamp-responsive">
+        <i class="fas fa-sync-alt me-1 d-none d-md-inline"></i>
+        <span id="lastUpdate">-</span>
+    </span>
+    <!-- 모바일에서는 텍스트 숨기고 아이콘만 표시 -->
+    <button class="btn btn-refresh btn-sm btn-md-normal" onclick="refreshAll()">
+        <i class="fas fa-redo me-1"></i><span class="d-none d-md-inline">새로고침</span>
+    </button>
+</div>
+{% endblock %}
+
 {% block content %}
 <!-- 시스템 리소스 -->
 <div class="row g-4 mb-4">
@@ -17,6 +30,7 @@
                     <div id="cpuProgress" class="progress-bar bg-primary" role="progressbar" style="width: 0%">
                     </div>
                 </div>
+                <small class="text-muted" id="cpuDetail">-</small>
             </div>
         </div>
     </div>
@@ -135,13 +149,6 @@
     <div class="card-header bg-white border-0 py-3">
         <div class="d-flex justify-content-between align-items-center">
             <h6 class="mb-0"><i class="fab fa-docker me-2 text-primary"></i>Docker 컨테이너</h6>
-            <div class="text-muted">
-                <i class="fas fa-sync-alt me-1"></i>
-                <span id="lastUpdate">-</span>
-                <button class="btn btn-sm btn-outline-primary ms-2" onclick="refreshAll()">
-                    <i class="fas fa-redo me-1"></i>새로고침
-                </button>
-            </div>
         </div>
     </div>
     <div class="card-body p-0">
@@ -181,6 +188,16 @@
             document.getElementById('cpuPercent').textContent = `${data.cpu_percent.toFixed(1)}%`;
             document.getElementById('cpuProgress').style.width = `${data.cpu_percent}%`;
             document.getElementById('cpuProgress').className = `progress-bar ${getProgressColor(data.cpu_percent)}`;
+
+            // CPU 상세 정보 (주파수/코어)
+            let cpuInfo = [];
+            if (data.cpu_freq_current > 0) {
+                cpuInfo.push(`${(data.cpu_freq_current / 1000).toFixed(2)}GHz`);
+            }
+            if (data.cpu_cores_physical > 0 && data.cpu_cores_logical > 0) {
+                cpuInfo.push(`${data.cpu_cores_physical}C/${data.cpu_cores_logical}T`);
+            }
+            document.getElementById('cpuDetail').textContent = cpuInfo.join(' | ') || 'CPU 정보 없음';
 
             // 메모리
             const memoryUsedGB = (data.memory_used / 1024 / 1024 / 1024).toFixed(1);

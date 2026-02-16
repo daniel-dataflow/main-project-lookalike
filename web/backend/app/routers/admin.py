@@ -21,6 +21,11 @@ router = APIRouter(prefix="/api/admin", tags=["admin"])
 # ──────────────────────────────────────
 class SystemStatusResponse(BaseModel):
     cpu_percent: float
+    cpu_freq_current: float
+    cpu_freq_min: float
+    cpu_freq_max: float
+    cpu_cores_physical: int
+    cpu_cores_logical: int
     memory_total: int
     memory_used: int
     memory_percent: float
@@ -58,6 +63,11 @@ async def get_system_status():
         # CPU 사용률
         cpu_percent = psutil.cpu_percent(interval=1)
         
+        # CPU 주파수 및 코어 정보
+        cpu_freq = psutil.cpu_freq()
+        cpu_cores_logical = psutil.cpu_count(logical=True)
+        cpu_cores_physical = psutil.cpu_count(logical=False)
+
         # 메모리 정보
         memory = psutil.virtual_memory()
         
@@ -70,6 +80,11 @@ async def get_system_status():
         
         return SystemStatusResponse(
             cpu_percent=cpu_percent,
+            cpu_freq_current=round(cpu_freq.current, 2) if cpu_freq else 0.0,
+            cpu_freq_min=round(cpu_freq.min, 2) if cpu_freq else 0.0,
+            cpu_freq_max=round(cpu_freq.max, 2) if cpu_freq else 0.0,
+            cpu_cores_physical=cpu_cores_physical or 0,
+            cpu_cores_logical=cpu_cores_logical or 0,
             memory_total=memory.total,
             memory_used=memory.used,
             memory_percent=memory.percent,
