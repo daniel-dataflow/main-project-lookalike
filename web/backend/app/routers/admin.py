@@ -155,8 +155,8 @@ async def get_database_status():
 async def get_docker_containers():
     """Docker 컨테이너 상태 조회"""
     try:
-        # Docker 소켓을 통한 연결
-        client = docker.DockerClient(base_url='unix://var/run/docker.sock')
+        # Docker 환경 변수 및 기본 설정을 통해 연결 (유연한 연결 지원)
+        client = docker.from_env()
         containers = client.containers.list(all=True)
         
         container_info = []
