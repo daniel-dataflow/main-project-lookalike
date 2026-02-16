@@ -23,7 +23,7 @@ psql -h postgresql -U "$POSTGRES_USER" -d "$POSTGRES_DB" <<-EOSQL
         email VARCHAR(100) UNIQUE,
         role VARCHAR(20) DEFAULT 'USER',
         provider VARCHAR(20) DEFAULT 'email',
-        social_id VARCHAR(255),
+        provider_id VARCHAR(255),
         profile_image VARCHAR(512),
         last_login TIMESTAMP DEFAULT NOW(),
         create_dt TIMESTAMP DEFAULT NOW(),
@@ -32,7 +32,7 @@ psql -h postgresql -U "$POSTGRES_USER" -d "$POSTGRES_DB" <<-EOSQL
 
     -- Users 인덱스
     CREATE UNIQUE INDEX IF NOT EXISTS idx_users_social 
-        ON users(provider, social_id);
+        ON users(provider, provider_id);
 
     -- Inquiry Board 테이블
     CREATE TABLE IF NOT EXISTS inquiry_board (

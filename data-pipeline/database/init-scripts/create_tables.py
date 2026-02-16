@@ -31,6 +31,7 @@ def init_postgresql():
         # 0️⃣ 기존 테이블 전체 삭제
         drop_query = """
         DROP TABLE IF EXISTS
+            search_results,
             search_logs,
             product_features,
             naver_prices,
@@ -45,14 +46,17 @@ def init_postgresql():
         # 1️⃣ 테이블 재생성
         create_queries = [
 
-            # Users
+            # Users (소셜 로그인 지원)
             """
             CREATE TABLE users (
                 user_id VARCHAR(50) PRIMARY KEY,
-                password VARCHAR(255) NOT NULL,
+                password VARCHAR(255),
                 name VARCHAR(50),
                 email VARCHAR(100) UNIQUE,
                 role VARCHAR(20) DEFAULT 'USER',
+                provider VARCHAR(20),
+                provider_id VARCHAR(100),
+                profile_image VARCHAR(512),
                 last_login TIMESTAMP DEFAULT NOW(),
                 create_dt TIMESTAMP DEFAULT NOW(),
                 update_dt TIMESTAMP DEFAULT NOW()
@@ -85,16 +89,16 @@ def init_postgresql():
             CREATE INDEX idx_comments_inquiry_board_id ON comments(inquiry_board_id);
             """,
 
-            # Products
+            # Products (brand_name 추가, origine_prod_id 제거)
             """
             CREATE TABLE products (
                 product_id BIGSERIAL PRIMARY KEY,
-                origine_prod_id VARCHAR(50),
                 model_code VARCHAR(50),
                 prod_name VARCHAR(50),
                 base_price INTEGER,
                 category_code VARCHAR(50),
                 img_hdfs_path VARCHAR(512),
+                brand_name VARCHAR(100),
                 create_dt TIMESTAMP DEFAULT NOW(),
                 update_dt TIMESTAMP DEFAULT NOW()
             );
@@ -123,21 +127,41 @@ def init_postgresql():
             );
             """,
 
-            # Search Logs
+            # Search Logs (썸네일, 메타데이터 확장)
             """
             CREATE TABLE search_logs (
                 log_id BIGSERIAL PRIMARY KEY,
                 user_id VARCHAR(50) REFERENCES users(user_id),
                 input_img_path VARCHAR(512),
+                thumbnail_path VARCHAR(512),
                 input_text TEXT,
                 applied_category VARCHAR(50),
+                image_size INTEGER,
+                image_width INTEGER,
+                image_height INTEGER,
+                search_status VARCHAR(20) DEFAULT 'pending',
+                search_result JSON,
+                result_count INTEGER DEFAULT 0,
                 nprice_id BIGINT REFERENCES naver_prices(nprice_id),
                 create_dt TIMESTAMP DEFAULT NOW(),
                 update_dt TIMESTAMP DEFAULT NOW()
             );
             """,
             "CREATE INDEX idx_search_logs_user_id ON search_logs(user_id);",
-            "CREATE INDEX idx_search_logs_nprice_id ON search_logs(nprice_id);"
+            "CREATE INDEX idx_search_logs_nprice_id ON search_logs(nprice_id);",
+            "CREATE INDEX idx_search_logs_create_dt ON search_logs(create_dt DESC);",
+            "CREATE INDEX idx_search_logs_status ON search_logs(search_status);",
+
+            # Search Results (검색 결과 상세, similarity_score 제거)
+            """
+            CREATE TABLE search_results (
+                result_id SERIAL PRIMARY KEY,
+                log_id INTEGER REFERENCES search_logs(log_id) ON DELETE CASCADE,
+                product_id VARCHAR(50),
+                rank INTEGER,
+                create_dt TIMESTAMP DEFAULT NOW()
+            );
+            """
         ]
 
         for q in create_queries:

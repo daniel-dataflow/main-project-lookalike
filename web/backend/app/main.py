@@ -99,7 +99,78 @@ async def search_results(request: Request, q: str = ""):
 
 @app.get("/product/{product_id}", response_class=HTMLResponse)
 async def product_detail(request: Request, product_id: str):
-    return templates.TemplateResponse("product_detail.html", {"request": request, "product_id": product_id})
+    """상품 상세 페이지 (DB 연동)"""
+    from .database import get_pg_cursor
+    
+    try:
+        with get_pg_cursor() as cur:
+            # 1. 상품 기본 정보 + 설명
+            cur.execute(
+                """
+                SELECT 
+                    p.product_id,
+                    p.model_code,
+                    p.brand_name,
+                    p.prod_name,
+                    p.base_price,
+                    p.category_code,
+                    p.img_hdfs_path,
+                    pf.detected_desc
+                FROM products p
+                LEFT JOIN product_features pf ON p.product_id = pf.product_id
+                WHERE p.product_id = %s
+                """,
+                (product_id,),
+            )
+            product = cur.fetchone()
+
+            if not product:
+                return templates.TemplateResponse(
+                    "error.html",
+                    {"request": request, "error": "상품을 찾을 수 없습니다"},
+                    status_code=404,
+                )
+
+            # 2. 최저가 5개 쇼핑몰
+            cur.execute(
+                """
+                SELECT 
+                    mall_name,
+                    price,
+                    mall_url,
+                    rank
+                FROM naver_prices
+                WHERE product_id = %s
+                ORDER BY rank ASC
+                LIMIT 5
+                """,
+                (product_id,),
+            )
+            prices = cur.fetchall()
+
+        # 3. 할인율 계산
+        base_price = product["base_price"]
+        for price_info in prices:
+            discount = base_price - price_info["price"]
+            discount_rate = int((discount / base_price) * 100) if base_price > 0 else 0
+            price_info["discount"] = discount
+            price_info["discount_rate"] = discount_rate
+
+        return templates.TemplateResponse(
+            "product_detail.html",
+            {
+                "request": request,
+                "product": product,
+                "prices": prices,
+            },
+        )
+    except Exception as e:
+        logger.error(f"상품 상세 조회 실패: {e}", exc_info=True)
+        return templates.TemplateResponse(
+            "error.html",
+            {"request": request, "error": "서버 오류가 발생했습니다"},
+            status_code=500,
+        )
 
 
 @app.get("/mypage", response_class=HTMLResponse)
@@ -144,11 +215,23 @@ async def inquiry_page(request: Request):
 
 @app.get("/recent", response_class=HTMLResponse)
 async def recent_viewed(request: Request):
-    return templates.TemplateResponse("recent_viewed.html", {"request": request})
+    from .routers.auth import _get_session
+    
+    session = _get_session(request)
+    if not session:
+        return RedirectResponse(url="/?error=login_required", status_code=302)
+    
+    return templates.TemplateResponse("recent.html", {"request": request})
 
 
 @app.get("/likes", response_class=HTMLResponse)
 async def likes(request: Request):
+    from .routers.auth import _get_session
+    
+    session = _get_session(request)
+    if not session:
+        return RedirectResponse(url="/?error=login_required", status_code=302)
+    
     return templates.TemplateResponse("likes.html", {"request": request})
 
 

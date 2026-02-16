@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}오류 - Lookalike{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center py-5">
+                <i class="fas fa-exclamation-triangle text-warning mb-3" style="font-size: 4rem;"></i>
+                <h4 class="fw-bold mb-3">오류가 발생했습니다</h4>
+                <p class="text-muted mb-4">{{ error }}</p>
+                <a href="/" class="btn btn-primary">
+                    <i class="fas fa-home me-2"></i>홈으로 돌아가기
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

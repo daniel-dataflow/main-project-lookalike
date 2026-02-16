@@ -9,82 +9,361 @@
         <small class="text-muted">최근 검색한 상품들 확인</small>
     </div>
     <div class="col-auto">
-        <a href="#" class="text-decoration-none text-danger" style="font-size: 0.9rem;">전체 삭제</a>
+        <a href="#" class="text-decoration-none text-danger" style="font-size: 0.9rem;" id="deleteAllBtn">전체 삭제</a>
     </div>
 </div>
 
-<div class="d-flex gap-2 mb-4 overflow-auto pb-2">
-    <button class="filter-btn active">전체</button>
-    <button class="filter-btn">오늘</button>
-    <button class="filter-btn">최근 7일</button>
+<div class="d-flex gap-2 mb-4 overflow-auto pb-2" id="filterBtns">
+    <button class="filter-btn active" data-filter="all">전체</button>
+    <button class="filter-btn" data-filter="today">오늘</button>
+    <button class="filter-btn" data-filter="week">최근 7일</button>
 </div>
 
-<!-- Section: Today -->
-<div class="mb-5">
-    <div class="d-flex align-items-center mb-3">
-        <i class="far fa-calendar text-secondary me-2"></i>
-        <h6 class="fw-bold mb-0">오늘 <span class="text-danger">1개</span></h6>
+<!-- 로딩 -->
+<div id="historyLoading" class="text-center py-5">
+    <div class="spinner-border text-secondary" role="status">
+        <span class="visually-hidden">로딩 중...</span>
     </div>
+    <p class="text-muted mt-2">검색 히스토리를 불러오는 중...</p>
+</div>
 
-    <div class="row row-cols-2 row-cols-md-3 g-3">
-        <div class="col">
-            <div class="history-card bg-white shadow-sm">
-                <img src="https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=300" alt="Search Image"
-                    class="history-img">
-                <div class="p-3 text-center">
-                    <div class="text-secondary small">유사 상품 24개</div>
+<!-- 로그인 필요 안내 -->
+<div id="loginRequired" class="d-none text-center py-5">
+    <i class="fas fa-lock text-muted mb-3" style="font-size: 3rem;"></i>
+    <p class="text-muted">로그인 후 검색 히스토리를 확인할 수 있습니다.</p>
+    <button class="btn btn-dark btn-sm rounded-pill px-4" data-bs-toggle="modal" data-bs-target="#authModal">
+        <i class="fas fa-sign-in-alt me-1"></i> 로그인
+    </button>
+</div>
+
+<!-- 비어있음 안내 -->
+<div id="emptyHistory" class="d-none text-center py-5">
+    <i class="fas fa-search text-muted mb-3" style="font-size: 3rem;"></i>
+    <p class="text-muted">검색 히스토리가 없습니다.</p>
+    <a href="/" class="btn btn-dark btn-sm rounded-pill px-4">
+        <i class="fas fa-home me-1"></i> 홈에서 검색하기
+    </a>
+</div>
+
+<!-- 히스토리 콘텐츠 (동적 생성) -->
+<div id="historyContent" class="d-none"></div>
+
+<!-- 더 보기 버튼 -->
+<div id="loadMoreArea" class="d-none text-center mt-4 mb-4">
+    <button class="btn btn-outline-secondary rounded-pill px-4" id="loadMoreBtn">
+        더 보기 <i class="fas fa-chevron-down ms-1"></i>
+    </button>
+</div>
+
+<!-- 검색 결과 상세 모달 -->
+<div class="modal fade" id="detailModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold">검색 결과 상세</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="detailModalBody">
+                <div class="text-center py-3">
+                    <div class="spinner-border text-secondary" role="status"></div>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- Section: Yesterday -->
-<div class="mb-5">
-    <div class="d-flex align-items-center mb-3">
-        <i class="far fa-calendar text-secondary me-2"></i>
-        <h6 class="fw-bold mb-0">어제 <span class="text-secondary">2개</span></h6>
-    </div>
+<script>
+    document.addEventListener('DOMContentLoaded', async function () {
+        const historyLoading = document.getElementById('historyLoading');
+        const loginRequired = document.getElementById('loginRequired');
+        const emptyHistory = document.getElementById('emptyHistory');
+        const historyContent = document.getElementById('historyContent');
+        const loadMoreArea = document.getElementById('loadMoreArea');
+        const loadMoreBtn = document.getElementById('loadMoreBtn');
+        const deleteAllBtn = document.getElementById('deleteAllBtn');
+        const filterBtns = document.querySelectorAll('.filter-btn');
 
-    <div class="row row-cols-2 row-cols-md-3 g-3">
-        <div class="col">
-            <div class="history-card bg-white shadow-sm">
-                <img src="https://images.unsplash.com/photo-1434389677669-e08b4cac3105?w=300" alt="Search Image"
-                    class="history-img">
-                <div class="p-3 text-center">
-                    <div class="text-secondary small">유사 상품 18개</div>
-                </div>
-            </div>
-        </div>
-        <div class="col">
-            <div class="history-card bg-white shadow-sm">
-                <img src="https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=300" alt="Search Image"
-                    class="history-img">
-                <div class="p-3 text-center">
-                    <div class="text-secondary small">유사 상품 31개</div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+        let allHistory = [];
+        let currentOffset = 0;
+        const pageSize = 20;
+        let totalCount = 0;
+        let currentFilter = 'all';
 
-<!-- Section: 2월 10일 -->
-<div class="mb-5">
-    <div class="d-flex align-items-center mb-3">
-        <i class="far fa-calendar text-secondary me-2"></i>
-        <h6 class="fw-bold mb-0">2월 10일 <span class="text-secondary">1개</span></h6>
-    </div>
+        // 1. 로그인 확인
+        let isLoggedIn = false;
+        try {
+            const authResp = await fetch('/api/auth/me');
+            const authData = await authResp.json();
+            isLoggedIn = authData.success && authData.user;
+        } catch (e) {
+            console.error('인증 확인 실패:', e);
+        }
 
-    <div class="row row-cols-2 row-cols-md-3 g-3">
-        <div class="col">
-            <div class="history-card bg-white shadow-sm">
-                <img src="https://images.unsplash.com/photo-1491553895911-0055eca6402d?w=300" alt="Search Image"
-                    class="history-img">
-                <div class="p-3 text-center">
-                    <div class="text-secondary small">유사 상품 12개</div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
+        if (!isLoggedIn) {
+            historyLoading.classList.add('d-none');
+            loginRequired.classList.remove('d-none');
+            return;
+        }
+
+        // 2. 히스토리 로드
+        await loadHistory();
+
+        // 3. 필터 버튼
+        filterBtns.forEach(btn => {
+            btn.addEventListener('click', function () {
+                filterBtns.forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                currentFilter = this.dataset.filter;
+                renderHistory();
+            });
+        });
+
+        // 4. 더 보기
+        loadMoreBtn.addEventListener('click', async function () {
+            currentOffset += pageSize;
+            await loadHistory(true);
+        });
+
+        // 5. 전체 삭제
+        deleteAllBtn.addEventListener('click', async function (e) {
+            e.preventDefault();
+            if (!confirm('모든 검색 히스토리를 삭제하시겠습니까?')) return;
+
+            try {
+                const resp = await fetch('/api/search/history', { method: 'DELETE' });
+                const data = await resp.json();
+
+                if (resp.ok && data.success) {
+                    allHistory = [];
+                    totalCount = 0;
+                    renderHistory();
+                    showToast('검색 히스토리가 삭제되었습니다.');
+                } else {
+                    alert(data.detail || '삭제에 실패했습니다.');
+                }
+            } catch (err) {
+                console.error(err);
+                alert('서버 오류가 발생했습니다.');
+            }
+        });
+
+        async function loadHistory(append = false) {
+            if (!append) {
+                historyLoading.classList.remove('d-none');
+                historyContent.classList.add('d-none');
+            }
+
+            try {
+                const resp = await fetch(`/api/search/history?limit=${pageSize}&offset=${currentOffset}`);
+
+                if (resp.status === 401) {
+                    historyLoading.classList.add('d-none');
+                    loginRequired.classList.remove('d-none');
+                    return;
+                }
+
+                const data = await resp.json();
+
+                if (!data.success) throw new Error('히스토리 로드 실패');
+
+                totalCount = data.total;
+
+                if (append) {
+                    allHistory = allHistory.concat(data.history);
+                } else {
+                    allHistory = data.history;
+                }
+
+                renderHistory();
+
+            } catch (err) {
+                console.error('히스토리 로드 실패:', err);
+                historyLoading.classList.add('d-none');
+                emptyHistory.classList.remove('d-none');
+            }
+        }
+
+        function renderHistory() {
+            historyLoading.classList.add('d-none');
+
+            // 필터 적용
+            let filtered = allHistory;
+            const now = new Date();
+            const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const weekAgo = new Date(todayStart.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+            if (currentFilter === 'today') {
+                filtered = allHistory.filter(item => new Date(item.create_dt) >= todayStart);
+            } else if (currentFilter === 'week') {
+                filtered = allHistory.filter(item => new Date(item.create_dt) >= weekAgo);
+            }
+
+            if (filtered.length === 0) {
+                historyContent.classList.add('d-none');
+                loadMoreArea.classList.add('d-none');
+                emptyHistory.classList.remove('d-none');
+                return;
+            }
+
+            emptyHistory.classList.add('d-none');
+
+            // 날짜별 그룹핑
+            const groups = {};
+            filtered.forEach(item => {
+                const dt = new Date(item.create_dt);
+                const dateKey = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+                if (!groups[dateKey]) groups[dateKey] = [];
+                groups[dateKey].push(item);
+            });
+
+            // 렌더링
+            let html = '';
+            const sortedDates = Object.keys(groups).sort().reverse();
+
+            sortedDates.forEach(dateKey => {
+                const items = groups[dateKey];
+                const dateLabel = formatDateLabel(dateKey);
+                const count = items.length;
+
+                html += `
+                <div class="mb-5">
+                    <div class="d-flex align-items-center mb-3">
+                        <i class="far fa-calendar text-secondary me-2"></i>
+                        <h6 class="fw-bold mb-0">${dateLabel} <span class="text-secondary">${count}개</span></h6>
+                    </div>
+                    <div class="row row-cols-2 row-cols-md-3 g-3">`;
+
+                items.forEach(item => {
+                    const thumbUrl = item.thumbnail_url || 'https://placehold.co/150x150/f8f9fa/999?text=No+Image';
+                    const resultText = item.result_count > 0 ? `유사 상품 ${item.result_count}개` : '결과 없음';
+                    const searchText = item.search_text ? `<div class="text-truncate small text-muted">${escapeHtml(item.search_text)}</div>` : '';
+                    const categoryBadge = item.category ? `<span class="badge bg-light text-dark small">${escapeHtml(item.category)}</span>` : '';
+
+                    html += `
+                    <div class="col">
+                        <div class="history-card bg-white shadow-sm" style="cursor: pointer; border-radius: 12px; overflow: hidden;"
+                             onclick="showDetail(${item.log_id})">
+                            <img src="${thumbUrl}" alt="검색 이미지"
+                                class="history-img" style="width: 100%; height: 140px; object-fit: cover;"
+                                onerror="this.src='https://placehold.co/150x150/f8f9fa/999?text=No+Image'">
+                            <div class="p-2 text-center">
+                                ${searchText}
+                                ${categoryBadge}
+                                <div class="text-secondary small">${resultText}</div>
+                            </div>
+                        </div>
+                    </div>`;
+                });
+
+                html += `
+                    </div>
+                </div>`;
+            });
+
+            historyContent.innerHTML = html;
+            historyContent.classList.remove('d-none');
+
+            // 더 보기 버튼
+            if (allHistory.length < totalCount) {
+                loadMoreArea.classList.remove('d-none');
+            } else {
+                loadMoreArea.classList.add('d-none');
+            }
+        }
+
+        function formatDateLabel(dateKey) {
+            const dt = new Date(dateKey + 'T00:00:00');
+            const now = new Date();
+            const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+            const yesterdayStr = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
+
+            if (dateKey === todayStr) return '오늘';
+            if (dateKey === yesterdayStr) return '어제';
+            return `${dt.getMonth() + 1}월 ${dt.getDate()}일`;
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        function showToast(msg) {
+            const container = document.getElementById('toastContainer');
+            if (!container) return;
+            const toast = document.createElement('div');
+            toast.className = 'toast show align-items-center text-white bg-dark border-0 mb-2';
+            toast.innerHTML = `<div class="d-flex"><div class="toast-body">${msg}</div></div>`;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+    });
+
+    // 글로벌 함수: 검색 결과 상세 모달
+    async function showDetail(logId) {
+        const modal = new bootstrap.Modal(document.getElementById('detailModal'));
+        const modalBody = document.getElementById('detailModalBody');
+
+        modalBody.innerHTML = '<div class="text-center py-3"><div class="spinner-border text-secondary" role="status"></div></div>';
+        modal.show();
+
+        try {
+            const resp = await fetch(`/api/search/history/${logId}`);
+            const data = await resp.json();
+
+            if (!data.success) throw new Error('상세 조회 실패');
+
+            let html = '';
+
+            // 썸네일
+            if (data.thumbnail_url) {
+                html += `<div class="text-center mb-3">
+                <img src="${data.thumbnail_url}" alt="검색 이미지"
+                    style="max-height: 200px; border-radius: 8px;"
+                    onerror="this.style.display='none'">
+            </div>`;
+            }
+
+            // 검색 정보
+            html += '<div class="mb-3 small text-muted">';
+            if (data.search_text) html += `<div>검색어: ${data.search_text}</div>`;
+            if (data.category) html += `<div>카테고리: ${data.category}</div>`;
+            if (data.create_dt) html += `<div>검색 시간: ${new Date(data.create_dt).toLocaleString('ko-KR')}</div>`;
+            html += '</div>';
+
+            // 검색 결과 상품 목록
+            if (data.results && data.results.length > 0) {
+                html += '<div class="row row-cols-1 row-cols-md-2 g-3">';
+                data.results.forEach(item => {
+                    const price = item.price ? item.price.toLocaleString() : '-';
+                    html += `
+                    <div class="col">
+                        <div class="card h-100 border-0 shadow-sm">
+                            <img src="${item.image_url}" class="card-img-top" alt="${item.product_name}"
+                                style="height: 150px; object-fit: cover;">
+                            <div class="card-body p-2">
+                                <small class="text-muted">${item.brand}</small>
+                                <div class="fw-bold small text-truncate">${item.product_name}</div>
+                                <div class="d-flex justify-content-between align-items-center mt-1">
+                                    <span class="text-danger fw-bold small">${price}원</span>
+                                </div>
+                                <div class="text-muted" style="font-size: 0.7rem;">${item.mall_name}</div>
+                            </div>
+                        </div>
+                    </div>`;
+                });
+                html += '</div>';
+            } else {
+                html += '<p class="text-muted text-center">검색 결과가 없습니다.</p>';
+            }
+
+            modalBody.innerHTML = html;
+
+        } catch (err) {
+            console.error(err);
+            modalBody.innerHTML = '<p class="text-danger text-center">상세 정보를 불러오는데 실패했습니다.</p>';
+        }
+    }
+</script>
 {% endblock %}

@@ -58,6 +58,17 @@ class Settings(BaseSettings):
     # === FastAPI ===
     FASTAPI_PORT: int = 8900
 
+    # === Hadoop / HDFS ===
+    HADOOP_NAMENODE_HOST: str = "namenode"
+    HDFS_NAMENODE_PORT: int = 9000
+    HDFS_WEBHDFS_PORT: int = 9870
+
+    # === 이미지 업로드 ===
+    MAX_UPLOAD_SIZE_MB: int = 10
+    THUMBNAIL_SIZE: int = 150
+    THUMBNAIL_QUALITY: int = 85
+    USE_MOCK_ML: bool = True
+
     @property
     def DATABASE_URL(self) -> str:
         return (

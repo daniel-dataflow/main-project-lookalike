@@ -198,9 +198,53 @@
         </div>
     </div>
 
-    <!-- Bootstrap 5 JS Bundle -->
+    <!-- Bootstrap Bundle with Popper -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="/static/js/script.js"></script>
+
+    <!-- 네비게이션 활성화 표시 -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const currentPath = window.location.pathname;
+            const navLinks = document.querySelectorAll('.navbar-bottom .nav-link');
+
+            navLinks.forEach(link => {
+                const href = link.getAttribute('href');
+
+                // 현재 경로와 일치하는 링크 찾기
+                if (currentPath === href ||
+                    (currentPath === '/' && href === '/') ||
+                    (currentPath.startsWith('/recent') && href === '/recent') ||
+                    (currentPath.startsWith('/likes') && href === '/likes') ||
+                    (currentPath.startsWith('/mypage') && href === '/mypage')) {
+
+                    // 활성화 스타일 적용
+                    link.classList.remove('text-secondary');
+                    link.classList.add('text-dark', 'active');
+
+                    // 아이콘을 solid로 변경
+                    const icon = link.querySelector('i');
+                    if (icon) {
+                        icon.classList.remove('far');
+                        icon.classList.add('fas');
+                    }
+                } else {
+                    // 비활성화 스타일
+                    link.classList.remove('text-dark', 'active');
+                    link.classList.add('text-secondary');
+
+                    // 아이콘을 regular로 변경
+                    const icon = link.querySelector('i');
+                    if (icon && !icon.classList.contains('fa-home')) {
+                        icon.classList.remove('fas');
+                        icon.classList.add('far');
+                    }
+                }
+            });
+        });
+    </script>
+
+    {% block extra_js %}{% endblock %}
 </body>
 
 </html>

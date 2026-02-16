@@ -27,11 +27,10 @@ class SearchByTextRequest(BaseModel):
 # ──────────────────────────────────────
 class SimilarProductResponse(BaseModel):
     """유사 상품 결과"""
-    product_id: int
+    product_id: Optional[int] = None
     prod_name: Optional[str] = None
     base_price: Optional[int] = None
     img_hdfs_path: Optional[str] = None
-    similarity_score: float = Field(..., description="유사도 점수 (0~1)")
 
 
 class SearchResultResponse(BaseModel):
@@ -49,3 +48,45 @@ class SearchLogResponse(BaseModel):
     input_text: Optional[str] = None
     applied_category: Optional[str] = None
     create_dt: Optional[datetime] = None
+
+
+# ──────────────────────────────────────
+# 이미지 검색 관련 모델
+# ──────────────────────────────────────
+class MockProductResult(BaseModel):
+    """Mock 상품 검색 결과"""
+    product_id: int  # 상품 ID (상세 페이지 링크용)
+    product_name: str
+    brand: str
+    price: int
+    image_url: str
+    mall_name: str
+    mall_url: str
+
+
+class ImageSearchResponse(BaseModel):
+    """이미지 검색 응답"""
+    success: bool = True
+    log_id: int
+    thumbnail_url: str
+    results: List[MockProductResult]
+    result_count: int
+
+
+class SearchHistoryItem(BaseModel):
+    """검색 히스토리 아이템"""
+    log_id: int
+    thumbnail_url: Optional[str] = None
+    search_text: Optional[str] = None
+    category: Optional[str] = None
+    create_dt: Optional[datetime] = None
+    result_count: int = 0
+
+
+class SearchHistoryListResponse(BaseModel):
+    """검색 히스토리 목록 응답"""
+    success: bool = True
+    total: int
+    page: int
+    limit: int
+    history: List[SearchHistoryItem]

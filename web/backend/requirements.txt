@@ -23,3 +23,6 @@ psycopg2-binary==2.9.9
 redis==5.0.1
 pymongo==4.6.1
 elasticsearch==8.11.0
+
+# 이미지 처리
+Pillow>=10.0.0
