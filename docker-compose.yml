@@ -414,6 +414,7 @@ services:
       - "${FASTAPI_PORT}:8900"
     volumes:
       - .:/app
+      - /var/run/docker.sock:/var/run/docker.sock # Docker 모니터링용
     networks: [ main-network ]
     restart: unless-stopped
     deploy:

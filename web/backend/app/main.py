@@ -14,7 +14,7 @@ import logging
 
 from .config import get_settings
 from .database import init_all_databases, close_all_databases
-from .routers import auth_router, products_router, posts_router, search_router, inquiries_router
+from .routers import auth_router, products_router, posts_router, search_router, inquiries_router, admin_router
 
 # ──────────────────────────────────────
 # 로깅 설정
@@ -82,6 +82,7 @@ app.include_router(products_router)
 app.include_router(posts_router)
 app.include_router(search_router)
 app.include_router(inquiries_router)
+app.include_router(admin_router)
 
 
 # ──────────────────────────────────────

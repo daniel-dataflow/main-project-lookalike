@@ -26,3 +26,7 @@ elasticsearch==8.11.0
 
 # 이미지 처리
 Pillow>=10.0.0
+
+# 모니터링
+psutil==5.9.5
+docker==6.1.3
