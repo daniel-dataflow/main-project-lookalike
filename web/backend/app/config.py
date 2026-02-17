@@ -20,18 +20,18 @@ class Settings(BaseSettings):
     POSTGRES_PORT: int = 5432
     POSTGRES_DB: str = "datadb"
     POSTGRES_USER: str = "datauser"
-    POSTGRES_PASSWORD: str = "***REMOVED***"
+    POSTGRES_PASSWORD: str = ""  # Set in .env
 
     # === MongoDB ===
     MONGODB_HOST: str = "localhost"
     MONGODB_PORT: int = 27017
     MONGODB_USER: str = "datauser"
-    MONGODB_PASSWORD: str = "***REMOVED***"
+    MONGODB_PASSWORD: str = ""  # Set in .env
 
     # === Redis ===
     REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379
-    REDIS_PASSWORD: str = "***REMOVED***"
+    REDIS_PASSWORD: str = ""  # Set in .env
 
     # === Elasticsearch ===
     ELASTICSEARCH_HOST: str = "localhost"
@@ -49,11 +49,12 @@ class Settings(BaseSettings):
     # OAUTH_REDIRECT_URI: Optional[str] = None
 
     # === 세션 ===
-    SESSION_SECRET_KEY: str = "***REMOVED***"
+    SESSION_SECRET_KEY: str = "change-this-in-production"  # Set in .env
     SESSION_EXPIRE_HOURS: int = 24
 
     # === 관리자 ===
-    ADMIN_PASSWORD: str = "***REMOVED***"
+    ADMIN_USERNAME: str = ""  # Set in .env
+    ADMIN_PASSWORD: str = ""  # Set in .env
 
     # === FastAPI ===
     FASTAPI_PORT: int = 8900
