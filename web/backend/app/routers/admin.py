@@ -164,11 +164,28 @@ async def get_database_status():
 
 
 # ──────────────────────────────────────
-# Docker 컨테이너 상태 API
+# Docker 컨테이너 상태 API (캐싱 적용)
 # ──────────────────────────────────────
+from datetime import datetime, timedelta
+from typing import Optional
+
+# 캐시 저장소
+_docker_cache: Optional[Dict[str, Any]] = None
+_docker_cache_time: Optional[datetime] = None
+_CACHE_TTL_SECONDS = 60  # 60초 캐시 (Docker stats는 느리므로 긴 캐시 필요)
+
 @router.get("/docker/containers", response_model=DockerStatusResponse)
 async def get_docker_containers():
-    """Docker 컨테이너 상태 조회"""
+    """Docker 컨테이너 상태 조회 (60초 캐싱)"""
+    global _docker_cache, _docker_cache_time
+    
+    # 캐시 확인
+    now = datetime.now()
+    if _docker_cache and _docker_cache_time:
+        if (now - _docker_cache_time).total_seconds() < _CACHE_TTL_SECONDS:
+            logger.debug("Docker 캐시 사용")
+            return DockerStatusResponse(**_docker_cache)
+    
     try:
         # Docker 환경 변수 및 기본 설정을 통해 연결 (유연한 연결 지원)
         client = docker.from_env()
@@ -209,7 +226,13 @@ async def get_docker_containers():
                     memory_limit=0
                 ))
         
-        return DockerStatusResponse(containers=container_info)
+        # 캐시 저장
+        result = {"containers": container_info}
+        _docker_cache = result
+        _docker_cache_time = now
+        
+        return DockerStatusResponse(**result)
     except Exception as e:
         logger.error(f"Docker 컨테이너 조회 실패: {e}")
         raise HTTPException(status_code=500, detail="Docker 컨테이너 조회 실패")
+

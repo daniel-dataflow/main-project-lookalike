@@ -1,0 +1,1035 @@
+{% extends "admin_base.html" %}
+
+{% block title %}로그 모니터링 v2 - Lookalike Admin{% endblock %}
+
+{% block page_title %}
+<span class="d-none d-md-inline">로그 모니터링 v2</span>
+<span class="d-md-none">로그 v2</span>
+{% endblock %}
+
+{% block header_actions %}
+<div class="d-flex align-items-center justify-content-end gap-2" style="flex-shrink: 0;">
+    <div class="d-none d-lg-flex align-items-center gap-2 me-2">
+        <span class="badge bg-info text-dark" id="badgeThroughput" title="예상 수집량">
+            <i class="fas fa-tachometer-alt me-1"></i>수집: -건/분
+        </span>
+        <span class="badge bg-primary" id="badgeStorage" title="Elasticsearch 저장소">
+            <i class="fas fa-hdd me-1"></i>저장소: - GB
+        </span>
+        <span class="badge bg-success" title="로그 보관 정책">
+            <i class="fas fa-history me-1"></i>보관: 7일
+        </span>
+    </div>
+    <div class="form-check form-switch mb-0 d-flex align-items-center">
+        <input class="form-check-input" type="checkbox" id="autoRefreshSwitch">
+        <label class="form-check-label small d-none d-md-inline ms-1" for="autoRefreshSwitch">자동갱신</label>
+    </div>
+    <button class="btn btn-outline-secondary btn-sm text-nowrap" onclick="refreshAll()">
+        <i class="fas fa-redo"></i>
+        <span class="d-none d-md-inline ms-1">새로고침</span>
+    </button>
+</div>
+{% endblock %}
+
+{% block content %}
+<style>
+    .health-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        display: inline-block;
+    }
+
+    .health-dot.healthy {
+        background: #1cc88a;
+    }
+
+    .health-dot.warning {
+        background: #f6c23e;
+    }
+
+    .health-dot.critical {
+        background: #e74a3b;
+        animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+
+        0%,
+        100% {
+            opacity: 1
+        }
+
+        50% {
+            opacity: 0.4
+        }
+    }
+
+    .alert-banner {
+        animation: slideDown 0.3s ease;
+    }
+
+    @keyframes slideDown {
+        from {
+            transform: translateY(-20px);
+            opacity: 0
+        }
+
+        to {
+            transform: translateY(0);
+            opacity: 1
+        }
+    }
+
+    .error-rank {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+        font-size: 0.8rem;
+        flex-shrink: 0;
+    }
+
+    .error-rank.rank-1 {
+        background: #e74a3b;
+        color: #fff;
+    }
+
+    .error-rank.rank-2 {
+        background: #f6c23e;
+        color: #fff;
+    }
+
+    .error-rank.rank-3 {
+        background: #36b9cc;
+        color: #fff;
+    }
+
+    .error-rank.rank-other {
+        background: #d1d3e2;
+        color: #5a5c69;
+    }
+
+    .log-card {
+        border-left: 4px solid #ccc;
+        background: #fff;
+        margin-bottom: 12px;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        cursor: pointer;
+        transition: transform 0.1s;
+    }
+
+    .log-card:active {
+        transform: scale(0.98);
+    }
+
+    .log-card.level-error {
+        border-left-color: #dc3545;
+    }
+
+    .log-card.level-warn {
+        border-left-color: #ffc107;
+    }
+
+    .log-card.level-info {
+        border-left-color: #0dcaf0;
+    }
+
+    .log-card.level-critical {
+        border-left-color: #6f42c1;
+    }
+
+    .filter-scroll-container {
+        overflow-x: auto;
+        white-space: nowrap;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 5px;
+    }
+
+    .filter-scroll-container::-webkit-scrollbar {
+        height: 4px;
+    }
+
+    .filter-scroll-container::-webkit-scrollbar-thumb {
+        background: #ccc;
+        border-radius: 4px;
+    }
+
+    .level-search-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        width: 100%;
+    }
+
+    .level-filters {
+        display: flex;
+        gap: 8px;
+        flex-shrink: 0;
+    }
+
+    .search-box {
+        flex: 1;
+        min-width: 120px;
+        display: flex;
+        gap: 8px;
+    }
+
+    .search-box input {
+        flex: 1;
+        width: 100%;
+    }
+
+    @media (max-width: 600px) {
+        .level-search-row {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .search-box {
+            width: 100%;
+        }
+
+        .level-filters {
+            width: 100%;
+            overflow-x: auto;
+            padding-bottom: 5px;
+        }
+    }
+</style>
+
+<!-- 에러 급증 경고 배너 (동적 표시) -->
+<div id="alertBanner" class="d-none"></div>
+
+<!-- 서비스 헬스맵 -->
+<div class="row g-2 mb-3">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body py-2 px-3">
+                <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                    <small class="text-muted fw-bold"><i class="fas fa-heartbeat me-1"></i>서비스 상태 (1h)</small>
+                    <div class="d-flex flex-wrap gap-3" id="serviceHealthMap">
+                        <span class="text-muted small">로딩 중...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 통계 요약 + 트렌드 차트 -->
+<div class="row g-3 mb-3">
+    <!-- 좌: 레벨별 통계 -->
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <h6 class="card-title mb-3"><i class="fas fa-chart-pie me-2"></i>최근 1시간 통계</h6>
+                <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                    <span><span class="badge bg-danger me-2">CRITICAL</span>치명적 오류</span>
+                    <span class="fw-bold text-danger" id="statCritical">-</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                    <span><span class="badge bg-danger me-2">ERROR</span>오류</span>
+                    <span class="fw-bold text-danger" id="statError">-</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                    <span><span class="badge bg-warning text-dark me-2">WARN</span>경고</span>
+                    <span class="fw-bold text-warning" id="statWarn">-</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center py-2 border-bottom">
+                    <span><span class="badge bg-info text-dark me-2">INFO</span>정보</span>
+                    <span class="fw-bold text-info" id="statInfo">-</span>
+                </div>
+                <div class="d-flex justify-content-between align-items-center py-2">
+                    <span class="fw-bold">전체</span>
+                    <span class="fw-bold text-primary" id="statTotal">-</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 우: 트렌드 차트 -->
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white fw-bold border-0 pb-0">
+                <i class="fas fa-chart-area me-2"></i>24시간 로그 추이
+            </div>
+            <div class="card-body">
+                <canvas id="trendChart" style="height: 220px;"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 빈번한 에러 Top 5 -->
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-header bg-white fw-bold border-0">
+        <i class="fas fa-exclamation-triangle me-2 text-danger"></i>빈번한 에러 Top 5 (24시간)
+    </div>
+    <div class="card-body pt-0" id="topErrorsContainer">
+        <div class="text-center text-muted py-3">로딩 중...</div>
+    </div>
+</div>
+
+<!-- Slack 알림 설정 -->
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-header bg-white fw-bold border-0 d-flex align-items-center justify-content-between">
+        <span><i class="fab fa-slack me-2" style="color:#4A154B;"></i>Slack 알림 설정</span>
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge" id="slackStatusBadge">-</span>
+            <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" id="slackEnabledSwitch" onchange="toggleSlackEnabled()">
+            </div>
+        </div>
+    </div>
+    <div class="card-body">
+        <!-- 1행: Webhook URL -->
+        <div class="row g-3 align-items-end mb-3">
+            <div class="col-lg-7">
+                <label class="form-label small fw-bold">Webhook URL</label>
+                <input type="url" class="form-control form-control-sm" id="slackWebhookUrl"
+                    placeholder="https://hooks.slack.com/services/T.../B.../xxx">
+            </div>
+            <div class="col-lg-5 d-flex gap-2">
+                <button class="btn btn-primary btn-sm flex-grow-1" onclick="saveSlackConfig()">
+                    <i class="fas fa-save me-1"></i>저장
+                </button>
+                <button class="btn btn-outline-success btn-sm flex-grow-1" onclick="testSlackAlert()">
+                    <i class="fas fa-paper-plane me-1"></i>테스트
+                </button>
+            </div>
+        </div>
+        <!-- 2행: 세부 설정 -->
+        <div class="row g-3 mb-3">
+            <div class="col-md-3">
+                <label class="form-label small fw-bold">알림 레벨</label>
+                <select class="form-select form-select-sm" id="slackMinLevel">
+                    <option value="CRITICAL">CRITICAL만</option>
+                    <option value="ERROR">ERROR 이상</option>
+                    <option value="WARN">WARN 이상</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small fw-bold">활성 시작 (KST)</label>
+                <select class="form-select form-select-sm" id="slackHoursStart">
+                    <option value="">제한 없음</option>
+                    <option value="0">00시</option>
+                    <option value="6">06시</option>
+                    <option value="8">08시</option>
+                    <option value="9">09시</option>
+                    <option value="10">10시</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small fw-bold">활성 종료 (KST)</label>
+                <select class="form-select form-select-sm" id="slackHoursEnd">
+                    <option value="">제한 없음</option>
+                    <option value="18">18시</option>
+                    <option value="20">20시</option>
+                    <option value="22">22시</option>
+                    <option value="0">24시</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small fw-bold">급증 임계치</label>
+                <div class="input-group input-group-sm">
+                    <input type="number" class="form-control" id="slackSpikeThreshold" value="15" min="3" max="100">
+                    <span class="input-group-text">건/10분</span>
+                </div>
+            </div>
+        </div>
+        <!-- 3행: 제외 서비스 -->
+        <div class="mb-2">
+            <label class="form-label small fw-bold">알림 제외 서비스</label>
+            <div class="d-flex flex-wrap gap-2" id="excludeServicesGroup">
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="checkbox" id="excl_database" value="database">
+                    <label class="form-check-label small" for="excl_database">database</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="checkbox" id="excl_kafka" value="kafka">
+                    <label class="form-check-label small" for="excl_kafka">kafka</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="checkbox" id="excl_search" value="search">
+                    <label class="form-check-label small" for="excl_search">search</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="checkbox" id="excl_airflow" value="airflow">
+                    <label class="form-check-label small" for="excl_airflow">airflow</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="checkbox" id="excl_api" value="api">
+                    <label class="form-check-label small" for="excl_api">api</label>
+                </div>
+            </div>
+        </div>
+        <!-- 상태 정보 -->
+        <div class="d-flex flex-wrap gap-3 pt-2 border-top" id="slackAlertInfo">
+            <span class="small text-muted" id="slackWindowInfo"></span>
+            <span class="small text-muted" id="slackAlertHistory"></span>
+        </div>
+    </div>
+</div>
+
+<!-- 자동 복구 설정 -->
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-header bg-white fw-bold border-0 d-flex align-items-center justify-content-between">
+        <span><i class="fas fa-magic me-2 text-success"></i>자동 복구 (Auto-Recovery)</span>
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge" id="recoveryStatusBadge">-</span>
+            <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" id="recoveryEnabledSwitch"
+                    onchange="toggleRecoveryEnabled()">
+            </div>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="row g-3 mb-3">
+            <div class="col-md-3">
+                <label class="form-label small fw-bold">재시작 임계치</label>
+                <div class="input-group input-group-sm">
+                    <input type="number" class="form-control" id="recoveryThreshold" value="10" min="3" max="50">
+                    <span class="input-group-text">건</span>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small fw-bold">감지 윈도우</label>
+                <div class="input-group input-group-sm">
+                    <input type="number" class="form-control" id="recoveryWindow" value="5" min="1" max="30">
+                    <span class="input-group-text">분</span>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small fw-bold">시간당 최대</label>
+                <div class="input-group input-group-sm">
+                    <input type="number" class="form-control" id="recoveryMaxPerHour" value="3" min="1" max="10">
+                    <span class="input-group-text">회</span>
+                </div>
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+                <button class="btn btn-outline-primary btn-sm w-100" onclick="saveRecoveryConfig()">
+                    <i class="fas fa-save me-1"></i>저장
+                </button>
+            </div>
+        </div>
+        <div class="small text-muted mb-2"><i class="fas fa-info-circle me-1"></i>에러가 지정 윈도우 내 임계치 초과 시 해당 컨테이너를 자동
+            재시작합니다. 안전을 위해 시간당 최대 횟수가 제한됩니다.</div>
+        <!-- 재시작 이력 -->
+        <div id="recoveryHistoryContainer"></div>
+    </div>
+</div>
+
+<!-- 필터 + 검색 -->
+<div class="mb-3">
+    <div class="d-flex flex-column gap-2">
+        <div class="filter-scroll-container">
+            <div class="btn-group" role="group" id="serviceFilterGroup">
+                <input type="radio" class="btn-check" name="serviceFilter" id="svc_ALL" value="ALL" checked>
+                <label class="btn btn-outline-secondary btn-sm px-3" for="svc_ALL">전체</label>
+                <input type="radio" class="btn-check" name="serviceFilter" id="svc_airflow" value="airflow">
+                <label class="btn btn-outline-secondary btn-sm px-3" for="svc_airflow">Airflow</label>
+                <input type="radio" class="btn-check" name="serviceFilter" id="svc_spark" value="spark">
+                <label class="btn btn-outline-secondary btn-sm px-3" for="svc_spark">Spark</label>
+                <input type="radio" class="btn-check" name="serviceFilter" id="svc_hadoop" value="hadoop">
+                <label class="btn btn-outline-secondary btn-sm px-3" for="svc_hadoop">Hadoop</label>
+                <input type="radio" class="btn-check" name="serviceFilter" id="svc_kafka" value="kafka">
+                <label class="btn btn-outline-secondary btn-sm px-3" for="svc_kafka">Kafka</label>
+                <input type="radio" class="btn-check" name="serviceFilter" id="svc_database" value="database">
+                <label class="btn btn-outline-secondary btn-sm px-3" for="svc_database">DB</label>
+                <input type="radio" class="btn-check" name="serviceFilter" id="svc_api" value="api">
+                <label class="btn btn-outline-secondary btn-sm px-3" for="svc_api">API</label>
+            </div>
+        </div>
+        <div class="level-search-row">
+            <div class="level-filters btn-group" role="group">
+                <input type="radio" class="btn-check" name="levelFilter" id="lvl_ALL" value="ALL" checked>
+                <label class="btn btn-outline-secondary btn-sm px-3" for="lvl_ALL">ALL</label>
+                <input type="radio" class="btn-check" name="levelFilter" id="lvl_CRITICAL" value="CRITICAL">
+                <label class="btn btn-outline-dark btn-sm px-3" for="lvl_CRITICAL">CRITICAL</label>
+                <input type="radio" class="btn-check" name="levelFilter" id="lvl_ERROR" value="ERROR">
+                <label class="btn btn-outline-danger btn-sm px-3" for="lvl_ERROR">ERROR</label>
+                <input type="radio" class="btn-check" name="levelFilter" id="lvl_WARN" value="WARN">
+                <label class="btn btn-outline-warning btn-sm px-3" for="lvl_WARN">WARN</label>
+                <input type="radio" class="btn-check" name="levelFilter" id="lvl_INFO" value="INFO">
+                <label class="btn btn-outline-info btn-sm px-3" for="lvl_INFO">INFO</label>
+            </div>
+            <div class="search-box">
+                <input type="text" class="form-control" id="keywordSearch" placeholder="로그 검색...">
+                <button class="btn btn-primary" style="width:48px;flex-shrink:0;" type="button" onclick="fetchLogs()">
+                    <i class="fas fa-search"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 로그 테이블 / 모바일 카드 -->
+<div class="card bg-transparent border-0">
+    <div class="card-body p-0">
+        <div class="d-none d-md-block table-responsive bg-white rounded shadow-sm"
+            style="max-height: 600px; overflow-y: auto;">
+            <table class="table table-hover table-sm mb-0" style="font-size: 0.9rem;">
+                <thead class="table-light sticky-top">
+                    <tr>
+                        <th style="width: 160px;">Timestamp</th>
+                        <th style="width: 100px;">Level</th>
+                        <th style="width: 120px;">Service</th>
+                        <th style="width: 180px;">Container</th>
+                        <th>Message</th>
+                    </tr>
+                </thead>
+                <tbody id="logTableBody">
+                    <tr>
+                        <td colspan="5" class="text-center py-4 text-muted">Loading...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div class="d-md-none" id="mobileLogList">
+            <div class="text-center py-5 text-muted"><i class="fas fa-spinner fa-spin fa-2x"></i></div>
+        </div>
+    </div>
+</div>
+
+<!-- 로그 상세 모달 -->
+<div class="modal fade" id="logDetailModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Log Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <span class="badge" id="modalLevelBadge">INFO</span>
+                    <span class="text-muted ms-2 small" id="modalTimestamp"></span>
+                </div>
+                <div class="mb-3 row g-2">
+                    <div class="col-6">
+                        <span class="fw-bold d-block small text-secondary">Service</span>
+                        <span id="modalService">-</span>
+                    </div>
+                    <div class="col-6">
+                        <span class="fw-bold d-block small text-secondary">Container</span>
+                        <span id="modalContainer">-</span>
+                    </div>
+                </div>
+                <div class="p-3 bg-light rounded font-monospace small text-break" id="modalMessage"
+                    style="white-space: pre-wrap; max-height: 400px; overflow-y: auto;">-</div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary w-100" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let autoRefreshInterval = null;
+    let logModal = null;
+    let trendChart = null;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        logModal = new bootstrap.Modal(document.getElementById('logDetailModal'));
+        initTrendChart();
+        refreshAll();
+
+        document.querySelectorAll('input[name="serviceFilter"]').forEach(el => el.addEventListener('change', fetchLogs));
+        document.querySelectorAll('input[name="levelFilter"]').forEach(el => el.addEventListener('change', fetchLogs));
+        document.getElementById('keywordSearch').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') fetchLogs();
+        });
+        document.getElementById('autoRefreshSwitch').addEventListener('change', (e) => {
+            if (e.target.checked) startAutoRefresh(); else stopAutoRefresh();
+        });
+    });
+
+    function startAutoRefresh() {
+        if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+        autoRefreshInterval = setInterval(() => refreshAll(false), 10000);
+    }
+    function stopAutoRefresh() {
+        if (autoRefreshInterval) { clearInterval(autoRefreshInterval); autoRefreshInterval = null; }
+    }
+
+    async function refreshAll(showLoading = true) {
+        await Promise.all([
+            fetchStats(),
+            fetchLogs(showLoading),
+            fetchTrend(),
+            fetchTopErrors(),
+            fetchServiceHealth(),
+            fetchPipelineStatus(),
+            fetchAlertStatus(),
+            fetchRecoveryStatus()
+        ]);
+    }
+
+    // ── 트렌드 차트 ──
+    function initTrendChart() {
+        const ctx = document.getElementById('trendChart').getContext('2d');
+        trendChart = new Chart(ctx, {
+            type: 'bar',
+            data: { labels: [], datasets: [] },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                scales: {
+                    x: { stacked: true, ticks: { maxTicksLimit: 12, font: { size: 10 } } },
+                    y: { stacked: true, beginAtZero: true }
+                },
+                plugins: { legend: { position: 'top', labels: { usePointStyle: true, padding: 15 } } }
+            }
+        });
+    }
+
+    async function fetchTrend() {
+        try {
+            const resp = await fetch('/api/logs/trend');
+            const data = await resp.json();
+            const trend = data.trend || [];
+
+            const labels = trend.map(t => {
+                const d = new Date(t.time);
+                return `${d.getHours().toString().padStart(2, '0')}:00`;
+            });
+
+            trendChart.data.labels = labels;
+            trendChart.data.datasets = [
+                { label: 'ERROR', data: trend.map(t => t.ERROR), backgroundColor: 'rgba(231,74,59,0.85)', borderRadius: 2 },
+                { label: 'WARN', data: trend.map(t => t.WARN), backgroundColor: 'rgba(246,194,62,0.85)', borderRadius: 2 },
+                { label: 'INFO', data: trend.map(t => t.INFO), backgroundColor: 'rgba(54,185,204,0.35)', borderRadius: 2 }
+            ];
+            trendChart.update();
+
+            // 에러 급증 감지: 최근 1시간의 에러가 직전 평균의 3배 이상이면 경고
+            checkErrorSpike(trend);
+        } catch (e) { console.error('Trend error:', e); }
+    }
+
+    function checkErrorSpike(trend) {
+        const banner = document.getElementById('alertBanner');
+        if (trend.length < 3) { banner.className = 'd-none'; return; }
+
+        const last = trend[trend.length - 1];
+        const prevErrors = trend.slice(0, -1).map(t => t.ERROR);
+        const avgError = prevErrors.reduce((a, b) => a + b, 0) / prevErrors.length;
+
+        if (last.ERROR > 5 && last.ERROR > avgError * 3) {
+            banner.className = 'alert alert-danger alert-banner d-flex align-items-center mb-3';
+            banner.innerHTML = `
+                <i class="fas fa-radiation-alt me-2 fs-5"></i>
+                <div>
+                    <strong>⚠️ 에러 급증 감지!</strong>
+                    최근 1시간 에러 <strong>${last.ERROR}건</strong> — 평균 대비 <strong>${(last.ERROR / Math.max(avgError, 1)).toFixed(1)}배</strong> 증가.
+                    즉시 ERROR 로그를 확인해주세요.
+                </div>
+            `;
+        } else {
+            banner.className = 'd-none';
+        }
+    }
+
+    // ── 서비스 헬스맵 ──
+    async function fetchServiceHealth() {
+        try {
+            const resp = await fetch('/api/logs/service-health');
+            const data = await resp.json();
+            const container = document.getElementById('serviceHealthMap');
+
+            if (!data.services || !data.services.length) {
+                container.innerHTML = '<span class="text-muted small">데이터 없음</span>';
+                return;
+            }
+
+            container.innerHTML = data.services.map(svc => {
+                const icon = svc.status === 'critical' ? '🔴' : svc.status === 'warning' ? '🟡' : '🟢';
+                const tooltip = `${svc.total}건 중 에러 ${svc.errors}건 (${svc.error_rate}%)`;
+                return `
+                    <div class="d-flex align-items-center gap-1" title="${tooltip}" style="cursor:default;">
+                        <span class="health-dot ${svc.status}"></span>
+                        <span class="small fw-bold">${svc.service}</span>
+                        ${svc.errors > 0 ? `<span class="badge bg-danger" style="font-size:0.65rem;">${svc.errors}</span>` : ''}
+                    </div>
+                `;
+            }).join('');
+        } catch (e) { console.error('Health error:', e); }
+    }
+
+    // ── Top Errors ──
+    async function fetchTopErrors() {
+        try {
+            const resp = await fetch('/api/logs/top-errors');
+            const data = await resp.json();
+            const container = document.getElementById('topErrorsContainer');
+
+            if (!data.top_errors || !data.top_errors.length) {
+                container.innerHTML = '<div class="text-center text-muted py-3"><i class="fas fa-check-circle me-2 text-success"></i>최근 24시간 에러 없음</div>';
+                return;
+            }
+
+            container.innerHTML = data.top_errors.map((err, idx) => {
+                const rankClass = idx === 0 ? 'rank-1' : idx === 1 ? 'rank-2' : idx === 2 ? 'rank-3' : 'rank-other';
+                const lastSeen = err.last_seen ? new Date(err.last_seen).toLocaleString('ko-KR') : '-';
+                const services = err.services.map(s => `<span class="badge bg-light text-dark border me-1">${s}</span>`).join('');
+                const shortMsg = err.message.length > 120 ? err.message.substring(0, 120) + '...' : err.message;
+
+                return `
+                    <div class="d-flex align-items-start gap-3 py-2 ${idx < data.top_errors.length - 1 ? 'border-bottom' : ''}">
+                        <div class="error-rank ${rankClass}">${idx + 1}</div>
+                        <div class="flex-grow-1 min-width-0">
+                            <div class="font-monospace small text-break mb-1">${shortMsg}</div>
+                            <div class="d-flex flex-wrap align-items-center gap-2">
+                                <span class="badge bg-danger">${err.count}회</span>
+                                ${services}
+                                <span class="text-muted" style="font-size:0.7rem;">마지막: ${lastSeen}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        } catch (e) { console.error('Top errors error:', e); }
+    }
+
+    // ── 통계 ──
+    async function fetchStats() {
+        try {
+            const resp = await fetch('/api/logs/stats');
+            const data = await resp.json();
+            const levels = data.by_level || {};
+            const criticalCnt = levels['CRITICAL'] || 0;
+            const errorCnt = levels['ERROR'] || 0;
+            const warnCnt = levels['WARN'] || 0;
+            const infoCnt = levels['INFO'] || 0;
+            const total = criticalCnt + errorCnt + warnCnt + infoCnt;
+
+            setText('statCritical', criticalCnt);
+            setText('statError', errorCnt);
+            setText('statWarn', warnCnt);
+            setText('statInfo', infoCnt);
+            setText('statTotal', total);
+
+            const badgeThroughput = document.getElementById('badgeThroughput');
+            if (badgeThroughput) {
+                const tpm = (total / 60).toFixed(0);
+                badgeThroughput.innerHTML = `<i class="fas fa-tachometer-alt me-1"></i>수집: ${tpm}건/분`;
+            }
+        } catch (e) { console.error('Stats error:', e); }
+    }
+
+    function setText(id, text) { const el = document.getElementById(id); if (el) el.innerText = text; }
+
+    // ── 파이프라인 상태 ──
+    async function fetchPipelineStatus() {
+        try {
+            const resp = await fetch('/api/logs/pipeline-status');
+            const data = await resp.json();
+            const badgeStorage = document.getElementById('badgeStorage');
+            if (badgeStorage && data.elasticsearch && data.elasticsearch.store_size !== undefined) {
+                const gb = (data.elasticsearch.store_size / (1024 * 1024 * 1024)).toFixed(2);
+                badgeStorage.innerHTML = `<i class="fas fa-hdd me-1"></i>저장소: ${gb} GB`;
+            }
+        } catch (e) { console.error(e); }
+    }
+
+    // ── 로그 스트림 ──
+    async function fetchLogs(showLoading = true) {
+        const tableBody = document.getElementById('logTableBody');
+        const mobileList = document.getElementById('mobileLogList');
+
+        if (showLoading === true) {
+            tableBody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted"><i class="fas fa-spinner fa-spin me-2"></i>로딩 중...</td></tr>';
+            mobileList.innerHTML = '<div class="text-center py-5 text-muted"><i class="fas fa-spinner fa-spin fa-2x"></i></div>';
+        }
+
+        const service = document.querySelector('input[name="serviceFilter"]:checked').value;
+        const level = document.querySelector('input[name="levelFilter"]:checked').value;
+        const keyword = document.getElementById('keywordSearch').value.trim();
+
+        let url = `/api/logs/stream?size=100`;
+        if (service !== 'ALL') url += `&service=${service}`;
+        if (level !== 'ALL') url += `&level=${level}`;
+        if (keyword) url += `&keyword=${encodeURIComponent(keyword)}`;
+
+        try {
+            const resp = await fetch(url);
+            const data = await resp.json();
+
+            if (!data.logs || data.logs.length === 0) {
+                tableBody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">검색 결과가 없습니다.</td></tr>';
+                mobileList.innerHTML = '<div class="text-center py-5 text-muted">검색 결과가 없습니다.</div>';
+                return;
+            }
+            renderTable(data.logs, tableBody);
+            renderMobileCards(data.logs, mobileList);
+        } catch (e) {
+            console.error("Log load failed", e);
+            tableBody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-danger">실패</td></tr>';
+        }
+    }
+
+    function renderTable(logs, tbody) {
+        tbody.innerHTML = '';
+        logs.forEach(log => {
+            const timeStr = new Date(log.timestamp).toLocaleString('ko-KR');
+            let rowClass = "", badgeClass = "bg-secondary";
+
+            if (log.level === 'CRITICAL') { rowClass = "table-dark"; badgeClass = "bg-dark"; }
+            else if (log.level === 'ERROR') { rowClass = "table-danger"; badgeClass = "bg-danger"; }
+            else if (log.level === 'WARN') { rowClass = "table-warning"; badgeClass = "bg-warning text-dark"; }
+            else if (log.level === 'INFO') { badgeClass = "bg-info text-dark"; }
+
+            const tr = document.createElement('tr');
+            if (rowClass) tr.classList.add(rowClass);
+            tr.style.cursor = 'pointer';
+            tr.innerHTML = `
+                <td class="text-nowrap small text-muted">${timeStr}</td>
+                <td><span class="badge ${badgeClass}">${log.level}</span></td>
+                <td><span class="fw-bold small">${log.service}</span></td>
+                <td class="small text-truncate" style="max-width:150px;" title="${log.container}">${log.container}</td>
+                <td class="text-break small font-monospace">${log.message}</td>
+            `;
+            tr.onclick = () => showLogDetail(log);
+            tbody.appendChild(tr);
+        });
+    }
+
+    function renderMobileCards(logs, container) {
+        container.innerHTML = '';
+        logs.forEach(log => {
+            const timeStr = new Date(log.timestamp).toLocaleString('ko-KR');
+            let levelClass = "level-info", badgeClass = "bg-info text-dark";
+            if (log.level === 'CRITICAL') { levelClass = "level-critical"; badgeClass = "bg-dark"; }
+            else if (log.level === 'ERROR') { levelClass = "level-error"; badgeClass = "bg-danger"; }
+            else if (log.level === 'WARN') { levelClass = "level-warn"; badgeClass = "bg-warning text-dark"; }
+
+            const card = document.createElement('div');
+            card.className = `log-card ${levelClass}`;
+            card.innerHTML = `
+                <div style="padding:12px 16px;">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <div>
+                            <span class="badge ${badgeClass} me-2">${log.level}</span>
+                            <span class="fw-bold small text-dark">${log.service}</span>
+                            <span class="text-muted small mx-1">•</span>
+                            <span class="text-muted small text-truncate d-inline-block" style="max-width:100px;vertical-align:bottom;">${log.container}</span>
+                        </div>
+                    </div>
+                    <div class="mb-2"><span class="small text-secondary">${timeStr}</span></div>
+                    <div class="text-dark small text-break" style="display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-family:monospace;">${log.message}</div>
+                </div>
+            `;
+            card.onclick = () => showLogDetail(log);
+            container.appendChild(card);
+        });
+    }
+
+    function showLogDetail(log) {
+        const badge = document.getElementById('modalLevelBadge');
+        badge.className = 'badge';
+        badge.innerText = log.level;
+        if (log.level === 'CRITICAL') badge.classList.add('bg-dark');
+        else if (log.level === 'ERROR') badge.classList.add('bg-danger');
+        else if (log.level === 'WARN') badge.classList.add('bg-warning', 'text-dark');
+        else badge.classList.add('bg-info', 'text-dark');
+
+        document.getElementById('modalTimestamp').innerText = new Date(log.timestamp).toLocaleString('ko-KR');
+        document.getElementById('modalService').innerText = log.service;
+        document.getElementById('modalContainer').innerText = log.container;
+        document.getElementById('modalMessage').innerText = log.message;
+        logModal.show();
+    }
+
+    // ── Slack 알림 설정 ──
+    async function fetchAlertStatus() {
+        try {
+            const [configResp, statusResp] = await Promise.all([
+                fetch('/api/logs/alerts/config'),
+                fetch('/api/logs/alerts/status')
+            ]);
+            const config = await configResp.json();
+            const status = await statusResp.json();
+
+            // 상태 배지
+            const badge = document.getElementById('slackStatusBadge');
+            const sw = document.getElementById('slackEnabledSwitch');
+            if (config.enabled) {
+                badge.className = 'badge bg-success'; badge.innerText = '활성';
+                sw.checked = true;
+            } else {
+                badge.className = 'badge bg-secondary'; badge.innerText = '비활성';
+                sw.checked = false;
+            }
+
+            // 설정값 반영
+            if (config.webhook_url_preview) {
+                document.getElementById('slackWebhookUrl').placeholder = config.webhook_url_preview + ' (설정됨)';
+            }
+            if (config.min_alert_level) {
+                document.getElementById('slackMinLevel').value = config.min_alert_level;
+            }
+            const startSel = document.getElementById('slackHoursStart');
+            const endSel = document.getElementById('slackHoursEnd');
+            startSel.value = config.active_hours_start !== null && config.active_hours_start !== undefined ? String(config.active_hours_start) : '';
+            endSel.value = config.active_hours_end !== null && config.active_hours_end !== undefined ? String(config.active_hours_end) : '';
+            document.getElementById('slackSpikeThreshold').value = config.spike_threshold || 15;
+
+            // 제외 서비스 체크박스
+            const excluded = config.excluded_services || [];
+            document.querySelectorAll('#excludeServicesGroup input').forEach(cb => {
+                cb.checked = excluded.includes(cb.value);
+            });
+
+            // 런타임 상태
+            const winInfo = document.getElementById('slackWindowInfo');
+            const parts = [];
+            if (status.error_window_size > 0) parts.push(`에러윈도우: ${status.error_window_size}건`);
+            if (status.active_cooldowns > 0) parts.push(`쿨다운: ${status.active_cooldowns}건`);
+            if (!status.is_in_active_hours) parts.push('⏸ 비활성 시간대');
+            winInfo.innerHTML = parts.length ? `<i class="fas fa-info-circle me-1"></i>${parts.join(' | ')}` : '';
+
+            const histEl = document.getElementById('slackAlertHistory');
+            if (status.recent_alerts && status.recent_alerts.length > 0) {
+                const last = status.recent_alerts[status.recent_alerts.length - 1];
+                histEl.innerHTML = `<i class="fas fa-bell me-1"></i>마지막 알림: ${last.type} — ${last.time}`;
+            } else {
+                histEl.innerHTML = '';
+            }
+        } catch (e) { console.error('Alert config error:', e); }
+    }
+
+    async function toggleSlackEnabled() {
+        const enabled = document.getElementById('slackEnabledSwitch').checked;
+        try {
+            await fetch('/api/logs/alerts/config', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ enabled: enabled })
+            });
+            fetchAlertStatus();
+        } catch (e) { console.error(e); }
+    }
+
+    async function saveSlackConfig() {
+        const url = document.getElementById('slackWebhookUrl').value.trim();
+        const level = document.getElementById('slackMinLevel').value;
+        const startVal = document.getElementById('slackHoursStart').value;
+        const endVal = document.getElementById('slackHoursEnd').value;
+        const threshold = parseInt(document.getElementById('slackSpikeThreshold').value) || 15;
+        const excluded = [];
+        document.querySelectorAll('#excludeServicesGroup input:checked').forEach(cb => excluded.push(cb.value));
+
+        const body = {
+            min_alert_level: level,
+            active_hours_start: startVal !== '' ? parseInt(startVal) : null,
+            active_hours_end: endVal !== '' ? parseInt(endVal) : null,
+            excluded_services: excluded,
+            spike_threshold: threshold
+        };
+        if (url) body.webhook_url = url;
+
+        try {
+            const resp = await fetch('/api/logs/alerts/config', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            const data = await resp.json();
+            alert(data.message);
+            fetchAlertStatus();
+        } catch (e) { alert('저장 실패: ' + e.message); }
+    }
+
+    async function testSlackAlert() {
+        try {
+            const resp = await fetch('/api/logs/alerts/test', { method: 'POST' });
+            if (resp.ok) { alert('✅ 테스트 메시지 전송 성공!'); }
+            else { const d = await resp.json(); alert('❌ 실패: ' + (d.detail || '오류')); }
+        } catch (e) { alert('❌ 실패: ' + e.message); }
+    }
+
+    // ── 자동 복구 설정 ──
+    async function fetchRecoveryStatus() {
+        try {
+            const [configResp, statusResp] = await Promise.all([
+                fetch('/api/logs/recovery/config'),
+                fetch('/api/logs/recovery/status')
+            ]);
+            const config = await configResp.json();
+            const status = await statusResp.json();
+
+            const badge = document.getElementById('recoveryStatusBadge');
+            const sw = document.getElementById('recoveryEnabledSwitch');
+            if (config.enabled) {
+                badge.className = 'badge bg-success'; badge.innerText = '활성';
+                sw.checked = true;
+            } else {
+                badge.className = 'badge bg-secondary'; badge.innerText = '비활성';
+                sw.checked = false;
+            }
+
+            document.getElementById('recoveryThreshold').value = config.restart_threshold || 10;
+            document.getElementById('recoveryWindow').value = (config.error_window_sec || 300) / 60;
+            document.getElementById('recoveryMaxPerHour').value = config.max_restarts_per_hour || 3;
+
+            // 재시작 이력
+            const histContainer = document.getElementById('recoveryHistoryContainer');
+            const history = status.restart_history || [];
+            if (history.length > 0) {
+                histContainer.innerHTML = `
+                    <div class="small fw-bold mb-1"><i class="fas fa-history me-1"></i>재시작 이력 (최근)</div>
+                    <div class="table-responsive" style="max-height:150px;overflow-y:auto;">
+                        <table class="table table-sm table-bordered mb-0" style="font-size:0.78rem;">
+                            <thead class="table-light"><tr><th>시각</th><th>서비스</th><th>사유</th><th>결과</th></tr></thead>
+                            <tbody>${history.map(h => `
+                                <tr class="${h.success ? '' : 'table-danger'}">
+                                    <td class="text-nowrap">${h.time}</td>
+                                    <td>${h.service}</td>
+                                    <td class="text-break">${h.reason}</td>
+                                    <td>${h.success ? '✅' : '❌'}</td>
+                                </tr>
+                            `).join('')}</tbody>
+                        </table>
+                    </div>
+                `;
+            } else {
+                histContainer.innerHTML = '<div class="small text-muted"><i class="fas fa-check-circle me-1 text-success"></i>재시작 이력 없음</div>';
+            }
+        } catch (e) { console.error('Recovery error:', e); }
+    }
+
+    async function toggleRecoveryEnabled() {
+        const enabled = document.getElementById('recoveryEnabledSwitch').checked;
+        try {
+            await fetch('/api/logs/recovery/config', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ enabled: enabled })
+            });
+            fetchRecoveryStatus();
+        } catch (e) { console.error(e); }
+    }
+
+    async function saveRecoveryConfig() {
+        const body = {
+            restart_threshold: parseInt(document.getElementById('recoveryThreshold').value) || 10,
+            error_window_sec: (parseInt(document.getElementById('recoveryWindow').value) || 5) * 60,
+            max_restarts_per_hour: parseInt(document.getElementById('recoveryMaxPerHour').value) || 3
+        };
+        try {
+            const resp = await fetch('/api/logs/recovery/config', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            const data = await resp.json();
+            alert(data.message);
+            fetchRecoveryStatus();
+        } catch (e) { alert('저장 실패: ' + e.message); }
+    }
+
+    window.addEventListener('beforeunload', () => { if (autoRefreshInterval) clearInterval(autoRefreshInterval); });
+</script>
+{% endblock %}

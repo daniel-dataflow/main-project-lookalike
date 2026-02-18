@@ -31,3 +31,4 @@ Pillow>=10.0.0
 # 모니터링
 psutil==5.9.5
 docker==7.1.0
+kafka-python==2.0.2

@@ -1,0 +1,642 @@
+{% extends "admin_base.html" %}
+
+{% block title %}실시간 로그 - Lookalike Admin{% endblock %}
+
+{% block page_title %}
+<span class="d-none d-md-inline">실시간 로그 모니터링</span>
+<span class="d-md-none">실시간 로그</span>
+{% endblock %}
+
+{% block header_actions %}
+<div class="d-flex align-items-center justify-content-end gap-2 log-header-right" style="flex-shrink: 0;">
+    <!-- Pipeline Status Badges (Hidden on < 900px) -->
+    <div class="d-none d-lg-flex align-items-center gap-2 me-2 status-badges">
+        <span class="badge bg-info text-dark" id="badgeThroughput" title="예상 수집량 (최근 1시간 기준)">
+            <i class="fas fa-tachometer-alt me-1"></i>수집: -건/분
+        </span>
+        <span class="badge bg-primary" id="badgeStorage" title="Elasticsearch 저장소 사용량">
+            <i class="fas fa-hdd me-1"></i>저장소: - GB
+        </span>
+        <span class="badge bg-success" title="로그 보관 정책">
+            <i class="fas fa-history me-1"></i>보관: 7일
+        </span>
+    </div>
+
+    <!-- Auto Refresh Toggle -->
+    <div class="form-check form-switch mb-0 d-flex align-items-center">
+        <input class="form-check-input" type="checkbox" id="autoRefreshSwitch">
+        <label class="form-check-label small d-none d-md-inline ms-1" for="autoRefreshSwitch">자동갱신</label>
+        <span class="d-md-none ms-1"><i class="fas fa-sync-alt text-muted" style="font-size: 0.8rem;"></i></span>
+    </div>
+
+    <!-- Refresh Button -->
+    <button class="btn btn-outline-secondary btn-sm text-nowrap" onclick="fetchLogs()">
+        <i class="fas fa-redo"></i>
+        <span class="d-none d-md-inline ms-1">새로고침</span>
+    </button>
+</div>
+{% endblock %}
+
+{% block content %}
+<style>
+    /* ========== Mobile & Responsive CSS ========== */
+
+    /* 1. Filter Horizontal Scroll */
+    .filter-scroll-container {
+        overflow-x: auto;
+        white-space: nowrap;
+        -webkit-overflow-scrolling: touch;
+        padding-bottom: 5px;
+        /* Scrollbar space */
+    }
+
+    .filter-scroll-container::-webkit-scrollbar {
+        height: 4px;
+    }
+
+    .filter-scroll-container::-webkit-scrollbar-thumb {
+        background: #ccc;
+        border-radius: 4px;
+    }
+
+    /* 2. Mobile Log Card */
+    .log-card {
+        border-left: 4px solid #ccc;
+        background: #fff;
+        margin-bottom: 12px;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        cursor: pointer;
+        transition: transform 0.1s;
+    }
+
+    .log-card:active {
+        transform: scale(0.98);
+    }
+
+    .log-card-body {
+        padding: 12px 16px;
+    }
+
+    /* Level Colors for Card Border */
+    .log-card.level-error {
+        border-left-color: #dc3545;
+    }
+
+    .log-card.level-warn {
+        border-left-color: #ffc107;
+    }
+
+    .log-card.level-info {
+        border-left-color: #0dcaf0;
+    }
+
+    /* 3. Search Bar & Layout */
+    .level-search-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        width: 100%;
+    }
+
+    .level-filters {
+        display: flex;
+        gap: 8px;
+        flex-shrink: 0;
+    }
+
+    .search-box {
+        flex: 1;
+        min-width: 120px;
+        display: flex;
+        gap: 8px;
+    }
+
+    .search-box input {
+        flex: 1;
+        /* Input takes all remaining space */
+        width: 100%;
+    }
+
+    .mobile-search-btn {
+        width: 48px;
+        flex-shrink: 0;
+    }
+
+    /* Mobile: Stack Level and Search */
+    @media (max-width: 600px) {
+        .level-search-row {
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .search-box {
+            width: 100%;
+        }
+
+        .level-filters {
+            width: 100%;
+            overflow-x: auto;
+            /* Allow level buttons to scroll if needed on very small screens */
+            padding-bottom: 5px;
+        }
+    }
+
+    /* Header Badges: Hide on < 900px */
+    @media (max-width: 900px) {
+        .status-badges {
+            display: none !important;
+        }
+    }
+
+    /* 4. Stats Card Responsive */
+    @media (max-width: 767px) {
+
+        /* Mobile: Stacked Stats */
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+
+        .stat-item:last-child {
+            border-bottom: none;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
+
+        .stat-value {
+            font-size: 1.1rem;
+            font-weight: bold;
+        }
+    }
+
+    @media (min-width: 768px) and (max-width: 1023px) {
+
+        /* Tablet: 2x2 Grid */
+        .stat-col {
+            border-right: 1px solid #dee2e6;
+            border-bottom: 1px solid #dee2e6;
+            padding: 15px;
+        }
+
+        .stat-col:nth-child(2n) {
+            border-right: none;
+        }
+
+        /* Remove right border for 2nd col */
+        .stat-col:nth-child(n+3) {
+            border-bottom: none;
+        }
+
+        /* Remove bottom border for last row */
+    }
+
+    @media (min-width: 1024px) {
+
+        /* Desktop: 4 cols in one row */
+        .stat-col {
+            border-right: 1px solid #dee2e6;
+        }
+
+        .stat-col:last-child {
+            border-right: none;
+        }
+    }
+</style>
+
+<!-- Filters & Search Section -->
+<div class="mb-3">
+    <div class="d-flex flex-column gap-2">
+        <!-- Row 1: Service Filter -->
+        <div class="filter-scroll-container">
+            <div class="btn-group" role="group" id="serviceFilterGroup">
+                <input type="radio" class="btn-check" name="serviceFilter" id="svc_ALL" value="ALL" checked>
+                <label class="btn btn-outline-secondary btn-sm px-3" style="min-width: 60px;" for="svc_ALL">전체</label>
+
+                <input type="radio" class="btn-check" name="serviceFilter" id="svc_airflow" value="airflow">
+                <label class="btn btn-outline-secondary btn-sm px-3" style="min-width: 80px;"
+                    for="svc_airflow">Airflow</label>
+
+                <input type="radio" class="btn-check" name="serviceFilter" id="svc_spark" value="spark">
+                <label class="btn btn-outline-secondary btn-sm px-3" style="min-width: 70px;"
+                    for="svc_spark">Spark</label>
+
+                <input type="radio" class="btn-check" name="serviceFilter" id="svc_hadoop" value="hadoop">
+                <label class="btn btn-outline-secondary btn-sm px-3" style="min-width: 75px;"
+                    for="svc_hadoop">Hadoop</label>
+
+                <input type="radio" class="btn-check" name="serviceFilter" id="svc_kafka" value="kafka">
+                <label class="btn btn-outline-secondary btn-sm px-3" style="min-width: 70px;"
+                    for="svc_kafka">Kafka</label>
+
+                <input type="radio" class="btn-check" name="serviceFilter" id="svc_database" value="database">
+                <label class="btn btn-outline-secondary btn-sm px-3" style="min-width: 60px;"
+                    for="svc_database">DB</label>
+
+                <input type="radio" class="btn-check" name="serviceFilter" id="svc_api" value="api">
+                <label class="btn btn-outline-secondary btn-sm px-3" style="min-width: 60px;" for="svc_api">API</label>
+            </div>
+        </div>
+
+        <!-- Row 2: Level Filter + Search -->
+        <div class="level-search-row">
+            <!-- Level Filter -->
+            <div class="level-filters btn-group" role="group" id="levelFilterGroup">
+                <input type="radio" class="btn-check" name="levelFilter" id="lvl_ALL" value="ALL" checked>
+                <label class="btn btn-outline-secondary btn-sm px-3" style="min-width: 50px;" for="lvl_ALL">ALL</label>
+
+                <input type="radio" class="btn-check" name="levelFilter" id="lvl_ERROR" value="ERROR">
+                <label class="btn btn-outline-danger btn-sm px-3" style="min-width: 60px;" for="lvl_ERROR">ERROR</label>
+
+                <input type="radio" class="btn-check" name="levelFilter" id="lvl_WARN" value="WARN">
+                <label class="btn btn-outline-warning btn-sm px-3" style="min-width: 60px;" for="lvl_WARN">WARN</label>
+
+                <input type="radio" class="btn-check" name="levelFilter" id="lvl_INFO" value="INFO">
+                <label class="btn btn-outline-info btn-sm px-3" style="min-width: 60px;" for="lvl_INFO">INFO</label>
+            </div>
+
+            <!-- Search Box -->
+            <div class="search-box">
+                <input type="text" class="form-control" id="keywordSearch" placeholder="로그 검색...">
+                <button class="btn btn-primary mobile-search-btn" type="button" onclick="fetchLogs()">
+                    <i class="fas fa-search"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Stats Summary -->
+<div class="row mb-3">
+    <div class="col-12">
+        <div class="card bg-white p-3">
+            <!-- Mobile View (Stacked) -->
+            <div class="d-md-none">
+                <div class="stat-item">
+                    <span class="stat-label text-danger">ERROR (1h)</span>
+                    <span class="stat-value text-danger" id="statErrorMobile">-</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label text-warning">WARN (1h)</span>
+                    <span class="stat-value text-warning" id="statWarnMobile">-</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label text-info">INFO (1h)</span>
+                    <span class="stat-value text-info" id="statInfoMobile">-</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label text-primary">Total (1h)</span>
+                    <span class="stat-value text-primary" id="statTotalMobile">-</span>
+                </div>
+            </div>
+
+            <!-- Tablet/Desktop View (Grid/Row) -->
+            <div class="d-none d-md-block">
+                <div class="row g-0 text-center">
+                    <div class="col-md-6 col-lg-3 stat-col">
+                        <div class="text-danger fw-bold fs-4" id="statError">-</div>
+                        <div class="small text-muted">ERROR (1h)</div>
+                    </div>
+                    <div class="col-md-6 col-lg-3 stat-col">
+                        <div class="text-warning fw-bold fs-4" id="statWarn">-</div>
+                        <div class="small text-muted">WARN (1h)</div>
+                    </div>
+                    <div class="col-md-6 col-lg-3 stat-col">
+                        <div class="text-info fw-bold fs-4" id="statInfo">-</div>
+                        <div class="small text-muted">INFO (1h)</div>
+                    </div>
+                    <div class="col-md-6 col-lg-3 stat-col">
+                        <div class="text-primary fw-bold fs-4" id="statTotal">-</div>
+                        <div class="small text-muted">Total (1h)</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Log View Switch: Table (Desktop) vs Cards (Mobile) -->
+<div class="card bg-transparent border-0">
+    <div class="card-body p-0">
+        <!-- 1. Desktop Table View -->
+        <div class="d-none d-md-block table-responsive bg-white rounded shadow-sm"
+            style="max-height: 600px; overflow-y: auto;">
+            <table class="table table-hover table-sm mb-0 admin-table" style="font-size: 0.9rem;">
+                <thead class="table-light sticky-top">
+                    <tr>
+                        <th style="width: 160px;">Timestamp</th>
+                        <th style="width: 100px;">Level</th>
+                        <th style="width: 120px;">Service</th>
+                        <th style="width: 180px;">Container</th>
+                        <th>Message</th>
+                    </tr>
+                </thead>
+                <tbody id="logTableBody">
+                    <tr>
+                        <td colspan="5" class="text-center py-4 text-muted">Loading...</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 2. Mobile Card List View -->
+        <div class="d-md-none" id="mobileLogList">
+            <!-- Cards will be injected here -->
+            <div class="text-center py-5 text-muted">
+                <i class="fas fa-spinner fa-spin fa-2x"></i>
+            </div>
+        </div>
+
+        <!-- Mobile Load More Button (Optional, can just rely on scroll or simple limit) -->
+        <!-- Currently keeping simple size parameter logic -->
+    </div>
+</div>
+
+<!-- Modal for Log Details -->
+<div class="modal fade" id="logDetailModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Log Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <span class="badge" id="modalLevelBadge">INFO</span>
+                    <span class="text-muted ms-2 small" id="modalTimestamp"></span>
+                </div>
+                <div class="mb-3 row g-2">
+                    <div class="col-6">
+                        <span class="fw-bold d-block small text-secondary">Service</span>
+                        <span id="modalService">-</span>
+                    </div>
+                    <div class="col-6">
+                        <span class="fw-bold d-block small text-secondary">Container</span>
+                        <span id="modalContainer">-</span>
+                    </div>
+                </div>
+                <div class="p-3 bg-light rounded font-monospace small text-break" id="modalMessage"
+                    style="white-space: pre-wrap; max-height: 400px; overflow-y: auto;">
+                    -
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary w-100" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let autoRefreshInterval = null;
+    let logModal = null;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        logModal = new bootstrap.Modal(document.getElementById('logDetailModal'));
+
+        fetchStats();
+        fetchLogs();
+        fetchPipelineStatus();
+
+        // Filters
+        document.querySelectorAll('input[name="serviceFilter"]').forEach(el => el.addEventListener('change', fetchLogs));
+        document.querySelectorAll('input[name="levelFilter"]').forEach(el => el.addEventListener('change', fetchLogs));
+
+        // Search
+        document.getElementById('keywordSearch').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') fetchLogs();
+        });
+
+        // Auto Refresh
+        document.getElementById('autoRefreshSwitch').addEventListener('change', (e) => {
+            if (e.target.checked) startAutoRefresh();
+            else stopAutoRefresh();
+        });
+    });
+
+    function startAutoRefresh() {
+        if (autoRefreshInterval) clearInterval(autoRefreshInterval);
+        autoRefreshInterval = setInterval(() => {
+            fetchLogs(false);
+            fetchStats();
+            fetchPipelineStatus();
+        }, 10000); // 10s
+    }
+
+    function stopAutoRefresh() {
+        if (autoRefreshInterval) {
+            clearInterval(autoRefreshInterval);
+            autoRefreshInterval = null;
+        }
+    }
+
+    async function fetchPipelineStatus() {
+        try {
+            const resp = await fetch('/api/logs/pipeline-status');
+            const data = await resp.json();
+
+            // Only update badges if they exist (Desktop only elements)
+            const badgeStorage = document.getElementById('badgeStorage');
+            if (badgeStorage) {
+                if (data.elasticsearch && data.elasticsearch.store_size !== undefined) {
+                    const gb = (data.elasticsearch.store_size / (1024 * 1024 * 1024)).toFixed(2);
+                    badgeStorage.innerHTML = `<i class="fas fa-hdd me-1"></i>저장소: ${gb} GB`;
+                } else {
+                    badgeStorage.innerHTML = `<i class="fas fa-hdd me-1"></i>저장소: - GB`;
+                }
+            }
+
+            const badgeThroughput = document.getElementById('badgeThroughput');
+            // Throughput update moved to fetchStats to reuse `total` count if available there, 
+            // or we calculate here if API provides rate. Currently logic is in fetchStats.
+        } catch (e) { console.error(e); }
+    }
+
+    async function fetchStats() {
+        try {
+            const resp = await fetch('/api/logs/stats');
+            const data = await resp.json();
+
+            const levels = data.by_level || {};
+            const errorCnt = (levels['ERROR'] || 0) + (levels['CRITICAL'] || 0);
+            const warnCnt = levels['WARN'] || 0;
+            const infoCnt = levels['INFO'] || 0;
+            const total = errorCnt + warnCnt + infoCnt;
+
+            // Desktop View
+            setText('statError', errorCnt);
+            setText('statWarn', warnCnt);
+            setText('statInfo', infoCnt);
+            setText('statTotal', total);
+
+            // Mobile View
+            setText('statErrorMobile', errorCnt);
+            setText('statWarnMobile', warnCnt);
+            setText('statInfoMobile', infoCnt);
+            setText('statTotalMobile', total);
+
+            // Badge Update (Throughput)
+            const badgeThroughput = document.getElementById('badgeThroughput');
+            if (badgeThroughput) {
+                const tpm = (total / 60).toFixed(0);
+                badgeThroughput.innerHTML = `<i class="fas fa-tachometer-alt me-1"></i>수집: ${tpm}건/분`;
+            }
+
+        } catch (e) { console.error(e); }
+    }
+
+    function setText(id, text) {
+        const el = document.getElementById(id);
+        if (el) el.innerText = text;
+    }
+
+    async function fetchLogs(showLoading = true) {
+        const tableBody = document.getElementById('logTableBody');
+        const mobileList = document.getElementById('mobileLogList');
+
+        if (showLoading) {
+            const loadingHtml = '<tr><td colspan="5" class="text-center py-4 text-muted"><i class="fas fa-spinner fa-spin me-2"></i> 로딩 중...</td></tr>';
+            tableBody.innerHTML = loadingHtml;
+            mobileList.innerHTML = '<div class="text-center py-5 text-muted"><i class="fas fa-spinner fa-spin fa-2x"></i></div>';
+        }
+
+        const service = document.querySelector('input[name="serviceFilter"]:checked').value;
+        const level = document.querySelector('input[name="levelFilter"]:checked').value;
+        const keyword = document.getElementById('keywordSearch').value.trim();
+
+        let url = `/api/logs/stream?size=100`;
+        if (service !== 'ALL') url += `&service=${service}`;
+        if (level !== 'ALL') url += `&level=${level}`;
+        if (keyword) url += `&keyword=${encodeURIComponent(keyword)}`;
+
+        try {
+            const resp = await fetch(url);
+            const data = await resp.json();
+
+            if (!data.logs || data.logs.length === 0) {
+                const emptyHtml = '<tr><td colspan="5" class="text-center py-4 text-muted">검색 결과가 없습니다.</td></tr>';
+                tableBody.innerHTML = emptyHtml;
+                mobileList.innerHTML = '<div class="text-center py-5 text-muted">검색 결과가 없습니다.</div>';
+                return;
+            }
+
+            // Render Both Views
+            renderTable(data.logs, tableBody);
+            renderMobileCards(data.logs, mobileList);
+
+        } catch (e) {
+            console.error("Log load failed", e);
+            tableBody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-danger">실패</td></tr>';
+            mobileList.innerHTML = '<div class="text-center py-4 text-danger">로딩 실패</div>';
+        }
+    }
+
+    function renderTable(logs, tbody) {
+        tbody.innerHTML = '';
+        logs.forEach(log => {
+            const date = new Date(log.timestamp);
+            const timeStr = date.toLocaleString('ko-KR');
+
+            let rowClass = "";
+            let badgeClass = "bg-secondary";
+
+            if (log.level === 'ERROR' || log.level === 'CRITICAL') {
+                rowClass = "table-danger";
+                badgeClass = "bg-danger";
+            } else if (log.level === 'WARN') {
+                rowClass = "table-warning";
+                badgeClass = "bg-warning text-dark";
+            } else if (log.level === 'INFO') {
+                badgeClass = "bg-info text-dark";
+            }
+
+            const tr = document.createElement('tr');
+            if (rowClass) tr.classList.add(rowClass);
+            tr.innerHTML = `
+                <td class="text-nowrap small text-muted">${timeStr}</td>
+                <td><span class="badge ${badgeClass}">${log.level}</span></td>
+                <td><span class="fw-bold small">${log.service}</span></td>
+                <td class="small text-truncate" style="max-width: 150px;" title="${log.container}">${log.container}</td>
+                <td class="text-break small font-monospace">${log.message}</td>
+            `;
+            // Click to open modal even on desktop? Optional. Let's add it for consistency.
+            tr.style.cursor = 'pointer';
+            tr.onclick = () => showLogDetail(log);
+
+            tbody.appendChild(tr);
+        });
+    }
+
+    function renderMobileCards(logs, container) {
+        container.innerHTML = '';
+        logs.forEach(log => {
+            const date = new Date(log.timestamp);
+            const timeStr = date.toLocaleString('ko-KR');
+
+            let levelClass = "level-info";
+            let badgeClass = "bg-info text-dark";
+            if (log.level === 'ERROR' || log.level === 'CRITICAL') {
+                levelClass = "level-error";
+                badgeClass = "bg-danger";
+            } else if (log.level === 'WARN') {
+                levelClass = "level-warn";
+                badgeClass = "bg-warning text-dark";
+            }
+
+            const card = document.createElement('div');
+            card.className = `log-card ${levelClass}`;
+            card.innerHTML = `
+                <div class="log-card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <div>
+                            <span class="badge ${badgeClass} me-2">${log.level}</span>
+                            <span class="fw-bold small text-dark">${log.service}</span>
+                            <span class="text-muted small mx-1">•</span>
+                            <span class="text-muted small text-truncate d-inline-block" style="max-width: 100px; vertical-align: bottom;">${log.container}</span>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                         <span class="small text-secondary">${timeStr}</span>
+                    </div>
+                    <div class="text-dark small text-break" style="
+                        display: -webkit-box;
+                        -webkit-line-clamp: 2;
+                        -webkit-box-orient: vertical;
+                        overflow: hidden;
+                        font-family: monospace;
+                    ">
+                        ${log.message}
+                    </div>
+                </div>
+            `;
+            card.onclick = () => showLogDetail(log);
+            container.appendChild(card);
+        });
+    }
+
+    function showLogDetail(log) {
+        const date = new Date(log.timestamp);
+
+        // badge color
+        const badge = document.getElementById('modalLevelBadge');
+        badge.className = 'badge'; // reset
+        badge.innerText = log.level;
+        if (log.level === 'ERROR' || log.level === 'CRITICAL') badge.classList.add('bg-danger');
+        else if (log.level === 'WARN') badge.classList.add('bg-warning', 'text-dark');
+        else badge.classList.add('bg-info', 'text-dark');
+
+        document.getElementById('modalTimestamp').innerText = date.toLocaleString('ko-KR');
+        document.getElementById('modalService').innerText = log.service;
+        document.getElementById('modalContainer').innerText = log.container;
+        document.getElementById('modalMessage').innerText = log.message;
+
+        logModal.show();
+    }
+</script>
+{% endblock %}

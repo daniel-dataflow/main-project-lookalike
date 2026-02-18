@@ -1,0 +1,429 @@
+/* ========================================
+   관리자 사이드바 디자인 시스템
+======================================== */
+
+:root {
+    --sidebar-width: 260px;
+    --sidebar-collapsed-width: 80px;
+    --sidebar-bg: #ffffff;
+    --sidebar-border: #e5e7eb;
+    --primary-color: #3b82f6;
+    --primary-hover: #2563eb;
+    --text-primary: #1f2937;
+    --text-secondary: #6b7280;
+    --hover-bg: #f3f4f6;
+    --active-bg: #3b82f6;
+    --active-text: #ffffff;
+    --transition-speed: 0.3s;
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* 사이드바 컨테이너 */
+.sidebar {
+    width: var(--sidebar-width);
+    background: var(--sidebar-bg);
+    border-right: 1px solid var(--sidebar-border);
+    height: 100vh;
+    position: fixed;
+    top: 0;
+    left: 0;
+    overflow: hidden;
+    z-index: 1000;
+    transition: width var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar.collapsed {
+    width: var(--sidebar-collapsed-width);
+}
+
+/* 사이드바 내부 스크롤 영역 */
+.sidebar-scroll {
+    overflow-y: auto;
+    overflow-x: hidden;
+    flex: 1;
+    padding: 20px 16px;
+}
+
+.sidebar.collapsed .sidebar-scroll {
+    padding: 20px 8px;
+}
+
+/* 토글 버튼 - 햄버거 메뉴 */
+.sidebar-toggle {
+    position: absolute;
+    top: 20px;
+    left: 16px;
+    width: 32px;
+    height: 32px;
+    background: transparent;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 1001;
+    transition: all 0.2s ease;
+    padding: 0;
+}
+
+.sidebar.collapsed .sidebar-toggle {
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.sidebar-toggle:hover {
+    background: var(--hover-bg);
+    border-radius: 8px;
+}
+
+.sidebar-toggle i {
+    font-size: 1.25rem;
+    color: var(--text-primary);
+    transition: transform 0.3s ease;
+}
+
+/* 로고 영역 */
+.sidebar-logo {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    margin-bottom: 24px;
+    margin-top: 60px;
+    text-decoration: none;
+    color: var(--text-primary);
+    border-radius: 12px;
+    transition: all var(--transition-speed) ease;
+    min-height: 48px;
+}
+
+.sidebar-logo i {
+    font-size: 1.75rem;
+    color: var(--primary-color);
+    width: 32px;
+    min-width: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: font-size var(--transition-speed) ease;
+}
+
+.sidebar-logo .sidebar-text {
+    margin-left: 12px;
+    font-size: 1.25rem;
+    font-weight: 700;
+    white-space: nowrap;
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+}
+
+.sidebar.collapsed .sidebar-logo {
+    justify-content: center;
+    padding: 8px 0;
+    margin-top: 70px;
+}
+
+.sidebar.collapsed .sidebar-logo i {
+    font-size: 2rem;
+}
+
+.sidebar.collapsed .sidebar-logo .sidebar-text {
+    opacity: 0;
+    visibility: hidden;
+    width: 0;
+    margin: 0;
+    overflow: hidden;
+}
+
+/* 구분선 */
+.sidebar hr {
+    border: none;
+    border-top: 1px solid var(--sidebar-border);
+    margin: 16px 0;
+    transition: all var(--transition-speed) ease;
+}
+
+.sidebar.collapsed hr {
+    margin: 16px 12px;
+}
+
+/* 네비게이션 */
+.sidebar .nav {
+    gap: 4px;
+}
+
+.sidebar .nav-link {
+    display: flex;
+    align-items: center;
+    padding: 0;
+    color: var(--text-primary);
+    text-decoration: none;
+    border-radius: 10px;
+    transition: background 0.2s ease, color 0.2s ease;
+    position: relative;
+    font-weight: 500;
+    font-size: 0.95rem;
+    height: 48px;
+    overflow: hidden;
+}
+
+/* 아이콘 컨테이너 - 고정 너비 */
+.sidebar .nav-link i {
+    font-size: 1.25rem;
+    width: 56px;
+    min-width: 56px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: font-size 0.2s ease;
+}
+
+/* 텍스트 컨테이너 - 고정 너비 */
+.sidebar .nav-link .sidebar-text {
+    white-space: nowrap;
+    flex: 1;
+    opacity: 1;
+    visibility: visible;
+    transition: opacity 0.15s ease, visibility 0.15s ease;
+    overflow: hidden;
+}
+
+/* 접힌 상태 */
+.sidebar.collapsed .nav-link {
+    justify-content: center;
+}
+
+.sidebar.collapsed .nav-link i {
+    font-size: 1.4rem;
+    width: 100%;
+}
+
+.sidebar.collapsed .nav-link .sidebar-text {
+    opacity: 0;
+    visibility: hidden;
+    width: 0;
+    flex: 0;
+}
+
+/* 호버 효과 */
+.sidebar .nav-link:hover {
+    background: var(--hover-bg);
+    color: var(--primary-color);
+}
+
+/* 활성 상태 */
+.sidebar .nav-link.active {
+    background: var(--active-bg);
+    color: var(--active-text);
+    box-shadow: var(--shadow-sm);
+}
+
+.sidebar .nav-link.active i {
+    color: var(--active-text);
+}
+
+/* 전역 텍스트 숨김 */
+.sidebar-text {
+    transition: opacity 0.15s ease, visibility 0.15s ease;
+}
+
+.sidebar.collapsed .sidebar-text {
+    opacity: 0;
+    visibility: hidden;
+}
+
+/* 접힌 상태 액션 버튼 */
+.sidebar-collapsed-actions {
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+    padding: 16px 8px;
+    border-top: 1px solid var(--sidebar-border);
+}
+
+.sidebar.collapsed .sidebar-collapsed-actions {
+    display: flex;
+}
+
+.sidebar-action-btn {
+    width: 100%;
+    padding: 12px 0;
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-primary);
+    text-decoration: none;
+}
+
+.sidebar-action-btn:hover {
+    background: var(--hover-bg);
+}
+
+.sidebar-action-btn i {
+    font-size: 1.3rem;
+}
+
+.sidebar-action-btn.logout-btn:hover {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+/* 드롭다운 */
+.sidebar-dropdown {
+    margin-top: auto;
+    padding: 16px;
+    border-top: 1px solid var(--sidebar-border);
+}
+
+.sidebar.collapsed .sidebar-dropdown {
+    display: none;
+}
+
+.sidebar-dropdown .dropdown-toggle {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    border-radius: 10px;
+    transition: background 0.2s ease;
+}
+
+.sidebar-dropdown .dropdown-toggle:hover {
+    background: var(--hover-bg);
+}
+
+.sidebar-dropdown img {
+    border: 2px solid var(--sidebar-border);
+}
+
+/* 메인 콘텐츠 */
+.main-content {
+    margin-left: var(--sidebar-width);
+    padding: 20px;
+    transition: margin-left var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1);
+    min-height: 100vh;
+}
+
+.main-content.expanded {
+    margin-left: var(--sidebar-collapsed-width);
+}
+
+/* 스크롤바 커스텀 */
+.sidebar-scroll::-webkit-scrollbar {
+    width: 6px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb {
+    background: #d1d5db;
+    border-radius: 3px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af;
+}
+
+/* 접힌 상태에서 툴팁 효과 */
+.sidebar.collapsed .nav-link {
+    position: relative;
+}
+
+.sidebar.collapsed .nav-link::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    background: var(--text-primary);
+    color: white;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    margin-left: 12px;
+    transition: opacity 0.2s ease;
+    box-shadow: var(--shadow-md);
+    z-index: 1002;
+}
+
+.sidebar.collapsed .nav-link:hover::after {
+    opacity: 1;
+}
+
+/* 반응형 */
+@media (max-width: 768px) {
+    .sidebar {
+        transform: translateX(-100%);
+    }
+    
+    .sidebar.mobile-open {
+        transform: translateX(0);
+    }
+    
+    .main-content {
+        margin-left: 0 !important;
+    }
+}
+
+/* ========================================
+   초기 로드 상태 - 깜빡임 최소화
+======================================== */
+.sidebar-collapsed-init * {
+    transition: none !important;
+    animation: none !important;
+}
+
+.sidebar-collapsed-init #adminSidebar {
+    width: 80px !important;
+}
+
+.sidebar-collapsed-init #adminMainContent {
+    margin-left: 80px !important;
+}
+
+.sidebar-collapsed-init .sidebar-text {
+    opacity: 0 !important;
+    visibility: hidden !important;
+    width: 0 !important;
+}
+
+.sidebar-collapsed-init .nav-link {
+    justify-content: center !important;
+}
+
+.sidebar-collapsed-init .nav-link i {
+    font-size: 1.4rem !important;
+    width: 100% !important;
+}
+
+.sidebar-collapsed-init .sidebar-logo {
+    justify-content: center !important;
+    padding: 8px 0 !important;
+}
+
+.sidebar-collapsed-init .sidebar-logo i {
+    font-size: 2rem !important;
+}
+
+.sidebar-collapsed-init .sidebar-dropdown {
+    display: none !important;
+}
+
+.sidebar-collapsed-init .sidebar-collapsed-actions {
+    display: flex !important;
+}

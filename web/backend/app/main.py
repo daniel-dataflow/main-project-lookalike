@@ -14,7 +14,7 @@ import logging
 
 from .config import get_settings
 from .database import init_all_databases, close_all_databases
-from .routers import auth_router, products_router, posts_router, search_router, inquiries_router, admin_router
+from .routers import auth_router, products_router, posts_router, search_router, inquiries_router, admin_router, logs_router, metrics_router
 
 # ──────────────────────────────────────
 # 로깅 설정
@@ -37,9 +37,45 @@ async def lifespan(app: FastAPI):
         init_all_databases()
     except Exception as e:
         logger.warning(f"⚠️ DB 연결 초기화 중 일부 실패 (앱은 계속 실행): {e}")
+    
+    # Elasticsearch 인덱스 초기화
+    logger.info("📊 Elasticsearch 인덱스 초기화")
+    try:
+        from .core.elasticsearch_setup import init_elasticsearch_index, init_metric_index
+        init_elasticsearch_index()
+        init_metric_index()
+    except Exception as e:
+        logger.warning(f"⚠️ Elasticsearch 인덱스 초기화 실패: {e}")
+    
+    # 백그라운드 로그 및 메트릭 수집 서비스 시작
+    logger.info("🔄 백그라운드 수집 서비스 시작")
+    import asyncio
+    from .services.log_collector import LogCollector
+    from .services.metric_collector import MetricCollector
+    from .services.kafka_metric_consumer import KafkaMetricConsumer
+    
+    log_collector = LogCollector()
+    metric_collector = MetricCollector()
+    
+    # Kafka → Elasticsearch 메트릭 컨슈머 시작
+    kafka_metric_consumer = KafkaMetricConsumer()
+    kafka_metric_consumer.start()
+    
+    # 백그라운드 태스크 생성
+    log_task = asyncio.create_task(log_collector.start_background_collection())
+    metric_task = asyncio.create_task(metric_collector.start())
+    
     yield
+    
+    # 종료 시 태스크 취소
+    logger.info("🛑 앱 종료 - 백그라운드 서비스 중지")
+    log_task.cancel()
+    metric_task.cancel()
+    kafka_metric_consumer.stop()
+    
     logger.info("🛑 앱 종료 - 데이터베이스 연결 해제")
     close_all_databases()
+
 
 
 # ──────────────────────────────────────
@@ -83,6 +119,8 @@ app.include_router(posts_router)
 app.include_router(search_router)
 app.include_router(inquiries_router)
 app.include_router(admin_router)
+app.include_router(logs_router)
+app.include_router(metrics_router)
 
 
 # ──────────────────────────────────────
@@ -194,8 +232,8 @@ async def admin_dashboard(request: Request):
     return templates.TemplateResponse("admin_dashboard.html", {"request": request})
 
 
-@app.get("/admin/infra", response_class=HTMLResponse)
-async def admin_infra(request: Request):
+@app.get("/admin/infra_old", response_class=HTMLResponse)
+async def admin_infra_old(request: Request):
     return templates.TemplateResponse("admin_infra.html", {"request": request})
 
 
@@ -207,6 +245,21 @@ async def admin_batch(request: Request):
 @app.get("/admin/inquiry", response_class=HTMLResponse)
 async def admin_inquiry(request: Request):
     return templates.TemplateResponse("admin_inquiry.html", {"request": request})
+
+
+# 기존 로그 모니터링 (구버전 → _old 처리)
+# @app.get("/admin/logs_old", response_class=HTMLResponse)
+# async def admin_logs_old(request: Request):
+#     return templates.TemplateResponse("admin_logs_old.html", {"request": request})
+
+@app.get("/admin/logs", response_class=HTMLResponse)
+async def admin_logs(request: Request):
+    return templates.TemplateResponse("admin_logs.html", {"request": request})
+
+
+@app.get("/admin/infra", response_class=HTMLResponse)
+async def admin_infra(request: Request):
+    return templates.TemplateResponse("admin_metrics.html", {"request": request})
 
 
 @app.get("/inquiry", response_class=HTMLResponse)

@@ -407,6 +407,8 @@ services:
       - MONGODB_PORT=27017
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - TZ=${TZ}
       - PYTHONUNBUFFERED=1
     working_dir: /app

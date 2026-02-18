@@ -2,6 +2,14 @@
 <html lang="ko">
 
 <head>
+    <script>
+        // 최우선 실행: 렌더링 전에 상태 적용
+        (function () {
+            if (localStorage.getItem('sidebarCollapsed') === 'true') {
+                document.documentElement.className = 'sidebar-collapsed-init';
+            }
+        })();
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Lookalike Admin{% endblock %}</title>
@@ -10,112 +18,107 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="/static/css/style.css" rel="stylesheet">
-    <style>
-        /* [수정] 사이드바 스타일 반응형 처리 */
-        .sidebar {
-            width: 250px;
-            background-color: #fff;
-            border-right: 1px solid #dee2e6;
-            height: 100vh;
-            position: fixed;
-            top: 0;
-            left: 0;
-            overflow-y: auto;
-            z-index: 1000;
-        }
-
-        /* [수정] 메인 콘텐츠 여백 반응형 처리 */
-        .main-content {
-            margin-left: 250px;
-            padding: 20px;
-            transition: margin-left 0.3s ease;
-        }
-
-        /* 모바일용 스타일 */
-        @media (max-width: 768px) {
-            .sidebar {
-                display: none !important;
-                /* 기본 사이드바 숨김 */
-            }
-
-            .main-content {
-                margin-left: 0 !important;
-                /* 여백 제거 */
-                padding: 15px;
-                /* 패딩 축소 */
-            }
-        }
-
-        .sidebar .nav-pills .nav-link {
-            color: #333;
-            border-radius: 8px;
-            margin-bottom: 2px;
-            padding: 10px 16px;
-            transition: all 0.2s ease;
-            border-left: 3px solid transparent;
-        }
-
-        /* ... (기존 스타일 유지) ... */
-    </style>
+    <link href="/static/css/admin_style.css" rel="stylesheet">
 </head>
 
-<body class="bg-light">
-
+<body>
     <!-- 어드민 인증 오버레이 (생략 없이 유지) -->
 
     <!-- ... (인증 오버레이 코드) ... -->
 
-    <!-- [수정] 데스크탑용 사이드바 (md 이상에서만 표시) -->
-    <div class="sidebar d-none d-md-flex flex-column p-3" id="adminSidebar">
-        <a href="/admin" class="d-flex align-items-center mb-3 mb-md-0 me-md-auto link-dark text-decoration-none">
-            <i class="fas fa-user-shield text-primary fs-4 me-2"></i>
-            <span class="fs-4 fw-bold">관리자 페이지</span>
-        </a>
-        <hr>
-        <ul class="nav nav-pills flex-column mb-auto">
-            <li class="nav-item">
-                <a href="/admin" class="nav-link link-dark {% if request.url.path == '/admin' %}active{% endif %}">
-                    <i class="fas fa-chart-line me-2"></i>
-                    실시간 모니터링
-                </a>
-            </li>
-            <li>
-                <a href="/admin/infra"
-                    class="nav-link link-dark {% if request.url.path == '/admin/infra' %}active{% endif %}">
-                    <i class="fas fa-server me-2"></i>
-                    인프라 모니터링
-                </a>
-            </li>
-            <li>
-                <a href="/admin/batch"
-                    class="nav-link link-dark {% if request.url.path == '/admin/batch' %}active{% endif %}">
-                    <i class="fas fa-cogs me-2"></i>
-                    배치작업 모니터링
-                </a>
-            </li>
-            <li>
-                <a href="/admin/inquiry"
-                    class="nav-link link-dark {% if request.url.path == '/admin/inquiry' %}active{% endif %}">
-                    <i class="far fa-comment-dots me-2"></i>
-                    문의 관리
-                </a>
-            </li>
-        </ul>
-        <hr>
-        <div class="dropdown">
-            <a href="#" class="d-flex align-items-center link-dark text-decoration-none dropdown-toggle"
-                id="dropdownUser2" data-bs-toggle="dropdown" aria-expanded="false">
-                <img src="https://ui-avatars.com/api/?name=Admin&background=random" alt="" width="32" height="32"
-                    class="rounded-circle me-2">
-                <strong id="adminUserName">Admin</strong>
+    <!-- 프로페셔널 사이드바 -->
+    <div class="sidebar" id="adminSidebar">
+        <!-- 햄버거 메뉴 토글 버튼 -->
+        <button class="sidebar-toggle" onclick="toggleSidebar()" title="메뉴 접기/펴기">
+            <i class="fas fa-bars" id="toggleIcon"></i>
+        </button>
+
+        <!-- 스크롤 가능 영역 -->
+        <div class="sidebar-scroll">
+            <!-- 로고 -->
+            <a href="/admin" class="sidebar-logo">
+                <i class="fas fa-user-shield"></i>
+                <span class="sidebar-text">관리자 페이지</span>
+            </a>
+
+            <hr>
+
+            <!-- 네비게이션 메뉴 -->
+            <ul class="nav nav-pills flex-column">
+                <li class="nav-item">
+                    <a href="/admin" class="nav-link {% if request.url.path == '/admin' %}active{% endif %}"
+                        data-tooltip="실시간 모니터링">
+                        <i class="fas fa-chart-line"></i>
+                        <span class="sidebar-text">실시간 모니터링</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/infra" class="nav-link {% if request.url.path == '/admin/infra' %}active{% endif %}"
+                        data-tooltip="인프라 모니터링">
+                        <i class="fas fa-server"></i>
+                        <span class="sidebar-text">인프라 모니터링</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/logs" class="nav-link {% if request.url.path == '/admin/logs' %}active{% endif %}"
+                        data-tooltip="로그 모니터링">
+                        <i class="fas fa-file-alt"></i>
+                        <span class="sidebar-text">로그 모니터링</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/batch" class="nav-link {% if request.url.path == '/admin/batch' %}active{% endif %}"
+                        data-tooltip="배치작업 모니터링">
+                        <i class="fas fa-cogs"></i>
+                        <span class="sidebar-text">배치작업 모니터링</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/inquiry"
+                        class="nav-link {% if request.url.path == '/admin/inquiry' %}active{% endif %}"
+                        data-tooltip="문의 관리">
+                        <i class="far fa-comment-dots"></i>
+                        <span class="sidebar-text">문의 관리</span>
+                    </a>
+                </li>
+                <!--
+                <li class="nav-item">
+                    <a href="/admin/infra_old" class="nav-link {% if request.url.path == '/admin/infra_old' %}active{% endif %}"
+                        data-tooltip="인프라 모니터링 (기존)">
+                        <i class="fas fa-server"></i>
+                        <span class="sidebar-text">인프라 모니터링 (기존)</span>
+                    </a>
+                </li>
+                 -->
+            </ul>
+        </div>
+
+        <!-- 접힌 상태 액션 버튼 -->
+        <div class="sidebar-collapsed-actions">
+            <a href="/" class="sidebar-action-btn" title="사용자 홈으로">
+                <i class="fas fa-home"></i>
+            </a>
+            <button class="sidebar-action-btn logout-btn" onclick="adminLogout()" title="로그아웃">
+                <i class="fas fa-sign-out-alt"></i>
+            </button>
+        </div>
+
+        <!-- 펼친 상태 드롭다운 -->
+        <div class="sidebar-dropdown">
+            <a href="#" class="dropdown-toggle" id="dropdownUser2" data-bs-toggle="dropdown" aria-expanded="false">
+                <img src="https://ui-avatars.com/api/?name=Admin&background=3b82f6&color=fff" alt="" width="36"
+                    height="36" class="rounded-circle">
+                <strong id="adminUserName" class="sidebar-text ms-2">Admin</strong>
             </a>
             <ul class="dropdown-menu text-small shadow" aria-labelledby="dropdownUser2">
-                <li><a class="dropdown-item" href="/">사용자 홈으로</a></li>
+                <li><a class="dropdown-item" href="/">
+                        <i class="fas fa-home me-2"></i>사용자 홈으로
+                    </a></li>
                 <li>
                     <hr class="dropdown-divider">
                 </li>
                 <li><a class="dropdown-item" href="#" onclick="adminLogout(); return false;">
-                        <i class="fas fa-sign-out-alt me-1"></i>관리자 로그아웃
+                        <i class="fas fa-sign-out-alt me-2"></i>관리자 로그아웃
                     </a></li>
             </ul>
         </div>
@@ -143,6 +146,12 @@
                     </a>
                 </li>
                 <li>
+                    <a href="/admin/logs"
+                        class="nav-link link-dark {% if request.url.path == '/admin/logs' %}active{% endif %}">
+                        <i class="fas fa-file-alt me-2"></i> 로그 모니터링
+                    </a>
+                </li>
+                <li>
                     <a href="/admin/batch"
                         class="nav-link link-dark {% if request.url.path == '/admin/batch' %}active{% endif %}">
                         <i class="fas fa-cogs me-2"></i> 배치작업 모니터링
@@ -154,6 +163,14 @@
                         <i class="far fa-comment-dots me-2"></i> 문의 관리
                     </a>
                 </li>
+                <!--
+                <li>
+                    <a href="/admin/infra_old"
+                        class="nav-link link-dark {% if request.url.path == '/admin/infra_old' %}active{% endif %}">
+                        <i class="fas fa-server me-2"></i> 인프라 모니터링 (기존)
+                    </a>
+                </li>
+                -->
             </ul>
             <hr>
             <div class="d-grid gap-2">
@@ -307,6 +324,33 @@
                 btnText.classList.remove('d-none');
             }
         }
+
+        // 사이드바 접기/펴기 토글 함수
+        function toggleSidebar() {
+            const sidebar = document.getElementById('adminSidebar');
+            const mainContent = document.getElementById('adminMainContent');
+
+            sidebar.classList.toggle('collapsed');
+            mainContent.classList.toggle('expanded');
+
+            // 로컬 스토리지에 상태 저장
+            localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
+        }
+
+        // 페이지 로드 시 저장된 사이드바 상태 복원
+        document.addEventListener('DOMContentLoaded', function () {
+            const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+            const sidebar = document.getElementById('adminSidebar');
+            const mainContent = document.getElementById('adminMainContent');
+
+            // 초기화 클래스 제거
+            document.documentElement.classList.remove('sidebar-collapsed-init');
+
+            if (isCollapsed) {
+                sidebar.classList.add('collapsed');
+                mainContent.classList.add('expanded');
+            }
+        });
 
         async function adminLogout() {
             try {
