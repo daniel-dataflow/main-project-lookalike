@@ -13,10 +13,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Lookalike Admin{% endblock %}</title>
+    <!-- [성능] CDN 도메인 preconnect: DNS + TLS 핸드셰이크 미리 수행 -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- [성능] defer: DOMContentLoaded 이후 실행, 렌더링 블로킹 방지 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
     <link href="/static/css/style.css" rel="stylesheet">
     <link href="/static/css/admin_style.css" rel="stylesheet">
 </head>
@@ -36,7 +42,7 @@
         <!-- 스크롤 가능 영역 -->
         <div class="sidebar-scroll">
             <!-- 로고 -->
-            <a href="/admin" class="sidebar-logo">
+            <a href="/admin/infra" class="sidebar-logo">
                 <i class="fas fa-user-shield"></i>
                 <span class="sidebar-text">관리자 페이지</span>
             </a>
@@ -45,13 +51,6 @@
 
             <!-- 네비게이션 메뉴 -->
             <ul class="nav nav-pills flex-column">
-                <li class="nav-item">
-                    <a href="/admin" class="nav-link {% if request.url.path == '/admin' %}active{% endif %}"
-                        data-tooltip="실시간 모니터링">
-                        <i class="fas fa-chart-line"></i>
-                        <span class="sidebar-text">실시간 모니터링</span>
-                    </a>
-                </li>
                 <li class="nav-item">
                     <a href="/admin/infra" class="nav-link {% if request.url.path == '/admin/infra' %}active{% endif %}"
                         data-tooltip="인프라 모니터링">
@@ -82,6 +81,13 @@
                     </a>
                 </li>
                 <!--
+                <li class="nav-item">
+                    <a href="/admin/stats" class="nav-link {% if request.url.path == '/admin/stats' %}active{% endif %}"
+                        data-tooltip="통계 모니터링">
+                        <i class="fas fa-chart-line"></i>
+                        <span class="sidebar-text">통계 모니터링</span>
+                    </a>
+                </li>
                 <li class="nav-item">
                     <a href="/admin/infra_old" class="nav-link {% if request.url.path == '/admin/infra_old' %}active{% endif %}"
                         data-tooltip="인프라 모니터링 (기존)">
@@ -134,11 +140,7 @@
         </div>
         <div class="offcanvas-body d-flex flex-column">
             <ul class="nav nav-pills flex-column mb-auto">
-                <li class="nav-item">
-                    <a href="/admin" class="nav-link link-dark {% if request.url.path == '/admin' %}active{% endif %}">
-                        <i class="fas fa-chart-line me-2"></i> 실시간 모니터링
-                    </a>
-                </li>
+
                 <li>
                     <a href="/admin/infra"
                         class="nav-link link-dark {% if request.url.path == '/admin/infra' %}active{% endif %}">
@@ -164,6 +166,11 @@
                     </a>
                 </li>
                 <!--
+                <li class="nav-item">
+                    <a href="/admin/stats" class="nav-link link-dark {% if request.url.path == '/admin/stats' %}active{% endif %}">
+                        <i class="fas fa-chart-line me-2"></i> 통계 모니터링
+                    </a>
+                </li>
                 <li>
                     <a href="/admin/infra_old"
                         class="nav-link link-dark {% if request.url.path == '/admin/infra_old' %}active{% endif %}">
@@ -218,8 +225,9 @@
         {% block content %}{% endblock %}
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="/static/js/script.js"></script>
+    <!-- [성능] defer: 병렬 다운로드 후 DOM 준비되면 실행 -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" defer></script>
+    <script src="/static/js/script.js" defer></script>
 
     <script>
         // 페이지 로드 시 어드민 인증 상태 확인
@@ -227,27 +235,61 @@
             checkAdminAuth();
         });
 
-        async function checkAdminAuth() {
-            try {
-                const resp = await fetch('/api/auth/admin/check', { credentials: 'same-origin' });
-                const data = await resp.json();
+        // [성능 최적화] 인증 결과를 sessionStorage에 5분 캐싱
+        // - 동일 세션 내 페이지 이동 시 API 호출 없이 즉시 콘텐츠 표시
+        // - 로그아웃/만료 시 캐시 무효화
+        const AUTH_CACHE_KEY = 'adminAuthCache';
+        const AUTH_CACHE_TTL = 5 * 60 * 1000; // 5분 (ms)
 
-                if (data.is_admin) {
-                    showAdminContent();
-                    // 사용자 이름 표시
-                    const meResp = await fetch('/api/auth/me', { credentials: 'same-origin' });
-                    const meData = await meResp.json();
-                    if (meData.success && meData.user) {
-                        const name = meData.user.name || 'Admin';
-                        document.getElementById('adminUserName').textContent = name;
-                        document.getElementById('adminTopName').textContent = name;
+        async function checkAdminAuth() {
+            // 캐시 확인
+            try {
+                const cached = JSON.parse(sessionStorage.getItem(AUTH_CACHE_KEY));
+                if (cached && Date.now() - cached.ts < AUTH_CACHE_TTL) {
+                    if (cached.is_admin) {
+                        showAdminContent();
+                        applyUserName(cached.name);
+                        return;
                     }
+                }
+            } catch (_) { /* 캐시 파싱 실패 시 무시 */ }
+
+            // [성능 최적화] check + me API 병렬 호출 (직렬 → Promise.all)
+            try {
+                const [checkResp, meResp] = await Promise.all([
+                    fetch('/api/auth/admin/check', { credentials: 'same-origin' }),
+                    fetch('/api/auth/me', { credentials: 'same-origin' })
+                ]);
+                const [checkData, meData] = await Promise.all([
+                    checkResp.json(),
+                    meResp.json()
+                ]);
+
+                if (checkData.is_admin) {
+                    const name = (meData.success && meData.user && meData.user.name) ? meData.user.name : 'Admin';
+                    // 결과 캐싱
+                    sessionStorage.setItem(AUTH_CACHE_KEY, JSON.stringify({
+                        is_admin: true,
+                        name,
+                        ts: Date.now()
+                    }));
+                    showAdminContent();
+                    applyUserName(name);
                 } else {
+                    sessionStorage.removeItem(AUTH_CACHE_KEY);
                     showAdminAuth();
                 }
             } catch (e) {
+                sessionStorage.removeItem(AUTH_CACHE_KEY);
                 showAdminAuth();
             }
+        }
+
+        function applyUserName(name) {
+            const el1 = document.getElementById('adminUserName');
+            const el2 = document.getElementById('adminTopName');
+            if (el1) el1.textContent = name;
+            if (el2) el2.textContent = name;
         }
 
         function showAdminAuth() {
@@ -353,6 +395,8 @@
         });
 
         async function adminLogout() {
+            // 로그아웃 시 인증 캐시 무효화
+            sessionStorage.removeItem(AUTH_CACHE_KEY);
             try {
                 await fetch('/api/auth/admin/logout', {
                     method: 'POST',

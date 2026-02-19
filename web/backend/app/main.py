@@ -228,13 +228,22 @@ async def mypage(request: Request):
 
 # Admin Routes
 @app.get("/admin", response_class=HTMLResponse)
-async def admin_dashboard(request: Request):
+async def admin_root(request: Request):
+    """어드민 진입점: 기본 페이지를 인프라 모니터링으로 변경 (2026-02-19)
+    - 구 실시간 모니터링(admin_dashboard)은 /admin/stats 로 이동
+    """
+    return RedirectResponse(url="/admin/infra", status_code=302)
+
+
+@app.get("/admin/stats", response_class=HTMLResponse)
+async def admin_stats(request: Request):
+    """통계 모니터링 (구 실시간 모니터링 대시보드 — 향후 개발 예정)"""
     return templates.TemplateResponse("admin_dashboard.html", {"request": request})
 
 
 @app.get("/admin/infra_old", response_class=HTMLResponse)
 async def admin_infra_old(request: Request):
-    return templates.TemplateResponse("admin_infra.html", {"request": request})
+    return templates.TemplateResponse("admin_infra_old.html", {"request": request})
 
 
 @app.get("/admin/batch", response_class=HTMLResponse)
@@ -259,7 +268,7 @@ async def admin_logs(request: Request):
 
 @app.get("/admin/infra", response_class=HTMLResponse)
 async def admin_infra(request: Request):
-    return templates.TemplateResponse("admin_metrics.html", {"request": request})
+    return templates.TemplateResponse("admin_infra.html", {"request": request})
 
 
 @app.get("/inquiry", response_class=HTMLResponse)

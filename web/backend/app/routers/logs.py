@@ -2,6 +2,7 @@
 from fastapi import APIRouter, HTTPException, Query
 from typing import Optional, List, Dict
 from datetime import datetime, timedelta
+import time as _time
 from ..core.elasticsearch_setup import get_es_client
 from kafka import KafkaConsumer
 from kafka.errors import KafkaError
@@ -15,23 +16,197 @@ router = APIRouter(
 es_client = get_es_client()
 INDEX_NAME = "container-logs"
 
+# ──────────────────────────────────────
+# [성능] 대시보드 통합 캐시 (30초)
+# ──────────────────────────────────────
+_dashboard_cache = None
+_dashboard_cache_time: float = 0
+_DASHBOARD_CACHE_TTL = 30  # 30초
+
+@router.get("/dashboard")
+async def get_log_dashboard():
+    """
+    [성능 최적화] 대시보드 초기 로딩용 통합 API
+    - ES msearch로 stats/trend/top-errors/service-health를 1회 왕복으로 처리
+    - 30초 캐싱 적용
+    - stream(로그 목록)은 필터 의존성 때문에 별도 호출
+    """
+    global _dashboard_cache, _dashboard_cache_time
+
+    now = _time.time()
+    if _dashboard_cache and now - _dashboard_cache_time < _DASHBOARD_CACHE_TTL:
+        return _dashboard_cache
+
+    one_hour_ago = (datetime.utcnow() - timedelta(hours=1)).isoformat()
+    twenty_four_hours_ago = (datetime.utcnow() - timedelta(hours=24)).isoformat()
+
+    # ES msearch: 단일 왕복으로 4개 쿼리 실행
+    searches = [
+        # 1. stats (1시간 레벨별 집계)
+        {"index": INDEX_NAME},
+        {
+            "query": {"range": {"timestamp": {"gte": one_hour_ago}}},
+            "size": 0,
+            "aggs": {
+                "by_level": {"terms": {"field": "level", "size": 10}},
+                "by_service": {"terms": {"field": "service", "size": 20}}
+            }
+        },
+        # 2. trend (24시간 히스토그램)
+        {"index": INDEX_NAME},
+        {
+            "query": {"range": {"timestamp": {"gte": twenty_four_hours_ago}}},
+            "size": 0,
+            "aggs": {
+                "over_time": {
+                    "date_histogram": {"field": "timestamp", "fixed_interval": "1h"},
+                    "aggs": {"by_level": {"terms": {"field": "level", "size": 10}}}
+                }
+            }
+        },
+        # 3. top-errors (24시간 에러 메시지 Top5)
+        {"index": INDEX_NAME},
+        {
+            "query": {
+                "bool": {
+                    "must": [
+                        {"range": {"timestamp": {"gte": twenty_four_hours_ago}}},
+                        {"bool": {"should": [
+                            {"term": {"level": "ERROR"}},
+                            {"term": {"level": "CRITICAL"}}
+                        ], "minimum_should_match": 1}}
+                    ]
+                }
+            },
+            "size": 0,
+            "aggs": {
+                "by_message": {
+                    "terms": {"field": "message.keyword", "size": 5, "order": {"_count": "desc"}},
+                    "aggs": {
+                        "by_service": {"terms": {"field": "service", "size": 5}},
+                        "latest": {
+                            "top_hits": {"size": 1, "sort": [{"timestamp": {"order": "desc"}}],
+                                         "_source": ["timestamp", "container"]}
+                        }
+                    }
+                }
+            }
+        },
+        # 4. service-health (1시간 서비스별 레벨)
+        {"index": INDEX_NAME},
+        {
+            "query": {"range": {"timestamp": {"gte": one_hour_ago}}},
+            "size": 0,
+            "aggs": {
+                "by_service": {
+                    "terms": {"field": "service", "size": 20},
+                    "aggs": {"by_level": {"terms": {"field": "level", "size": 10}}}
+                }
+            }
+        },
+    ]
+
+    try:
+        resp = es_client.msearch(body=searches)
+        responses = resp["responses"]
+
+        # --- stats 파싱 ---
+        stats_aggs = responses[0].get("aggregations", {})
+        by_level = {b["key"]: b["doc_count"] for b in stats_aggs.get("by_level", {}).get("buckets", [])}
+        by_service = {b["key"]: b["doc_count"] for b in stats_aggs.get("by_service", {}).get("buckets", [])}
+
+        # --- trend 파싱 ---
+        trend_buckets = responses[1].get("aggregations", {}).get("over_time", {}).get("buckets", [])
+        trend = []
+        for bucket in trend_buckets:
+            lc = {b["key"]: b["doc_count"] for b in bucket["by_level"]["buckets"]}
+            trend.append({
+                "time": bucket["key_as_string"],
+                "ERROR": lc.get("ERROR", 0) + lc.get("CRITICAL", 0),
+                "WARN": lc.get("WARN", 0),
+                "INFO": lc.get("INFO", 0),
+            })
+
+        # --- top-errors 파싱 ---
+        top_err_buckets = responses[2].get("aggregations", {}).get("by_message", {}).get("buckets", [])
+        top_errors = []
+        for bucket in top_err_buckets:
+            services = [b["key"] for b in bucket["by_service"]["buckets"]]
+            latest = bucket["latest"]["hits"]["hits"]
+            latest_src = latest[0]["_source"] if latest else {}
+            top_errors.append({
+                "message": bucket["key"],
+                "count": bucket["doc_count"],
+                "services": services,
+                "last_seen": latest_src.get("timestamp", ""),
+                "container": latest_src.get("container", ""),
+            })
+
+        # --- service-health 파싱 ---
+        svc_buckets = responses[3].get("aggregations", {}).get("by_service", {}).get("buckets", [])
+        services_health = []
+        for bucket in svc_buckets:
+            lc = {b["key"]: b["doc_count"] for b in bucket["by_level"]["buckets"]}
+            total = bucket["doc_count"]
+            errors = lc.get("ERROR", 0) + lc.get("CRITICAL", 0)
+            warns = lc.get("WARN", 0)
+            error_rate = round((errors / total) * 100, 2) if total > 0 else 0
+            if error_rate > 10 or errors > 20:
+                status = "critical"
+            elif error_rate > 3 or warns > 10:
+                status = "warning"
+            else:
+                status = "healthy"
+            services_health.append({
+                "service": bucket["key"], "total": total,
+                "errors": errors, "warns": warns,
+                "error_rate": error_rate, "status": status
+            })
+
+        result = {
+            "stats": {"by_level": by_level, "by_service": by_service},
+            "trend": trend,
+            "top_errors": top_errors,
+            "service_health": services_health,
+            "generated_at": datetime.utcnow().isoformat(),
+        }
+        _dashboard_cache = result
+        _dashboard_cache_time = now
+        return result
+
+    except Exception as e:
+        print(f"Dashboard msearch 실패: {e}")
+        return {
+            "stats": {"by_level": {}, "by_service": {}},
+            "trend": [],
+            "top_errors": [],
+            "service_health": [],
+            "generated_at": datetime.utcnow().isoformat(),
+        }
+
+
 @router.get("/pipeline-status")
 async def get_pipeline_status():
-    """파이프라인 상태 확인 (Real-time check)"""
+    """파이프라인 상태 확인 (캐시 30초 적용)"""
     from ..services.log_collector import LogCollector
-    # Singleton LogCollector instance is managed in main.py, but we can't easily access app state here without Request.
-    # However, since we need to check the thread status, we might need to import the instance if it was global, 
-    # OR simpler: check if we can connect to Kafka.
+    
+    # [성능 최적화] 30초 캐싱: Kafka 연결 타임아웃(최대 1초)을 반복 호출마다 지불하지 않도록
+    import time
+    now = time.time()
+    if (hasattr(get_pipeline_status, '_cache')
+            and now - get_pipeline_status._cache_time < 30):
+        return get_pipeline_status._cache
     
     kafka_ok = False
     direct_ok = False
     
     # 1. Kafka Check (Real connection)
+    # [성능 최적화] request_timeout_ms: 3000 → 1000 ms 단축
     try:
         from kafka import KafkaAdminClient
         admin = KafkaAdminClient(
             bootstrap_servers="kafka:9092",
-            request_timeout_ms=3000
+            request_timeout_ms=1000
         )
         admin.close()
         kafka_ok = True
@@ -59,7 +234,7 @@ async def get_pipeline_status():
     
     active_pipeline = "kafka" if kafka_ok else "direct"
     
-    return {
+    result = {
         "kafka": {
             "status": "active" if kafka_ok else "inactive"
         },
@@ -73,6 +248,10 @@ async def get_pipeline_status():
         },
         "active_pipeline": active_pipeline
     }
+    # [성능 최적화] 결과를 함수 속성에 30초 캐싱
+    get_pipeline_status._cache = result
+    get_pipeline_status._cache_time = now
+    return result
 
 @router.get("/stream")
 async def get_logs_stream(
