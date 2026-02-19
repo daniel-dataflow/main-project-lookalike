@@ -22,4 +22,13 @@ email-validator==2.3.0
 psycopg2-binary==2.9.9
 redis==5.0.1
 pymongo==4.6.1
+urllib3<2
 elasticsearch==8.11.0
+
+# 이미지 처리
+Pillow>=10.0.0
+
+# 모니터링
+psutil==5.9.5
+docker==7.1.0
+kafka-python==2.0.2

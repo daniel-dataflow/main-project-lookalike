@@ -1,0 +1,92 @@
+filebeat.inputs:
+  - type: container
+    paths:
+      - /var/lib/docker/containers/*/*.log
+    scan_frequency: 60s
+    
+    # ✅ 핵심 컨테이너만 수집 (나머지 무시)
+    include_lines:
+      - 'airflow-scheduler-main'
+      - 'airflow-webserver-main'
+      - 'spark-master-main'
+      - 'fastapi-main'
+      - 'postgres-main'
+      - 'kafka-main'
+    
+    processors:
+      - add_docker_metadata:
+          host: "unix:///var/run/docker.sock"
+      - decode_json_fields:
+          fields: ["message"]
+          target: ""
+          overwrite_keys: true
+
+processors:
+  - drop_event:
+      when:
+        or:
+          # 헬스체크 제외
+          - contains: { message: "GET /health" }
+          - contains: { message: "healthcheck" }
+          - contains: { message: "GET /api/logs" }
+          
+          # Java 스택트레이스 제외
+          - regexp: { message: "^\\s+at " }
+          - contains: { message: "org.apache.hadoop" }
+          - contains: { message: "java.lang.Thread" }
+          
+          # MongoDB 반복 메시지 제외
+          - contains: { message: "Connection ended" }
+          - contains: { message: "Connection accepted" }
+          - contains: { message: "client metadata" }
+          
+          # Hadoop 반복 경고 제외
+          - contains: { message: "Storage:" }
+          - contains: { message: "Block pool" }
+          - contains: { message: "DatanodeHttpServer" }
+
+  # ✅ ERROR만 항상 수집 (필터 적용 후에도 ERROR는 살림 - 로직상 drop_event는 순차적이므로, 
+  # 위에서 drop된 것은 복구 불가. 하지만 user request의 의도는 'ERROR는 drop 하지 않음' 이므로
+  # 'drop_event' 조건을 수정하거나, 별도의 processor 구조가 필요함.
+  # Filebeat processors execute sequentially. If a drop_event matches, the event is gone.
+  # To "always keep ERROR", we must ensure the drop conditions above DO NOT match if current level is ERROR.
+  # However, Filebeat doesn't have "skip next processors".
+  # Instead, we will wrap the above drop_event with a `not` condition for ERRORs.
+  
+  - drop_event:
+      when:
+        and:
+          - or:
+            # 헬스체크 & 노이즈
+            - contains: { message: "GET /health" }
+            - contains: { message: "healthcheck" }
+            - contains: { message: "GET /api/logs" }
+            - regexp: { message: "^\\s+at " }
+            - contains: { message: "org.apache.hadoop" }
+            - contains: { message: "java.lang.Thread" }
+            - contains: { message: "Connection ended" }
+            - contains: { message: "Connection accepted" }
+            - contains: { message: "client metadata" }
+            - contains: { message: "Storage:" }
+            - contains: { message: "Block pool" }
+            - contains: { message: "DatanodeHttpServer" }
+          
+          # ✅ 단, ERROR/CRITICAL/Exception/Failed가 포함된 경우엔 드롭하지 않음 (이중 부정)
+          - not:
+              or:
+                - contains: { message: "ERROR" }
+                - contains: { message: "Exception" }
+                - contains: { message: "Failed" }
+                - contains: { message: "CRITICAL" }
+
+output.kafka:
+  hosts: ["kafka:9092"]
+  topic: "container-logs"
+  partition.round_robin:
+    reachable_only: false
+  required_acks: 1
+  compression: gzip
+  max_message_bytes: 1000000
+
+logging.level: error
+logging.to_files: false

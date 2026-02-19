@@ -20,18 +20,18 @@ class Settings(BaseSettings):
     POSTGRES_PORT: int = 5432
     POSTGRES_DB: str = "datadb"
     POSTGRES_USER: str = "datauser"
-    POSTGRES_PASSWORD: str = "DataPass2024!"
+    POSTGRES_PASSWORD: str = ""  # Set in .env
 
     # === MongoDB ===
     MONGODB_HOST: str = "localhost"
     MONGODB_PORT: int = 27017
     MONGODB_USER: str = "datauser"
-    MONGODB_PASSWORD: str = "DataPass2024!"
+    MONGODB_PASSWORD: str = ""  # Set in .env
 
     # === Redis ===
     REDIS_HOST: str = "localhost"
     REDIS_PORT: int = 6379
-    REDIS_PASSWORD: str = "DataPass2024!"
+    REDIS_PASSWORD: str = ""  # Set in .env
 
     # === Elasticsearch ===
     ELASTICSEARCH_HOST: str = "localhost"
@@ -49,15 +49,38 @@ class Settings(BaseSettings):
     # OAUTH_REDIRECT_URI: Optional[str] = None
 
     # === 세션 ===
+<<<<<<< HEAD
     SESSION_SECRET_KEY: str = "lookalike-session-secret-change-in-production-2024"
     SESSION_EXPIRE_HOURS: int = 24
 
     # === 관리자 ===
     ADMIN_PASSWORD: str = "admin1234!"
+=======
+    SESSION_SECRET_KEY: str = "change-this-in-production"  # Set in .env
+    SESSION_EXPIRE_HOURS: int = 24
+
+    # === 관리자 ===
+    ADMIN_USERNAME: str = ""  # Set in .env
+    ADMIN_PASSWORD: str = ""  # Set in .env
+>>>>>>> feature/web-mainpage
 
     # === FastAPI ===
     FASTAPI_PORT: int = 8900
 
+<<<<<<< HEAD
+=======
+    # === Hadoop / HDFS ===
+    HADOOP_NAMENODE_HOST: str = "namenode"
+    HDFS_NAMENODE_PORT: int = 9000
+    HDFS_WEBHDFS_PORT: int = 9870
+
+    # === 이미지 업로드 ===
+    MAX_UPLOAD_SIZE_MB: int = 10
+    THUMBNAIL_SIZE: int = 150
+    THUMBNAIL_QUALITY: int = 85
+    USE_MOCK_ML: bool = True
+
+>>>>>>> feature/web-mainpage
     @property
     def DATABASE_URL(self) -> str:
         return (

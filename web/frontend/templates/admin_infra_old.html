@@ -1,0 +1,376 @@
+{% extends "admin_base.html" %}
+
+{% block page_title %}인프라 모니터링{% endblock %}
+
+{% block header_actions %}
+<div class="d-flex align-items-center gap-2">
+    <span class="text-muted timestamp-responsive" style="font-size:0.78rem;">
+        <i class="fas fa-sync-alt me-1 d-none d-md-inline"></i>
+        <span id="lastUpdate">-</span>
+    </span>
+    <!-- 자동갱신 토글 -->
+    <button id="btnAutoRefresh" class="btn btn-sm btn-outline-success btn-md-normal" onclick="toggleAutoRefresh()"
+        title="자동갱신 ON/OFF">
+        <i class="fas fa-play me-1"></i><span class="d-none d-md-inline">자동갱신 ON</span>
+    </button>
+    <!-- 수동 새로고침: 자동갱신 OFF 시만 활성화 -->
+    <button id="btnManualRefresh" class="btn btn-refresh btn-sm btn-md-normal" onclick="refreshAll()" disabled
+        title="자동갱신 OFF 시 사용 가능">
+        <i class="fas fa-redo me-1"></i><span class="d-none d-md-inline">새로고침</span>
+    </button>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- 시스템 리소스 -->
+<div class="row g-4 mb-4">
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="text-muted mb-0">CPU 사용률</h6>
+                    <i class="fas fa-microchip text-primary"></i>
+                </div>
+                <h3 class="mb-2" id="cpuPercent">-</h3>
+                <div class="progress" style="height: 8px;">
+                    <div id="cpuProgress" class="progress-bar bg-primary" role="progressbar" style="width: 0%">
+                    </div>
+                </div>
+                <small class="text-muted" id="cpuDetail">-</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="text-muted mb-0">메모리</h6>
+                    <i class="fas fa-memory text-success"></i>
+                </div>
+                <h3 class="mb-2" id="memoryPercent">-</h3>
+                <div class="progress" style="height: 8px;">
+                    <div id="memoryProgress" class="progress-bar bg-success" role="progressbar" style="width: 0%">
+                    </div>
+                </div>
+                <small class="text-muted" id="memoryDetail">-</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="text-muted mb-0">디스크</h6>
+                    <i class="fas fa-hdd text-warning"></i>
+                </div>
+                <h3 class="mb-2" id="diskPercent">-</h3>
+                <div class="progress" style="height: 8px;">
+                    <div id="diskProgress" class="progress-bar bg-warning" role="progressbar" style="width: 0%">
+                    </div>
+                </div>
+                <small class="text-muted" id="diskDetail">-</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="text-muted mb-0">업타임</h6>
+                    <i class="fas fa-clock text-info"></i>
+                </div>
+                <h3 class="mb-2" id="uptime">-</h3>
+                <small class="text-muted">시스템 가동 시간</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 데이터베이스 상태 -->
+<div class="row g-4 mb-4">
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="mb-0"><i class="fas fa-database me-2 text-primary"></i>PostgreSQL</h6>
+                    <span id="pgStatus" class="badge bg-secondary">확인 중</span>
+                </div>
+                <div id="pgDetails">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">활성 연결</span>
+                        <span id="pgConnections">-</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted">DB 크기</span>
+                        <span id="pgSize">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="mb-0"><i class="fas fa-leaf me-2 text-success"></i>MongoDB</h6>
+                    <span id="mongoStatus" class="badge bg-secondary">확인 중</span>
+                </div>
+                <div id="mongoDetails">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">컬렉션</span>
+                        <span id="mongoCollections">-</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted">데이터 크기</span>
+                        <span id="mongoSize">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h6 class="mb-0"><i class="fas fa-bolt me-2 text-danger"></i>Redis</h6>
+                    <span id="redisStatus" class="badge bg-secondary">확인 중</span>
+                </div>
+                <div id="redisDetails">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span class="text-muted">메모리 사용</span>
+                        <span id="redisMemory">-</span>
+                    </div>
+                    <div class="d-flex justify-content-between">
+                        <span class="text-muted">키 개수</span>
+                        <span id="redisKeys">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Docker 컨테이너 -->
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white border-0 py-3">
+        <div class="d-flex justify-content-between align-items-center">
+            <h6 class="mb-0"><i class="fab fa-docker me-2 text-primary"></i>Docker 컨테이너</h6>
+            <small class="text-muted" id="dockerCheckedAt"></small>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>컨테이너</th>
+                        <th>상태</th>
+                        <th>CPU</th>
+                        <th>메모리</th>
+                    </tr>
+                </thead>
+                <tbody id="containersList">
+                    <tr>
+                        <td colspan="4" class="text-center text-muted py-4">
+                            <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                            로딩 중...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    let autoRefreshInterval = null;
+    let isAutoRefresh = true;  // 기본: 자동갱신 ON
+
+    // 자동갱신 토글
+    function toggleAutoRefresh() {
+        const btn = document.getElementById('btnAutoRefresh');
+        const manualBtn = document.getElementById('btnManualRefresh');
+
+        if (isAutoRefresh) {
+            // OFF
+            clearInterval(autoRefreshInterval);
+            autoRefreshInterval = null;
+            isAutoRefresh = false;
+            btn.className = 'btn btn-sm btn-outline-secondary btn-md-normal';
+            btn.innerHTML = '<i class="fas fa-pause me-1"></i><span class="d-none d-md-inline">자동갱신 OFF</span>';
+            manualBtn.disabled = false;   // 수동 새로고침 활성화
+        } else {
+            // ON
+            autoRefreshInterval = setInterval(refreshAll, 30000);
+            isAutoRefresh = true;
+            btn.className = 'btn btn-sm btn-outline-success btn-md-normal';
+            btn.innerHTML = '<i class="fas fa-play me-1"></i><span class="d-none d-md-inline">자동갱신 ON</span>';
+            manualBtn.disabled = true;   // 수동 새로고침 비활성화
+        }
+    }
+
+    // 시스템 상태 조회
+    async function loadSystemStatus() {
+        try {
+            const response = await fetch('/api/admin/system/status');
+            const data = await response.json();
+
+            // CPU
+            document.getElementById('cpuPercent').textContent = `${data.cpu_percent.toFixed(1)}%`;
+            document.getElementById('cpuProgress').style.width = `${data.cpu_percent}%`;
+            document.getElementById('cpuProgress').className = `progress-bar ${getProgressColor(data.cpu_percent)}`;
+
+            // CPU 상세 정보 (주파수/코어)
+            let cpuInfo = [];
+            if (data.cpu_freq_current > 0) {
+                cpuInfo.push(`${(data.cpu_freq_current / 1000).toFixed(2)}GHz`);
+            }
+            if (data.cpu_cores_physical > 0 && data.cpu_cores_logical > 0) {
+                cpuInfo.push(`${data.cpu_cores_physical}C/${data.cpu_cores_logical}T`);
+            }
+            document.getElementById('cpuDetail').textContent = cpuInfo.join(' | ') || 'CPU 정보 없음';
+
+            // 메모리
+            const memoryUsedGB = (data.memory_used / 1024 / 1024 / 1024).toFixed(1);
+            const memoryTotalGB = (data.memory_total / 1024 / 1024 / 1024).toFixed(1);
+            document.getElementById('memoryPercent').textContent = `${data.memory_percent.toFixed(1)}%`;
+            document.getElementById('memoryProgress').style.width = `${data.memory_percent}%`;
+            document.getElementById('memoryProgress').className = `progress-bar ${getProgressColor(data.memory_percent)}`;
+            document.getElementById('memoryDetail').textContent = `${memoryUsedGB}GB / ${memoryTotalGB}GB`;
+
+            // 디스크
+            const diskUsedGB = (data.disk_used / 1024 / 1024 / 1024).toFixed(1);
+            const diskTotalGB = (data.disk_total / 1024 / 1024 / 1024).toFixed(1);
+            document.getElementById('diskPercent').textContent = `${data.disk_percent.toFixed(1)}%`;
+            document.getElementById('diskProgress').style.width = `${data.disk_percent}%`;
+            document.getElementById('diskProgress').className = `progress-bar ${getProgressColor(data.disk_percent)}`;
+            document.getElementById('diskDetail').textContent = `${diskUsedGB}GB / ${diskTotalGB}GB`;
+
+            // 업타임
+            const days = Math.floor(data.uptime_seconds / 86400);
+            const hours = Math.floor((data.uptime_seconds % 86400) / 3600);
+            document.getElementById('uptime').textContent = `${days}일 ${hours}시간`;
+        } catch (error) {
+            console.error('시스템 상태 조회 실패:', error);
+        }
+    }
+
+    // 데이터베이스 상태 조회
+    async function loadDatabaseStatus() {
+        try {
+            const response = await fetch('/api/admin/database/status');
+            const data = await response.json();
+
+            // PostgreSQL
+            if (data.postgresql.status === 'healthy') {
+                document.getElementById('pgStatus').className = 'badge bg-success';
+                document.getElementById('pgStatus').textContent = '정상';
+                document.getElementById('pgConnections').textContent = data.postgresql.active_connections;
+                document.getElementById('pgSize').textContent = `${data.postgresql.database_size_mb} MB`;
+            } else {
+                document.getElementById('pgStatus').className = 'badge bg-danger';
+                document.getElementById('pgStatus').textContent = '오류';
+            }
+
+            // MongoDB
+            if (data.mongodb.status === 'healthy') {
+                document.getElementById('mongoStatus').className = 'badge bg-success';
+                document.getElementById('mongoStatus').textContent = '정상';
+                document.getElementById('mongoCollections').textContent = data.mongodb.collections;
+                document.getElementById('mongoSize').textContent = `${data.mongodb.data_size_mb} MB`;
+            } else {
+                document.getElementById('mongoStatus').className = 'badge bg-danger';
+                document.getElementById('mongoStatus').textContent = '오류';
+            }
+
+            // Redis
+            if (data.redis.status === 'healthy') {
+                document.getElementById('redisStatus').className = 'badge bg-success';
+                document.getElementById('redisStatus').textContent = '정상';
+                document.getElementById('redisMemory').textContent = `${data.redis.used_memory_mb} MB`;
+                document.getElementById('redisKeys').textContent = data.redis.total_keys.toLocaleString();
+            } else {
+                document.getElementById('redisStatus').className = 'badge bg-danger';
+                document.getElementById('redisStatus').textContent = '오류';
+            }
+        } catch (error) {
+            console.error('데이터베이스 상태 조회 실패:', error);
+        }
+    }
+
+    // Docker 컨테이너 조회
+    async function loadDockerContainers() {
+        try {
+            const response = await fetch('/api/admin/docker/containers');
+            const data = await response.json();
+
+            // 마지막 체크 시각 표시
+            const checkedEl = document.getElementById('dockerCheckedAt');
+            if (data.checked_at && checkedEl) {
+                const t = new Date(data.checked_at);
+                checkedEl.textContent = `마지막 체크: ${t.toLocaleTimeString('ko-KR')}`;
+            }
+
+            const tbody = document.getElementById('containersList');
+            if (data.containers.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" class="text-center text-muted py-4">컨테이너가 없습니다</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = data.containers.map(container => {
+                const statusBadge = container.status === 'running' ?
+                    '<span class="badge bg-success">실행 중</span>' :
+                    '<span class="badge bg-secondary">중지됨</span>';
+
+                const memoryMB = (container.memory_usage / 1024 / 1024).toFixed(0);
+                const memoryLimitMB = (container.memory_limit / 1024 / 1024).toFixed(0);
+
+                return `
+                <tr>
+                    <td>${container.name}</td>
+                    <td>${statusBadge}</td>
+                    <td>${container.cpu_percent.toFixed(1)}%</td>
+                    <td>${memoryMB} MB / ${memoryLimitMB} MB</td>
+                </tr>
+            `;
+            }).join('');
+        } catch (error) {
+            console.error('Docker 컨테이너 조회 실패:', error);
+            document.getElementById('containersList').innerHTML =
+                '<tr><td colspan="4" class="text-center text-warning py-4"><i class="fas fa-exclamation-triangle me-2"></i>Docker 접근 권한이 필요합니다</td></tr>';
+        }
+    }
+
+    // 프로그레스 바 색상
+    function getProgressColor(percent) {
+        if (percent < 60) return 'bg-success';
+        if (percent < 80) return 'bg-warning';
+        return 'bg-danger';
+    }
+
+    // 전체 새로고침
+    async function refreshAll() {
+        await Promise.all([
+            loadSystemStatus(),
+            loadDatabaseStatus(),
+            loadDockerContainers()
+        ]);
+        document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString('ko-KR');
+    }
+
+    // 페이지 로드 시
+    document.addEventListener('DOMContentLoaded', function () {
+        refreshAll();
+
+        // 30초마다 자동 새로고침 (기본 ON)
+        autoRefreshInterval = setInterval(refreshAll, 30000);
+    });
+
+    // 페이지 언로드 시 인터벌 정리
+    window.addEventListener('beforeunload', function () {
+        if (autoRefreshInterval) {
+            clearInterval(autoRefreshInterval);
+        }
+    });
+</script>
+{% endblock %}

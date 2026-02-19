@@ -407,6 +407,8 @@ services:
       - MONGODB_PORT=27017
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
       - TZ=${TZ}
       - PYTHONUNBUFFERED=1
     working_dir: /app
@@ -414,6 +416,7 @@ services:
       - "${FASTAPI_PORT}:8900"
     volumes:
       - .:/app
+      - /var/run/docker.sock:/var/run/docker.sock # Docker 모니터링용
     networks: [ main-network ]
     restart: unless-stopped
     deploy:
@@ -567,7 +570,7 @@ services:
   # ================================================================
   #  AIRFLOW_FERNET_KEY=<자동생성>
   #  AIRFLOW_WEBSERVER_SECRET_KEY=<자동생성>
-  #  AIRFLOW_ADMIN_PASSWORD=admin1234!
+  #  AIRFLOW_ADMIN_PASSWORD=***REMOVED***
   #  AIRFLOW_DB=airflowdb          ← 기존 .env에 이미 존재
 
   # ================================================================

@@ -13,7 +13,6 @@ class ProductCreateRequest(BaseModel):
     """상품 등록"""
     model_config = ConfigDict(protected_namespaces=())
 
-    origine_prod_id: Optional[str] = Field(None, max_length=50)
     model_code: Optional[str] = Field(None, max_length=50)
     prod_name: Optional[str] = Field(None, max_length=50)
     base_price: Optional[int] = None
@@ -29,7 +28,6 @@ class ProductResponse(BaseModel):
     model_config = ConfigDict(protected_namespaces=())
 
     product_id: int
-    origine_prod_id: Optional[str] = None
     model_code: Optional[str] = None
     prod_name: Optional[str] = None
     base_price: Optional[int] = None

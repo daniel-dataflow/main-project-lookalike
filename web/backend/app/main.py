@@ -14,7 +14,7 @@ import logging
 
 from .config import get_settings
 from .database import init_all_databases, close_all_databases
-from .routers import auth_router, products_router, posts_router, search_router, inquiries_router
+from .routers import auth_router, products_router, posts_router, search_router, inquiries_router, admin_router, logs_router, metrics_router
 
 # ──────────────────────────────────────
 # 로깅 설정
@@ -37,7 +37,42 @@ async def lifespan(app: FastAPI):
         init_all_databases()
     except Exception as e:
         logger.warning(f"⚠️ DB 연결 초기화 중 일부 실패 (앱은 계속 실행): {e}")
+    
+    # Elasticsearch 인덱스 초기화
+    logger.info("📊 Elasticsearch 인덱스 초기화")
+    try:
+        from .core.elasticsearch_setup import init_elasticsearch_index, init_metric_index
+        init_elasticsearch_index()
+        init_metric_index()
+    except Exception as e:
+        logger.warning(f"⚠️ Elasticsearch 인덱스 초기화 실패: {e}")
+    
+    # 백그라운드 로그 및 메트릭 수집 서비스 시작
+    logger.info("🔄 백그라운드 수집 서비스 시작")
+    import asyncio
+    from .services.log_collector import LogCollector
+    from .services.metric_collector import MetricCollector
+    from .services.kafka_metric_consumer import KafkaMetricConsumer
+    
+    log_collector = LogCollector()
+    metric_collector = MetricCollector()
+    
+    # Kafka → Elasticsearch 메트릭 컨슈머 시작
+    kafka_metric_consumer = KafkaMetricConsumer()
+    kafka_metric_consumer.start()
+    
+    # 백그라운드 태스크 생성
+    log_task = asyncio.create_task(log_collector.start_background_collection())
+    metric_task = asyncio.create_task(metric_collector.start())
+    
     yield
+    
+    # 종료 시 태스크 취소
+    logger.info("🛑 앱 종료 - 백그라운드 서비스 중지")
+    log_task.cancel()
+    metric_task.cancel()
+    kafka_metric_consumer.stop()
+    
     logger.info("🛑 앱 종료 - 데이터베이스 연결 해제")
     close_all_databases()
 
@@ -82,6 +117,9 @@ app.include_router(products_router)
 app.include_router(posts_router)
 app.include_router(search_router)
 app.include_router(inquiries_router)
+app.include_router(admin_router)
+app.include_router(logs_router)
+app.include_router(metrics_router)
 
 
 # ──────────────────────────────────────
@@ -99,7 +137,79 @@ async def search_results(request: Request, q: str = ""):
 
 @app.get("/product/{product_id}", response_class=HTMLResponse)
 async def product_detail(request: Request, product_id: str):
-    return templates.TemplateResponse("product_detail.html", {"request": request, "product_id": product_id})
+    """상품 상세 페이지 (DB 연동)"""
+    from .database import get_pg_cursor
+    
+    try:
+        with get_pg_cursor() as cur:
+            # 1. 상품 기본 정보 + 설명
+            cur.execute(
+                """
+                SELECT 
+                    p.product_id,
+                    p.model_code,
+                    p.brand_name,
+                    p.prod_name,
+                    p.base_price,
+                    p.category_code,
+                    p.img_hdfs_path,
+                    pf.detected_desc
+                FROM products p
+                LEFT JOIN product_features pf ON p.product_id = pf.product_id
+                WHERE p.product_id = %s
+                """,
+                (product_id,),
+            )
+            product = cur.fetchone()
+
+            if not product:
+                return templates.TemplateResponse(
+                    "error.html",
+                    {"request": request, "error": "상품을 찾을 수 없습니다"},
+                    status_code=404,
+                )
+
+            # 2. 최저가 5개 쇼핑몰
+            cur.execute(
+                """
+                SELECT 
+                    mall_name,
+                    price,
+                    mall_url,
+                    rank
+                FROM naver_prices
+                WHERE product_id = %s
+                ORDER BY rank ASC
+                LIMIT 5
+                """,
+                (product_id,),
+            )
+            prices = cur.fetchall()
+
+        # 3. 할인율 계산
+        base_price = product["base_price"]
+        for price_info in prices:
+            discount = base_price - price_info["price"]
+            discount_rate = int((discount / base_price) * 100) if base_price > 0 else 0
+            price_info["discount"] = discount
+            price_info["discount_rate"] = discount_rate
+
+        return templates.TemplateResponse(
+            "product_detail.html",
+            {
+                "request": request,
+                "product": product,
+                "prices": prices,
+            },
+        )
+    except Exception as e:
+        logger.error(f"상품 상세 조회 실패: {e}", exc_info=True)
+        return templates.TemplateResponse(
+            "error.html",
+            {"request": request, "error": "서버 오류가 발생했습니다"},
+            status_code=500,
+        )
+
 
 
 @app.get("/mypage", response_class=HTMLResponse)
@@ -118,13 +228,23 @@ async def mypage(request: Request):
 
 # Admin Routes
 @app.get("/admin", response_class=HTMLResponse)
-async def admin_dashboard(request: Request):
+async def admin_root(request: Request):
+    """어드민 진입점: 기본 페이지를 인프라 모니터링으로 변경 (2026-02-19)
+    - 구 실시간 모니터링(admin_dashboard)은 /admin/stats 로 이동
+    """
+    return RedirectResponse(url="/admin/infra", status_code=302)
+
+
+@app.get("/admin/stats", response_class=HTMLResponse)
+async def admin_stats(request: Request):
+    """통계 모니터링 (구 실시간 모니터링 대시보드 — 향후 개발 예정)"""
     return templates.TemplateResponse("admin_dashboard.html", {"request": request})
 
 
-@app.get("/admin/infra", response_class=HTMLResponse)
-async def admin_infra(request: Request):
-    return templates.TemplateResponse("admin_infra.html", {"request": request})
+@app.get("/admin/infra_old", response_class=HTMLResponse)
+async def admin_infra_old(request: Request):
+    return templates.TemplateResponse("admin_infra_old.html", {"request": request})
+
 
 
 @app.get("/admin/batch", response_class=HTMLResponse)
@@ -137,6 +257,21 @@ async def admin_inquiry(request: Request):
     return templates.TemplateResponse("admin_inquiry.html", {"request": request})
 
 
+# 기존 로그 모니터링 (구버전 → _old 처리)
+# @app.get("/admin/logs_old", response_class=HTMLResponse)
+# async def admin_logs_old(request: Request):
+#     return templates.TemplateResponse("admin_logs_old.html", {"request": request})
+
+@app.get("/admin/logs", response_class=HTMLResponse)
+async def admin_logs(request: Request):
+    return templates.TemplateResponse("admin_logs.html", {"request": request})
+
+
+@app.get("/admin/infra", response_class=HTMLResponse)
+async def admin_infra(request: Request):
+    return templates.TemplateResponse("admin_infra.html", {"request": request})
+
+
 @app.get("/inquiry", response_class=HTMLResponse)
 async def inquiry_page(request: Request):
     return templates.TemplateResponse("inquiry.html", {"request": request})
@@ -144,11 +279,23 @@ async def inquiry_page(request: Request):
 
 @app.get("/recent", response_class=HTMLResponse)
 async def recent_viewed(request: Request):
-    return templates.TemplateResponse("recent_viewed.html", {"request": request})
+    from .routers.auth import _get_session
+    
+    session = _get_session(request)
+    if not session:
+        return RedirectResponse(url="/?error=login_required", status_code=302)
+    
+    return templates.TemplateResponse("recent.html", {"request": request})
 
 
 @app.get("/likes", response_class=HTMLResponse)
 async def likes(request: Request):
+    from .routers.auth import _get_session
+    
+    session = _get_session(request)
+    if not session:
+        return RedirectResponse(url="/?error=login_required", status_code=302)
+    
     return templates.TemplateResponse("likes.html", {"request": request})
 
 

@@ -140,7 +140,7 @@ ensure_airflow_secrets() {
     if ! grep -q "^AIRFLOW_ADMIN_PASSWORD=.\+" "${env_file}" 2>/dev/null; then
         local pw
         pw=$(grep "^ADMIN_PASSWORD=" "${env_file}" | cut -d= -f2)
-        pw="${pw:-admin1234!}"
+        pw="${pw:-***REMOVED***}"
         if grep -q "^AIRFLOW_ADMIN_PASSWORD=" "${env_file}" 2>/dev/null; then
             sed -i "s|^AIRFLOW_ADMIN_PASSWORD=.*|AIRFLOW_ADMIN_PASSWORD=${pw}|" "${env_file}"
         else

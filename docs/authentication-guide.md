@@ -227,7 +227,7 @@ async def logout(request: Request, response: Response):
 
 ```bash
 # Redis 컨테이너에 접속
-docker exec -it redis-main redis-cli -a DataPass2024!
+docker exec -it redis-main redis-cli -a ***REMOVED***
 
 # 모든 세션 키 조회
 KEYS session:*
@@ -397,11 +397,11 @@ POSTGRES_HOST=localhost       # Docker: postgresql
 POSTGRES_PORT=5432
 POSTGRES_DB=datadb
 POSTGRES_USER=datauser
-POSTGRES_PASSWORD=DataPass2024!
+POSTGRES_PASSWORD=***REMOVED***
 
 REDIS_HOST=localhost          # Docker: redis
 REDIS_PORT=6379
-REDIS_PASSWORD=DataPass2024!
+REDIS_PASSWORD=***REMOVED***
 
 MONGODB_HOST=localhost        # Docker: mongodb
 MONGODB_PORT=27017

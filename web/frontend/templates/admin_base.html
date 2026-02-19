@@ -2,120 +2,129 @@
 <html lang="ko">
 
 <head>
+    <script>
+        // 최우선 실행: 렌더링 전에 상태 적용
+        (function () {
+            if (localStorage.getItem('sidebarCollapsed') === 'true') {
+                document.documentElement.className = 'sidebar-collapsed-init';
+            }
+        })();
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Lookalike Admin{% endblock %}</title>
+    <!-- [성능] CDN 도메인 preconnect: DNS + TLS 핸드셰이크 미리 수행 -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- [성능] defer: DOMContentLoaded 이후 실행, 렌더링 블로킹 방지 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
     <link href="/static/css/style.css" rel="stylesheet">
-    <style>
-        /* [수정] 사이드바 스타일 반응형 처리 */
-        .sidebar {
-            width: 250px;
-            background-color: #fff;
-            border-right: 1px solid #dee2e6;
-            height: 100vh;
-            position: fixed;
-            top: 0;
-            left: 0;
-            overflow-y: auto;
-            z-index: 1000;
-        }
-
-        /* [수정] 메인 콘텐츠 여백 반응형 처리 */
-        .main-content {
-            margin-left: 250px;
-            padding: 20px;
-            transition: margin-left 0.3s ease;
-        }
-
-        /* 모바일용 스타일 */
-        @media (max-width: 768px) {
-            .sidebar {
-                display: none !important;
-                /* 기본 사이드바 숨김 */
-            }
-
-            .main-content {
-                margin-left: 0 !important;
-                /* 여백 제거 */
-                padding: 15px;
-                /* 패딩 축소 */
-            }
-        }
-
-        .sidebar .nav-pills .nav-link {
-            color: #333;
-            border-radius: 8px;
-            margin-bottom: 2px;
-            padding: 10px 16px;
-            transition: all 0.2s ease;
-            border-left: 3px solid transparent;
-        }
-
-        /* ... (기존 스타일 유지) ... */
-    </style>
+    <link href="/static/css/admin_style.css" rel="stylesheet">
 </head>
 
-<body class="bg-light">
-
+<body>
     <!-- 어드민 인증 오버레이 (생략 없이 유지) -->
 
     <!-- ... (인증 오버레이 코드) ... -->
 
-    <!-- [수정] 데스크탑용 사이드바 (md 이상에서만 표시) -->
-    <div class="sidebar d-none d-md-flex flex-column p-3" id="adminSidebar">
-        <a href="/admin" class="d-flex align-items-center mb-3 mb-md-0 me-md-auto link-dark text-decoration-none">
-            <i class="fas fa-user-shield text-primary fs-4 me-2"></i>
-            <span class="fs-4 fw-bold">관리자 페이지</span>
-        </a>
-        <hr>
-        <ul class="nav nav-pills flex-column mb-auto">
-            <li class="nav-item">
-                <a href="/admin" class="nav-link link-dark {% if request.url.path == '/admin' %}active{% endif %}">
-                    <i class="fas fa-chart-line me-2"></i>
-                    실시간 모니터링
-                </a>
-            </li>
-            <li>
-                <a href="/admin/infra"
-                    class="nav-link link-dark {% if request.url.path == '/admin/infra' %}active{% endif %}">
-                    <i class="fas fa-server me-2"></i>
-                    인프라 모니터링
-                </a>
-            </li>
-            <li>
-                <a href="/admin/batch"
-                    class="nav-link link-dark {% if request.url.path == '/admin/batch' %}active{% endif %}">
-                    <i class="fas fa-cogs me-2"></i>
-                    배치작업 모니터링
-                </a>
-            </li>
-            <li>
-                <a href="/admin/inquiry"
-                    class="nav-link link-dark {% if request.url.path == '/admin/inquiry' %}active{% endif %}">
-                    <i class="far fa-comment-dots me-2"></i>
-                    문의 관리
-                </a>
-            </li>
-        </ul>
-        <hr>
-        <div class="dropdown">
-            <a href="#" class="d-flex align-items-center link-dark text-decoration-none dropdown-toggle"
-                id="dropdownUser2" data-bs-toggle="dropdown" aria-expanded="false">
-                <img src="https://ui-avatars.com/api/?name=Admin&background=random" alt="" width="32" height="32"
-                    class="rounded-circle me-2">
-                <strong id="adminUserName">Admin</strong>
+    <!-- 프로페셔널 사이드바 -->
+    <div class="sidebar" id="adminSidebar">
+        <!-- 햄버거 메뉴 토글 버튼 -->
+        <button class="sidebar-toggle" onclick="toggleSidebar()" title="메뉴 접기/펴기">
+            <i class="fas fa-bars" id="toggleIcon"></i>
+        </button>
+
+        <!-- 스크롤 가능 영역 -->
+        <div class="sidebar-scroll">
+            <!-- 로고 -->
+            <a href="/admin/infra" class="sidebar-logo">
+                <i class="fas fa-user-shield"></i>
+                <span class="sidebar-text">관리자 페이지</span>
+            </a>
+
+            <hr>
+
+            <!-- 네비게이션 메뉴 -->
+            <ul class="nav nav-pills flex-column">
+                <li class="nav-item">
+                    <a href="/admin/infra" class="nav-link {% if request.url.path == '/admin/infra' %}active{% endif %}"
+                        data-tooltip="인프라 모니터링">
+                        <i class="fas fa-server"></i>
+                        <span class="sidebar-text">인프라 모니터링</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/logs" class="nav-link {% if request.url.path == '/admin/logs' %}active{% endif %}"
+                        data-tooltip="로그 모니터링">
+                        <i class="fas fa-file-alt"></i>
+                        <span class="sidebar-text">로그 모니터링</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/batch" class="nav-link {% if request.url.path == '/admin/batch' %}active{% endif %}"
+                        data-tooltip="배치작업 모니터링">
+                        <i class="fas fa-cogs"></i>
+                        <span class="sidebar-text">배치작업 모니터링</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/inquiry"
+                        class="nav-link {% if request.url.path == '/admin/inquiry' %}active{% endif %}"
+                        data-tooltip="문의 관리">
+                        <i class="far fa-comment-dots"></i>
+                        <span class="sidebar-text">문의 관리</span>
+                    </a>
+                </li>
+                <!--
+                <li class="nav-item">
+                    <a href="/admin/stats" class="nav-link {% if request.url.path == '/admin/stats' %}active{% endif %}"
+                        data-tooltip="통계 모니터링">
+                        <i class="fas fa-chart-line"></i>
+                        <span class="sidebar-text">통계 모니터링</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/infra_old" class="nav-link {% if request.url.path == '/admin/infra_old' %}active{% endif %}"
+                        data-tooltip="인프라 모니터링 (기존)">
+                        <i class="fas fa-server"></i>
+                        <span class="sidebar-text">인프라 모니터링 (기존)</span>
+                    </a>
+                </li>
+                 -->
+            </ul>
+        </div>
+
+        <!-- 접힌 상태 액션 버튼 -->
+        <div class="sidebar-collapsed-actions">
+            <a href="/" class="sidebar-action-btn" title="사용자 홈으로">
+                <i class="fas fa-home"></i>
+            </a>
+            <button class="sidebar-action-btn logout-btn" onclick="adminLogout()" title="로그아웃">
+                <i class="fas fa-sign-out-alt"></i>
+            </button>
+        </div>
+
+        <!-- 펼친 상태 드롭다운 -->
+        <div class="sidebar-dropdown">
+            <a href="#" class="dropdown-toggle" id="dropdownUser2" data-bs-toggle="dropdown" aria-expanded="false">
+                <img src="https://ui-avatars.com/api/?name=Admin&background=3b82f6&color=fff" alt="" width="36"
+                    height="36" class="rounded-circle">
+                <strong id="adminUserName" class="sidebar-text ms-2">Admin</strong>
             </a>
             <ul class="dropdown-menu text-small shadow" aria-labelledby="dropdownUser2">
-                <li><a class="dropdown-item" href="/">사용자 홈으로</a></li>
+                <li><a class="dropdown-item" href="/">
+                        <i class="fas fa-home me-2"></i>사용자 홈으로
+                    </a></li>
                 <li>
                     <hr class="dropdown-divider">
                 </li>
                 <li><a class="dropdown-item" href="#" onclick="adminLogout(); return false;">
-                        <i class="fas fa-sign-out-alt me-1"></i>관리자 로그아웃
+                        <i class="fas fa-sign-out-alt me-2"></i>관리자 로그아웃
                     </a></li>
             </ul>
         </div>
@@ -131,15 +140,16 @@
         </div>
         <div class="offcanvas-body d-flex flex-column">
             <ul class="nav nav-pills flex-column mb-auto">
-                <li class="nav-item">
-                    <a href="/admin" class="nav-link link-dark {% if request.url.path == '/admin' %}active{% endif %}">
-                        <i class="fas fa-chart-line me-2"></i> 실시간 모니터링
-                    </a>
-                </li>
                 <li>
                     <a href="/admin/infra"
                         class="nav-link link-dark {% if request.url.path == '/admin/infra' %}active{% endif %}">
                         <i class="fas fa-server me-2"></i> 인프라 모니터링
+                    </a>
+                </li>
+                <li>
+                    <a href="/admin/logs"
+                        class="nav-link link-dark {% if request.url.path == '/admin/logs' %}active{% endif %}">
+                        <i class="fas fa-file-alt me-2"></i> 로그 모니터링
                     </a>
                 </li>
                 <li>
@@ -154,6 +164,19 @@
                         <i class="far fa-comment-dots me-2"></i> 문의 관리
                     </a>
                 </li>
+                <!--
+                <li class="nav-item">
+                    <a href="/admin/stats" class="nav-link link-dark {% if request.url.path == '/admin/stats' %}active{% endif %}">
+                        <i class="fas fa-chart-line me-2"></i> 통계 모니터링
+                    </a>
+                </li>
+                <li>
+                    <a href="/admin/infra_old"
+                        class="nav-link link-dark {% if request.url.path == '/admin/infra_old' %}active{% endif %}">
+                        <i class="fas fa-server me-2"></i> 인프라 모니터링 (기존)
+                    </a>
+                </li>
+                -->
             </ul>
             <hr>
             <div class="d-grid gap-2">
@@ -177,13 +200,15 @@
                     data-bs-target="#mobileSidebar">
                     <i class="fas fa-bars fs-4"></i>
                 </button>
-                <h5 class="m-0 fw-bold">{% block page_title %}Dashboard{% endblock %}</h5>
+                </button>
+                <h5 class="m-0 fw-bold text-nowrap dashboard-title">{% block page_title
+                    %}Dashboard{% endblock %}</h5>
             </div>
 
             <div class="d-flex align-items-center">
-                <div class="d-none d-md-block input-group me-3" style="max-width: 250px;">
-                    <span class="input-group-text bg-light border-end-0"><i class="fas fa-search text-muted"></i></span>
-                    <input type="text" class="form-control bg-light border-start-0" placeholder="Search...">
+                <!-- Header Actions Block -->
+                <div class="me-1 me-md-3">
+                    {% block header_actions %}{% endblock %}
                 </div>
                 <div class="text-end d-none d-md-block">
                     <div class="fw-bold" id="adminTopName">Admin</div>
@@ -199,8 +224,54 @@
         {% block content %}{% endblock %}
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="/static/js/script.js"></script>
+    <!-- [성능] defer: 병렬 다운로드 후 DOM 준비되면 실행 -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" defer></script>
+    <script src="/static/js/script.js" defer></script>
+
+    <!-- [성능 최적화 3차] 페이지 전환 속도 개선 -->
+    <script>
+        // ── (1) API 데이터 프리로드 ──
+        // HTML 파싱 시점에 즉시 fetch 시작 → DOMContentLoaded 전에 응답 도착
+        // 각 페이지 JS에서 window.__preload[key]를 await하여 중복 호출 방지
+        (function () {
+            const preloadMap = {
+                '/admin/infra': [
+                    { key: 'infraDashboard', url: '/api/admin/infra/dashboard' },
+                    { key: 'metricsStats', url: '/api/metrics/stats' },
+                    { key: 'metricsStream', url: '/api/metrics/stream' }
+                ],
+                '/admin/logs': [
+                    { key: 'logsDashboard', url: '/api/logs/dashboard' }
+                ]
+            };
+            const path = location.pathname;
+            const targets = preloadMap[path];
+            if (targets) {
+                window.__preload = {};
+                targets.forEach(t => {
+                    window.__preload[t.key] = fetch(t.url).then(r => r.json()).catch(() => null);
+                });
+            }
+        })();
+
+        // ── (2) 네비게이션 프리페치 ──
+        // 사이드바 링크에 마우스를 올리면 해당 페이지 HTML을 미리 다운로드
+        // → 클릭 시 브라우저 캐시에서 즉시 로드되어 체감 전환 속도 향상
+        (function () {
+            const prefetched = new Set();
+            document.addEventListener('mouseover', function (e) {
+                const link = e.target.closest('.nav-link[href^="/admin/"]');
+                if (!link) return;
+                const href = link.getAttribute('href');
+                if (!href || href === location.pathname || prefetched.has(href)) return;
+                prefetched.add(href);
+                const el = document.createElement('link');
+                el.rel = 'prefetch';
+                el.href = href;
+                document.head.appendChild(el);
+            });
+        })();
+    </script>
 
     <script>
         // 페이지 로드 시 어드민 인증 상태 확인
@@ -208,27 +279,61 @@
             checkAdminAuth();
         });
 
-        async function checkAdminAuth() {
-            try {
-                const resp = await fetch('/api/auth/admin/check', { credentials: 'same-origin' });
-                const data = await resp.json();
+        // [성능 최적화] 인증 결과를 sessionStorage에 5분 캐싱
+        // - 동일 세션 내 페이지 이동 시 API 호출 없이 즉시 콘텐츠 표시
+        // - 로그아웃/만료 시 캐시 무효화
+        const AUTH_CACHE_KEY = 'adminAuthCache';
+        const AUTH_CACHE_TTL = 5 * 60 * 1000; // 5분 (ms)
 
-                if (data.is_admin) {
-                    showAdminContent();
-                    // 사용자 이름 표시
-                    const meResp = await fetch('/api/auth/me', { credentials: 'same-origin' });
-                    const meData = await meResp.json();
-                    if (meData.success && meData.user) {
-                        const name = meData.user.name || 'Admin';
-                        document.getElementById('adminUserName').textContent = name;
-                        document.getElementById('adminTopName').textContent = name;
+        async function checkAdminAuth() {
+            // 캐시 확인
+            try {
+                const cached = JSON.parse(sessionStorage.getItem(AUTH_CACHE_KEY));
+                if (cached && Date.now() - cached.ts < AUTH_CACHE_TTL) {
+                    if (cached.is_admin) {
+                        showAdminContent();
+                        applyUserName(cached.name);
+                        return;
                     }
+                }
+            } catch (_) { /* 캐시 파싱 실패 시 무시 */ }
+
+            // [성능 최적화] check + me API 병렬 호출 (직렬 → Promise.all)
+            try {
+                const [checkResp, meResp] = await Promise.all([
+                    fetch('/api/auth/admin/check', { credentials: 'same-origin' }),
+                    fetch('/api/auth/me', { credentials: 'same-origin' })
+                ]);
+                const [checkData, meData] = await Promise.all([
+                    checkResp.json(),
+                    meResp.json()
+                ]);
+
+                if (checkData.is_admin) {
+                    const name = (meData.success && meData.user && meData.user.name) ? meData.user.name : 'Admin';
+                    // 결과 캐싱
+                    sessionStorage.setItem(AUTH_CACHE_KEY, JSON.stringify({
+                        is_admin: true,
+                        name,
+                        ts: Date.now()
+                    }));
+                    showAdminContent();
+                    applyUserName(name);
                 } else {
+                    sessionStorage.removeItem(AUTH_CACHE_KEY);
                     showAdminAuth();
                 }
             } catch (e) {
+                sessionStorage.removeItem(AUTH_CACHE_KEY);
                 showAdminAuth();
             }
+        }
+
+        function applyUserName(name) {
+            const el1 = document.getElementById('adminUserName');
+            const el2 = document.getElementById('adminTopName');
+            if (el1) el1.textContent = name;
+            if (el2) el2.textContent = name;
         }
 
         function showAdminAuth() {
@@ -306,7 +411,36 @@
             }
         }
 
+        // 사이드바 접기/펴기 토글 함수
+        function toggleSidebar() {
+            const sidebar = document.getElementById('adminSidebar');
+            const mainContent = document.getElementById('adminMainContent');
+
+            sidebar.classList.toggle('collapsed');
+            mainContent.classList.toggle('expanded');
+
+            // 로컬 스토리지에 상태 저장
+            localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
+        }
+
+        // 페이지 로드 시 저장된 사이드바 상태 복원
+        document.addEventListener('DOMContentLoaded', function () {
+            const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
+            const sidebar = document.getElementById('adminSidebar');
+            const mainContent = document.getElementById('adminMainContent');
+
+            // 초기화 클래스 제거
+            document.documentElement.classList.remove('sidebar-collapsed-init');
+
+            if (isCollapsed) {
+                sidebar.classList.add('collapsed');
+                mainContent.classList.add('expanded');
+            }
+        });
+
         async function adminLogout() {
+            // 로그아웃 시 인증 캐시 무효화
+            sessionStorage.removeItem(AUTH_CACHE_KEY);
             try {
                 await fetch('/api/auth/admin/logout', {
                     method: 'POST',

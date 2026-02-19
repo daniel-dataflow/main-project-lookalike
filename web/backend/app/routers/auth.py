@@ -232,37 +232,32 @@ async def logout(request: Request, response: Response):
 # ──────────────────────────────────────
 @router.get("/me", response_model=LoginResponse)
 async def get_current_user(request: Request):
-    """현재 로그인한 사용자 정보 조회 (DB 최신 정보)"""
+    """현재 로그인한 사용자 정보 조회 (Redis 세션에서 직접 반환)
+    
+    [성능 최적화] 기존: Redis 세션 조회 → PostgreSQL DB 쿼리
+                 변경: Redis 세션 데이터를 그대로 반환 (DB 쿼리 제거)
+    - 세션에 name/email/role 등 필요한 정보가 이미 저장되어 있음
+    - 로그아웃/재로그인 시 세션이 갱신되므로 정합성 문제 없음
+    """
     session = _get_session(request)
     if not session:
         return LoginResponse(success=False, message="로그인이 필요합니다")
-    
-    user_id = session.get("user_id")
-    
-    try:
-        with get_pg_cursor() as cur:
-            cur.execute(
-                """
-                SELECT user_id, name, email, role, provider, profile_image,
-                       last_login, create_dt
-                FROM users WHERE user_id = %s
-                """,
-                (user_id,),
-            )
-            row = cur.fetchone()
-            
-        if not row:
-            # 세션은 있으나 DB에 사용자가 없는 경우
-            return LoginResponse(success=False, message="사용자 정보를 찾을 수 없습니다")
-            
-        return LoginResponse(
-            success=True,
-            message="인증된 사용자",
-            user=UserResponse(**row),
-        )
-    except Exception as e:
-        logger.error(f"사용자 정보 조회 실패: {e}")
-        return LoginResponse(success=False, message="정보 조회 중 오류 발생")
+
+    return LoginResponse(
+        success=True,
+        message="인증된 사용자",
+        user=UserResponse(
+            user_id=session.get("user_id", ""),
+            name=session.get("name"),
+            email=session.get("email"),
+            role=session.get("role", "USER"),
+            provider=session.get("provider", "email"),
+            profile_image=session.get("profile_image"),
+            last_login=None,
+            create_dt=None,
+        ),
+    )
+
 
 
 # ──────────────────────────────────────
@@ -427,9 +422,9 @@ async def oauth_callback(
         userinfo = userinfo_resp.json()
 
     # 3. 제공자별 사용자 정보 파싱
-    social_id, name, email, profile_image = _parse_oauth_userinfo(provider, userinfo)
+    provider_id, name, email, profile_image = _parse_oauth_userinfo(provider, userinfo)
 
-    if not social_id:
+    if not provider_id:
         logger.error(f"소셜 ID 추출 실패 ({provider}): {userinfo}")
         return RedirectResponse(url="/?error=oauth_failed")
 
@@ -438,8 +433,8 @@ async def oauth_callback(
         with get_pg_cursor() as cur:
             # 기존 사용자 조회
             cur.execute(
-                "SELECT * FROM users WHERE provider = %s AND social_id = %s",
-                (provider, social_id),
+                "SELECT * FROM users WHERE provider = %s AND provider_id = %s",
+                (provider, provider_id),
             )
             existing = cur.fetchone()
 
@@ -449,10 +444,10 @@ async def oauth_callback(
                     """
                     UPDATE users SET last_login = NOW(), name = COALESCE(%s, name),
                            profile_image = COALESCE(%s, profile_image)
-                    WHERE provider = %s AND social_id = %s
+                    WHERE provider = %s AND provider_id = %s
                     RETURNING user_id, name, email, role, provider, profile_image, create_dt
                     """,
-                    (name, profile_image, provider, social_id),
+                    (name, profile_image, provider, provider_id),
                 )
                 row = cur.fetchone()
             else:
@@ -460,11 +455,11 @@ async def oauth_callback(
                 user_id = f"{provider}_{uuid.uuid4().hex[:8]}"
                 cur.execute(
                     """
-                    INSERT INTO users (user_id, name, email, provider, social_id, profile_image)
+                    INSERT INTO users (user_id, name, email, provider, provider_id, profile_image)
                     VALUES (%s, %s, %s, %s, %s, %s)
                     RETURNING user_id, name, email, role, provider, profile_image, create_dt
                     """,
-                    (user_id, name, email, provider, social_id, profile_image),
+                    (user_id, name, email, provider, provider_id, profile_image),
                 )
                 row = cur.fetchone()
 
@@ -480,7 +475,7 @@ async def oauth_callback(
 
 
 def _parse_oauth_userinfo(provider: str, info: dict) -> tuple:
-    """제공자별 사용자 정보 파싱 → (social_id, name, email, profile_image)"""
+    """제공자별 사용자 정보 파싱 → (provider_id, name, email, profile_image)"""
     if provider == "google":
         return (
             info.get("id"),

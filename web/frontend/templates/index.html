@@ -13,11 +13,28 @@
     <div class="card-body p-4">
         <h6 class="fw-bold mb-3">상품 이미지 업로드</h6>
         <div class="upload-area rounded d-flex flex-column align-items-center justify-content-center p-5 text-center"
-            style="border: 2px dashed #dee2e6; background-color: #f8f9fa; cursor: pointer; min-height: 300px;">
-            <i class="fas fa-file-upload text-secondary mb-3" style="font-size: 2rem;"></i>
-            <p class="text-secondary mb-1 fw-medium">이미지를 드래그하거나 클릭하여 업로드</p>
-            <p class="text-muted small">JPG, PNG, GIF 지원</p>
-            <input type="file" id="imageUpload" class="d-none" accept="image/*">
+            id="uploadArea"
+            style="border: 2px dashed #dee2e6; background-color: #f8f9fa; cursor: pointer; min-height: 300px; transition: all 0.3s ease;">
+            <!-- 기본 상태 -->
+            <div id="uploadPlaceholder">
+                <i class="fas fa-file-upload text-secondary mb-3" style="font-size: 2rem;"></i>
+                <p class="text-secondary mb-1 fw-medium">이미지를 드래그하거나 클릭하여 업로드</p>
+                <p class="text-muted small">JPG, PNG 지원 (최대 10MB)</p>
+            </div>
+            <!-- 이미지 미리보기 (업로드 후) -->
+            <div id="uploadPreview" class="d-none text-center">
+                <div class="position-relative d-inline-block">
+                    <img id="previewImage" src="" alt="Preview" class="img-fluid rounded shadow-sm mb-2"
+                        style="max-height: 200px;">
+                    <button type="button" id="removeImageBtn"
+                        class="btn btn-danger btn-sm position-absolute top-0 end-0 m-2 rounded-circle"
+                        style="width: 32px; height: 32px; padding: 0;">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                <p id="previewFileName" class="text-muted small mb-0"></p>
+            </div>
+            <input type="file" id="imageUpload" class="d-none" accept="image/jpeg,image/png,image/jpg">
         </div>
     </div>
 </div>
@@ -28,18 +45,20 @@
         <label class="form-label fw-bold">검색어 입력 (선택)</label>
         <div class="input-group mb-3">
             <input type="text" class="form-control border-end-0" placeholder="예: 린넨 셔츠, 트렌치 코트..." id="searchInput">
-            <a href="/search" class="btn btn-secondary border-start-0 ps-3 pe-3" id="searchBtn">
+            <button class="btn btn-dark border-start-0 ps-3 pe-3" id="searchBtn">
                 <i class="fas fa-search"></i> 검색
-            </a>
+            </button>
         </div>
 
         <label class="form-label fw-bold small">카테고리 선택</label>
-        <div class="d-flex gap-2 flex-wrap">
-            <button class="btn btn-primary btn-sm rounded-pill px-3">전체</button>
-            <button class="btn btn-outline-secondary btn-sm rounded-pill px-3">남성</button>
-            <button class="btn btn-outline-secondary btn-sm rounded-pill px-3">여성</button>
-            <button class="btn btn-outline-secondary btn-sm rounded-pill px-3">아우터</button>
-            <button class="btn btn-outline-secondary btn-sm rounded-pill px-3">상의</button>
+        <div class="d-flex gap-2 flex-wrap" id="categoryBtns">
+            <button class="btn btn-primary btn-sm rounded-pill px-3 category-btn active" data-category="전체">전체</button>
+            <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 category-btn"
+                data-category="상의">상의</button>
+            <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 category-btn"
+                data-category="하의">하의</button>
+            <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 category-btn"
+                data-category="아우터">아우터</button>
         </div>
         <div class="mt-3 text-muted" style="font-size: 0.75rem;">
             <i class="far fa-lightbulb text-warning me-1"></i>
@@ -47,4 +66,265 @@
         </div>
     </div>
 </div>
+
+<!-- Loading Overlay -->
+<div id="searchLoading" class="d-none">
+    <div class="card bg-white border-0 shadow-sm mb-4">
+        <div class="card-body text-center py-5">
+            <div class="spinner-border text-primary mb-3" role="status">
+                <span class="visually-hidden">검색 중...</span>
+            </div>
+            <p class="text-muted mb-0">이미지를 분석하고 유사 상품을 검색하고 있습니다...</p>
+        </div>
+    </div>
+</div>
+
+<!-- Search Results (동적 생성) -->
+<div id="searchResults" class="d-none">
+    <div class="d-flex align-items-center mb-3">
+        <i class="fas fa-search me-2 text-primary"></i>
+        <h5 class="fw-bold m-0">검색 결과</h5>
+    </div>
+    <p class="text-muted small mb-3">유사도 기준으로 정렬한 검색 결과입니다.</p>
+    <div id="resultsContainer" class="row row-cols-1 row-cols-md-2 g-3"></div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // URL 파라미터 확인 - 로그인 필요 메시지
+        const urlParams = new URLSearchParams(window.location.search);
+        const error = urlParams.get('error');
+
+        if (error === 'login_required') {
+            alert('로그인이 필요한 페이지입니다. 로그인 후 이용해주세요.');
+            // URL에서 파라미터 제거
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }
+
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('imageUpload');
+        const placeholder = document.getElementById('uploadPlaceholder');
+        const preview = document.getElementById('uploadPreview');
+        const previewImage = document.getElementById('previewImage');
+        const previewFileName = document.getElementById('previewFileName');
+        const removeImageBtn = document.getElementById('removeImageBtn');
+        const searchBtn = document.getElementById('searchBtn');
+        const searchInput = document.getElementById('searchInput');
+        const searchLoading = document.getElementById('searchLoading');
+        const searchResults = document.getElementById('searchResults');
+        const resultsContainer = document.getElementById('resultsContainer');
+        const categoryBtns = document.querySelectorAll('.category-btn');
+
+        let selectedFile = null;
+        let selectedCategory = '전체';
+
+        // 카테고리 선택
+        categoryBtns.forEach(btn => {
+            btn.addEventListener('click', function () {
+                categoryBtns.forEach(b => {
+                    b.classList.remove('active');
+                    b.classList.remove('btn-primary');
+                    b.classList.add('btn-outline-secondary');
+                });
+                this.classList.add('active');
+                this.classList.remove('btn-outline-secondary');
+                this.classList.add('btn-primary');
+                selectedCategory = this.dataset.category;
+            });
+        });
+
+        // 검색어 입력창에서 엔터키 누르면 검색
+        searchInput.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                searchBtn.click();
+            }
+        });
+
+        // 업로드 영역 클릭
+        uploadArea.addEventListener('click', function () {
+            fileInput.click();
+        });
+
+        // 드래그 앤 드롭
+        uploadArea.addEventListener('dragover', function (e) {
+            e.preventDefault();
+            uploadArea.style.borderColor = '#0d6efd';
+        });
+
+        uploadArea.addEventListener('dragleave', function () {
+            uploadArea.style.borderColor = '#dee2e6';
+        });
+
+        uploadArea.addEventListener('drop', function (e) {
+            e.preventDefault();
+            uploadArea.style.borderColor = '#dee2e6';
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                handleFileSelect(file);
+            }
+        });
+
+        // 파일 선택
+        fileInput.addEventListener('change', function () {
+            if (this.files && this.files[0]) {
+                handleFileSelect(this.files[0]);
+            }
+        });
+
+        // 이미지 삭제 버튼
+        removeImageBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            selectedFile = null;
+            fileInput.value = '';
+            preview.classList.add('d-none');
+            placeholder.classList.remove('d-none');
+            uploadArea.style.borderColor = '#dee2e6';
+            uploadArea.style.borderStyle = 'dashed';
+            previewImage.src = '';
+            previewFileName.textContent = '';
+            // 검색 버튼은 활성화 유지 (텍스트 검색 가능)
+        });
+
+        function handleFileSelect(file) {
+            // 파일 형식 체크
+            const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'];
+            if (!allowedTypes.includes(file.type)) {
+                alert('JPG, PNG 파일만 업로드 가능합니다.');
+                return;
+            }
+
+            // 파일 크기 체크 (10MB)
+            if (file.size > 10 * 1024 * 1024) {
+                alert('파일 크기는 10MB 이하여야 합니다.');
+                return;
+            }
+
+            selectedFile = file;
+
+            // 미리보기 표시
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                previewImage.src = e.target.result;
+                previewFileName.textContent = file.name + ' (' + formatFileSize(file.size) + ')';
+                placeholder.classList.add('d-none');
+                preview.classList.remove('d-none');
+                uploadArea.style.borderColor = '#198754';
+                uploadArea.style.borderStyle = 'solid';
+            };
+            reader.readAsDataURL(file);
+
+            // 검색 버튼 활성화
+            searchBtn.disabled = false;
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / 1048576).toFixed(1) + ' MB';
+        }
+
+        // 검색 실행
+        searchBtn.addEventListener('click', async function () {
+            const searchText = searchInput.value.trim();
+
+            // 검색 조건 검증: 이미지 또는 텍스트 중 하나는 필수
+            if (!selectedFile && !searchText) {
+                alert('이미지를 업로드하거나 검색어를 입력해주세요.');
+                return;
+            }
+
+            // 로딩 표시
+            searchLoading.classList.remove('d-none');
+            searchResults.classList.add('d-none');
+            searchBtn.disabled = true;
+            searchBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> 검색 중...';
+
+            try {
+                const formData = new FormData();
+
+                // 이미지가 있을 때만 추가
+                if (selectedFile) {
+                    formData.append('image', selectedFile);
+                }
+
+                const searchText = searchInput.value.trim();
+                if (searchText) {
+                    formData.append('search_text', searchText);
+                }
+                if (selectedCategory && selectedCategory !== '전체') {
+                    formData.append('category', selectedCategory);
+                }
+
+                const response = await fetch('/api/search/by-image', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        alert('로그인이 필요합니다. 로그인 후 다시 시도해주세요.');
+                        return;
+                    }
+                    throw new Error(data.detail || '검색에 실패했습니다.');
+                }
+
+                // 결과 표시
+                displayResults(data);
+
+            } catch (err) {
+                console.error('검색 오류:', err);
+                alert(err.message || '검색 중 오류가 발생했습니다.');
+            } finally {
+                searchLoading.classList.add('d-none');
+                searchBtn.disabled = false;
+                searchBtn.innerHTML = '<i class="fas fa-search"></i> 검색';
+            }
+        });
+
+        function displayResults(data) {
+            resultsContainer.innerHTML = '';
+
+            if (!data.results || data.results.length === 0) {
+                resultsContainer.innerHTML = `
+                <div class="col-12 text-center py-5">
+                    <i class="fas fa-search text-muted mb-3" style="font-size: 3rem;"></i>
+                    <p class="text-muted">유사한 상품을 찾지 못했습니다.</p>
+                </div>`;
+                searchResults.classList.remove('d-none');
+                return;
+            }
+
+            data.results.forEach(function (item, index) {
+                const priceFormatted = item.price.toLocaleString();
+
+                const card = document.createElement('div');
+                card.className = 'col';
+                card.innerHTML = `
+                <a href="/product/${item.product_id}" class="text-decoration-none">
+                    <div class="card h-100 product-card position-relative overflow-hidden shadow-sm">
+                        <img src="${item.image_url}" class="card-img-top" alt="${item.product_name}"
+                            style="height: 200px; object-fit: cover;" onerror="this.src='https://placehold.co/300x300?text=No+Image'">
+                        <div class="card-body">
+                            <small class="text-muted d-block mb-1">${item.brand}</small>
+                            <h6 class="card-title text-truncate fw-bold text-dark">${item.product_name}</h6>
+                            <div class="d-flex align-items-center mt-2">
+                                <span class="text-danger fw-bold fs-6 me-2">${priceFormatted}원</span>
+                            </div>
+                            <div class="text-muted small mt-1">${item.mall_name}</div>
+                        </div>
+                    </div>
+                </a>`;
+                resultsContainer.appendChild(card);
+            });
+
+            searchResults.classList.remove('d-none');
+
+            // 결과 영역으로 스크롤
+            searchResults.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    });
+</script>
 {% endblock %}

@@ -274,14 +274,14 @@ docker compose up -d init-db
 
 ```env
 # === 관리자 설정 ===
-ADMIN_PASSWORD=admin1234!    # 관리자 인증 비밀번호 (운영 시 반드시 변경)
+ADMIN_PASSWORD=***REMOVED***    # 관리자 인증 비밀번호 (운영 시 반드시 변경)
 ```
 
 `config.py`에서 로드:
 
 ```python
 class Settings(BaseSettings):
-    ADMIN_PASSWORD: str = "admin1234!"
+    ADMIN_PASSWORD: str = "***REMOVED***"
 ```
 
 ---
