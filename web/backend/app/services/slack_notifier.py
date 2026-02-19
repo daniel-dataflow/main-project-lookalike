@@ -17,7 +17,7 @@ KST = timezone(timedelta(hours=9))
 
 class SlackNotifier:
     """
-    Slack Webhook 기반 알림 서비스 (v2)
+    Slack Webhook 기반 알림 서비스
 
     기능:
     1. CRITICAL/ERROR 로그 발생 시 Slack 알림
@@ -64,8 +64,21 @@ class SlackNotifier:
             "CRITICAL": 4, "ERROR": 3, "WARN": 2, "INFO": 1
         }
 
+        # 서버 접속 URL (슬랙 링크에 사용)
+        # APP_ENV=production → APP_BASE_URL_PROD
+        # APP_ENV=development/local/기타 → APP_BASE_URL_LOCAL
+        _env = os.environ.get("APP_ENV", "development").lower()
+        if _env == "production":
+            self.app_base_url = os.environ.get(
+                "APP_BASE_URL_PROD", "http://localhost:8900"
+            ).rstrip("/")
+        else:
+            self.app_base_url = os.environ.get(
+                "APP_BASE_URL_LOCAL", "http://localhost:8900"
+            ).rstrip("/")
+
         if self.enabled:
-            logger.info("Slack 알림 서비스 활성화됨")
+            logger.info(f"Slack 알림 서비스 활성화됨 (env={_env}, base_url={self.app_base_url})")
         else:
             logger.info("Slack 알림 비활성화 (SLACK_WEBHOOK_URL 미설정)")
 
@@ -267,7 +280,7 @@ class SlackNotifier:
                     },
                     {
                         "type": "context",
-                        "elements": [{"type": "mrkdwn", "text": "📋 <http://localhost:8900/admin/logs_v2|로그 모니터링 v2 열기>"}]
+                        "elements": [{"type": "mrkdwn", "text": f"📋 <{self.app_base_url}/admin/logs|로그 모니터링 열기>"}]
                     }
                 ]
             }]
@@ -350,7 +363,7 @@ class SlackNotifier:
                     },
                     {
                         "type": "context",
-                        "elements": [{"type": "mrkdwn", "text": "📋 <http://localhost:8900/admin/logs_v2|로그 모니터링 v2 열기>"}]
+                        "elements": [{"type": "mrkdwn", "text": f"📋 <{self.app_base_url}/admin/logs|로그 모니터링 열기>"}]
                     }
                 ]
             }]

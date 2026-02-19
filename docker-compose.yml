@@ -399,6 +399,8 @@ services:
     env_file: [ .env ]
     environment:
       - APP_ENV=${APP_ENV}
+      - APP_BASE_URL_LOCAL=${APP_BASE_URL_LOCAL}
+      - APP_BASE_URL_PROD=${APP_BASE_URL_PROD}
       - POSTGRES_HOST=postgresql
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
