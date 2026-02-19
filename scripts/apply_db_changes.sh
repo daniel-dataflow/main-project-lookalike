@@ -208,6 +208,7 @@ else
 fi
 
 # 4-2. search_results 테이블 생성
+# ※ 비정규화 구조: product_id FK 대신 상품 정보를 직접 저장 (검색 당시 스냅샷 보존)
 HAS_SEARCH_RESULTS=$(docker exec ${PG_CONTAINER} psql -U ${POSTGRES_USER} -d ${POSTGRES_DB} -tc \
     "SELECT 1 FROM pg_tables WHERE schemaname='public' AND tablename='search_results';" | tr -d ' ')
 
@@ -221,7 +222,6 @@ else
             log_id BIGINT REFERENCES search_logs(log_id) ON DELETE CASCADE,
             product_name VARCHAR(200),
             brand VARCHAR(100),
-            similarity_score NUMERIC(4,2),
             price INTEGER,
             image_url VARCHAR(512),
             mall_name VARCHAR(100),
@@ -281,9 +281,9 @@ echo "    ✅ search_results 테이블"
 echo "    ✅ products 테이블 brand_name 컬럼"
 echo "============================================"
 
-# ---- 6. 불필요한 컬럼 삭제 (origine_prod_id, similarity_score) ----
+# ---- 6. 불필요한 컬럼 삭제 (origine_prod_id) ----
 echo ""
-echo "6️⃣  불필요한 컬럼 삭제 (origine_prod_id, similarity_score)..."
+echo "6️⃣  불필요한 컬럼 삭제 (origine_prod_id)..."
 
 # products.origine_prod_id 삭제
 HAS_ORIGINE=$(docker exec ${PG_CONTAINER} psql -U ${POSTGRES_USER} -d ${POSTGRES_DB} -tc \
@@ -296,19 +296,6 @@ if [ "$HAS_ORIGINE" = "1" ]; then
     echo "   ✅ products.origine_prod_id 컬럼 삭제 완료"
 else
     echo "   ⏭️  products.origine_prod_id 컬럼 이미 삭제됨 (스킵)"
-fi
-
-# search_results.similarity_score 삭제
-HAS_SIMILARITY=$(docker exec ${PG_CONTAINER} psql -U ${POSTGRES_USER} -d ${POSTGRES_DB} -tc \
-    "SELECT 1 FROM information_schema.columns WHERE table_name='search_results' AND column_name='similarity_score';" | tr -d ' ')
-
-if [ "$HAS_SIMILARITY" = "1" ]; then
-    echo "   ⚠️  search_results.similarity_score 컬럼 삭제 중..."
-    docker exec ${PG_CONTAINER} psql -U ${POSTGRES_USER} -d ${POSTGRES_DB} -c \
-        "ALTER TABLE search_results DROP COLUMN IF EXISTS similarity_score;"
-    echo "   ✅ search_results.similarity_score 컬럼 삭제 완료"
-else
-    echo "   ⏭️  search_results.similarity_score 컬럼 이미 삭제됨 (스킵)"
 fi
 
 # ---- 7. social_id를 provider_id로 컬럼명 변경 ----
@@ -369,18 +356,56 @@ else
 fi
 
 echo ""
+
+# 9. products 테이블 gender 컬럼 추가
+echo "9️⃣  products 테이블 gender 컬럼 추가..."
+HAS_GENDER=$(docker exec ${PG_CONTAINER} psql -U ${POSTGRES_USER} -d ${POSTGRES_DB} -tc \
+    "SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='gender';" | tr -d ' ')
+
+if [ "$HAS_GENDER" = "1" ]; then
+    echo "   ⏭️  products.gender 컬럼 이미 존재 (스킵)"
+else
+    echo "   ⚠️  products.gender 컬럼 추가 중..."
+    docker exec ${PG_CONTAINER} psql -U ${POSTGRES_USER} -d ${POSTGRES_DB} -c "
+        ALTER TABLE products ADD COLUMN gender VARCHAR(10);
+        COMMENT ON COLUMN products.gender IS '성별 구분: 남자 / 여자 / NULL(공용)';
+    "
+    echo "   ✅ products.gender 컬럼 추가 완료"
+fi
+
+echo ""
+
+# 9-1. search_logs 테이블 gender 컬럼 추가
+echo "🔟  search_logs 테이블 gender 컬럼 추가..."
+HAS_LOG_GENDER=$(docker exec ${PG_CONTAINER} psql -U ${POSTGRES_USER} -d ${POSTGRES_DB} -tc \
+    "SELECT 1 FROM information_schema.columns WHERE table_name='search_logs' AND column_name='gender';" | tr -d ' ')
+
+if [ "$HAS_LOG_GENDER" = "1" ]; then
+    echo "   ⏭️  search_logs.gender 컬럼 이미 존재 (스킵)"
+else
+    echo "   ⚠️  search_logs.gender 컬럼 추가 중..."
+    docker exec ${PG_CONTAINER} psql -U ${POSTGRES_USER} -d ${POSTGRES_DB} -c "
+        ALTER TABLE search_logs ADD COLUMN gender VARCHAR(10);
+        COMMENT ON COLUMN search_logs.gender IS '검색 시 선택한 성별: 남자 / 여자';
+    "
+    echo "   ✅ search_logs.gender 컬럼 추가 완료"
+fi
+
+echo ""
 echo "============================================"
 echo "  ✅ 모든 DB 변경사항 적용 완료!"
 echo ""
 echo "  적용된 항목:"
 echo "    ✅ Airflow DB (airflowdb) 분리"
-echo "    ✅ users 소셜 로그인 컬럼"
-echo "    ✅ inquiry_board 게시판 테이블"
+echo "    ✅ users 소셜 로그인 컬럼 (provider, provider_id, profile_image)"
+echo "    ✅ inquiry_board 게시판 테이블 (posts → 마이그레이션)"
 echo "    ✅ comments 댓글 테이블"
-echo "    ✅ search_logs 확장 (썸네일, 메타데이터)"
-echo "    ✅ search_results 테이블"
-echo "    ✅ products 테이블 brand_name 컬럼"
-echo "    ✅ 불필요한 컬럼 삭제 (origine_prod_id, similarity_score)"
+echo "    ✅ search_logs 확장 (thumbnail_path, image_size/width/height, search_status, result_count)"
+echo "    ✅ search_logs gender 컬럼 추가"
+echo "    ✅ search_results 테이블 (비정규화: product_name/brand/price/image_url/mall_name/mall_url/rank)"
+echo "    ✅ products 테이블 brand_name 컬럼 추가"
+echo "    ✅ products 테이블 origine_prod_id 컬럼 삭제"
 echo "    ✅ social_id → provider_id 컬럼명 변경"
 echo "    ✅ recent_views, likes 테이블 생성"
+echo "    ✅ products 테이블 gender 컬럼 추가"
 echo "============================================"

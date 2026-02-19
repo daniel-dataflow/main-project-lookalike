@@ -51,15 +51,36 @@
         </div>
 
         <label class="form-label fw-bold small">카테고리 선택</label>
-        <div class="d-flex gap-2 flex-wrap" id="categoryBtns">
-            <button class="btn btn-primary btn-sm rounded-pill px-3 category-btn active" data-category="전체">전체</button>
-            <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 category-btn"
-                data-category="상의">상의</button>
-            <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 category-btn"
-                data-category="하의">하의</button>
-            <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 category-btn"
-                data-category="아우터">아우터</button>
+
+        <!-- 성별 선택 -->
+        <div class="mb-2">
+            <span class="text-muted small me-2">성별</span>
+            <div class="d-flex gap-2 flex-wrap" id="genderBtns">
+                <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 gender-btn"
+                    data-gender="남자">남자</button>
+                <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 gender-btn"
+                    data-gender="여자">여자</button>
+            </div>
         </div>
+
+        <!-- 옷 카테고리 선택 -->
+        <div class="mb-1">
+            <span class="text-muted small me-2">종류</span>
+            <div class="d-flex gap-2 flex-wrap" id="categoryBtns">
+                <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 category-btn"
+                    data-category="상의">상의</button>
+                <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 category-btn"
+                    data-category="하의">하의</button>
+                <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 category-btn"
+                    data-category="아우터">아우터</button>
+            </div>
+        </div>
+
+        <!-- 미선택 경고 -->
+        <div id="categoryError" class="d-none mt-1" style="color: #dc3545; font-size: 0.82rem;">
+            <i class="fas fa-exclamation-circle me-1"></i>성별과 옷 종류를 모두 선택해주세요.
+        </div>
+
         <div class="mt-3 text-muted" style="font-size: 0.75rem;">
             <i class="far fa-lightbulb text-warning me-1"></i>
             이미지만으로도 검색 가능하며, 텍스트와 카테고리를 추가하면 더 정확한 결과를 얻을 수 있습니다.
@@ -113,23 +134,38 @@
         const searchLoading = document.getElementById('searchLoading');
         const searchResults = document.getElementById('searchResults');
         const resultsContainer = document.getElementById('resultsContainer');
-        const categoryBtns = document.querySelectorAll('.category-btn');
 
         let selectedFile = null;
-        let selectedCategory = '전체';
+        let selectedGender = null;
+        let selectedClothes = null;
 
-        // 카테고리 선택
+        // 성별 선택
+        const genderBtns = document.querySelectorAll('.gender-btn');
+        genderBtns.forEach(btn => {
+            btn.addEventListener('click', function () {
+                genderBtns.forEach(b => {
+                    b.classList.remove('active', 'btn-primary');
+                    b.classList.add('btn-outline-secondary');
+                });
+                this.classList.add('active', 'btn-primary');
+                this.classList.remove('btn-outline-secondary');
+                selectedGender = this.dataset.gender;
+                document.getElementById('categoryError').classList.add('d-none');
+            });
+        });
+
+        // 옷 종류 선택
+        const categoryBtns = document.querySelectorAll('.category-btn');
         categoryBtns.forEach(btn => {
             btn.addEventListener('click', function () {
                 categoryBtns.forEach(b => {
-                    b.classList.remove('active');
-                    b.classList.remove('btn-primary');
+                    b.classList.remove('active', 'btn-primary');
                     b.classList.add('btn-outline-secondary');
                 });
-                this.classList.add('active');
+                this.classList.add('active', 'btn-primary');
                 this.classList.remove('btn-outline-secondary');
-                this.classList.add('btn-primary');
-                selectedCategory = this.dataset.category;
+                selectedClothes = this.dataset.category;
+                document.getElementById('categoryError').classList.add('d-none');
             });
         });
 
@@ -234,6 +270,14 @@
                 return;
             }
 
+            // 카테고리 검증: 성별, 옷 종류 모두 선택 필수
+            if (!selectedGender || !selectedClothes) {
+                document.getElementById('categoryError').classList.remove('d-none');
+                document.getElementById('categoryError').scrollIntoView({ behavior: 'smooth', block: 'center' });
+                return;
+            }
+            document.getElementById('categoryError').classList.add('d-none');
+
             // 로딩 표시
             searchLoading.classList.remove('d-none');
             searchResults.classList.add('d-none');
@@ -248,13 +292,11 @@
                     formData.append('image', selectedFile);
                 }
 
-                const searchText = searchInput.value.trim();
                 if (searchText) {
                     formData.append('search_text', searchText);
                 }
-                if (selectedCategory && selectedCategory !== '전체') {
-                    formData.append('category', selectedCategory);
-                }
+                // 성별 + 옷종류 조합하여 카테고리로 전달
+                formData.append('category', `${selectedGender}_${selectedClothes}`);
 
                 const response = await fetch('/api/search/by-image', {
                     method: 'POST',

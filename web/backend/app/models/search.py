@@ -53,15 +53,24 @@ class SearchLogResponse(BaseModel):
 # ──────────────────────────────────────
 # 이미지 검색 관련 모델
 # ──────────────────────────────────────
-class MockProductResult(BaseModel):
-    """Mock 상품 검색 결과"""
-    product_id: int  # 상품 ID (상세 페이지 링크용)
+class ProductResult(BaseModel):
+    """상품 검색 결과
+    - similarity_score: ES 검색 시 유사도 점수 (0.0~1.0), DB fallback 시 None
+    - search_source: 검색 전략 ("elasticsearch_knn" | "elasticsearch_text" | "db")
+    """
+    product_id: int
     product_name: str
     brand: str
     price: int
     image_url: str
     mall_name: str
     mall_url: str
+    similarity_score: Optional[float] = None   # ML 유사도 점수
+    search_source: str = "db"                  # 검색 전략 식별자
+
+
+# 하위 호환성 (import하는 코드가 있다면 수정 전에 동작)
+MockProductResult = ProductResult
 
 
 class ImageSearchResponse(BaseModel):
@@ -69,8 +78,9 @@ class ImageSearchResponse(BaseModel):
     success: bool = True
     log_id: int
     thumbnail_url: str
-    results: List[MockProductResult]
+    results: List[ProductResult]
     result_count: int
+    search_source: str = "db"  # 전체 검색에 적용된 전략
 
 
 class SearchHistoryItem(BaseModel):

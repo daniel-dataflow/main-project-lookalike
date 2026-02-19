@@ -14,7 +14,7 @@ from ..models.search import (
     SimilarProductResponse,
     SearchLogResponse,
     ImageSearchResponse,
-    MockProductResult,
+    ProductResult,
     SearchHistoryItem,
     SearchHistoryListResponse,
 )
@@ -23,7 +23,7 @@ from ..services.image_service import (
     process_and_upload_thumbnail,
     read_thumbnail_from_hdfs,
 )
-from ..services.mock_ml import search_similar_products
+from ..services.search_service import search_products
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/search", tags=["검색"])
@@ -97,11 +97,24 @@ async def search_by_image(
                 f"hdfs={'✅' if image_info['hdfs_uploaded'] else '❌'}"
             )
 
-        # 3. Mock ML 검색
-        ml_results = search_similar_products(category) # TODO: search_text와 image_info를 활용하여 실제 ML 검색 로직 구현
+        # 3. 검색 서비스 (전략 자동 선택: ES kNN → ES 텍스트 → DB fallback)
+        # query_embedding: 향후 ML 서버로부터 임베딩 벡터를 받으면 자동으로 kNN 검색으로 전환됨
+        ml_results = await search_products(
+            query_text=search_text,
+            query_embedding=None,   # TODO: ML 서버 연동 후 여기에 벡터 진달
+            category=category,
+            limit=4,
+        )
         result_count = len(ml_results)
 
         # 4. DB에 검색 로그 기록
+        # category 형식: "남자_상의" → gender='남자', applied_category='상의'
+        gender_filter = None
+        category_filter = category
+        if category and "_" in category:
+            parts = category.split("_", 1)
+            gender_filter, category_filter = parts[0], parts[1]
+
         log_id = None
         try:
             with get_pg_cursor() as cur:
@@ -109,10 +122,10 @@ async def search_by_image(
                     """
                     INSERT INTO search_logs (
                         user_id, input_img_path, thumbnail_path,
-                        input_text, applied_category,
+                        input_text, applied_category, gender,
                         image_size, image_width, image_height,
                         search_status, result_count
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'completed', %s)
+                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, 'completed', %s)
                     RETURNING log_id
                     """,
                     (
@@ -120,7 +133,8 @@ async def search_by_image(
                         None,  # 원본은 저장하지 않음
                         image_info["hdfs_thumb_path"],
                         search_text,
-                        category,
+                        category_filter,
+                        gender_filter,
                         image_info["file_size"],
                         image_info["width"],
                         image_info["height"],
@@ -133,6 +147,7 @@ async def search_by_image(
             logger.error(f"검색 로그 DB 저장 실패: {db_err}")
             raise HTTPException(status_code=500, detail="검색 로그 저장 실패")
 
+
         # 5. 검색 결과 DB 저장
         try:
             with get_pg_cursor() as cur:
@@ -140,12 +155,18 @@ async def search_by_image(
                     cur.execute(
                         """
                         INSERT INTO search_results (
-                            log_id, product_id, rank
-                        ) VALUES (%s, %s, %s)
+                            log_id, product_name, brand, price,
+                            image_url, mall_name, mall_url, rank
+                        ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                         """,
                         (
                             log_id,
-                            item["product_id"],
+                            item["product_name"],
+                            item["brand"],
+                            item["price"],
+                            item["image_url"],
+                            item["mall_name"],
+                            item["mall_url"],
                             rank,
                         ),
                     )
@@ -153,12 +174,14 @@ async def search_by_image(
             logger.warning(f"검색 결과 저장 실패 (검색은 계속): {res_err}")
 
         # 6. 응답
+        # search_source: 실제 사용된 검색 전략 (프론트엜드 시디버깅, 향후 UI에서 활용 가능)
+        used_source = ml_results[0]["search_source"] if ml_results else "db"
         return ImageSearchResponse(
             success=True,
             log_id=log_id,
             thumbnail_url=f"/api/search/thumbnail/{log_id}",
             results=[
-                MockProductResult(
+                ProductResult(
                     product_id=r["product_id"],
                     product_name=r["product_name"],
                     brand=r["brand"],
@@ -166,10 +189,13 @@ async def search_by_image(
                     image_url=r["image_url"],
                     mall_name=r["mall_name"],
                     mall_url=r["mall_url"],
+                    similarity_score=r.get("similarity_score"),
+                    search_source=r.get("search_source", "db"),
                 )
                 for r in ml_results
             ],
             result_count=result_count,
+            search_source=used_source,
         )
 
     except HTTPException:

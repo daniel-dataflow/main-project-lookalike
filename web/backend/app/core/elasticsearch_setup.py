@@ -1,6 +1,9 @@
 import os
 from elasticsearch import Elasticsearch
 from elasticsearch.exceptions import RequestError
+import logging
+
+logger = logging.getLogger(__name__)
 
 # Elasticsearch 연결 설정
 ELASTICSEARCH_URL = os.getenv("ELASTICSEARCH_URL", "http://elasticsearch:9200")
@@ -128,3 +131,64 @@ def setup_index_lifecycle():
         
     except Exception as e:
         print(f"⚠️ Failed to setup Index Lifecycle Policy: {e}")
+
+
+def init_product_index():
+    """
+    상품 유사도 검색용 Elasticsearch 인덱스 초기화
+    - detected_desc: VLM이 추출한 옷 설명 텍스트 (텍스트 검색용)
+    - embedding: ML 모델이 추출한 이미지/텍스트 임베딩 벡터 (kNN 벡터 검색용)
+    ML 파이프라인 연동 전까지는 embedding 필드는 비워둠.
+    """
+    es = get_es_client()
+    index_name = "products"
+
+    index_body = {
+        "settings": {
+            "number_of_shards": 1,
+            "number_of_replicas": 0,
+            "refresh_interval": "30s"
+        },
+        "mappings": {
+            "properties": {
+                "product_id":    {"type": "long"},
+                "prod_name":     {
+                    "type": "text",
+                    "analyzer": "standard",
+                    "fields": {"keyword": {"type": "keyword", "ignore_above": 256}}
+                },
+                "brand_name":    {"type": "keyword"},
+                "category":      {"type": "keyword"},
+                # VLM이 추출한 옷 설명 (색상, 소재, 스타일 등)
+                "detected_desc": {
+                    "type": "text",
+                    "analyzer": "standard"
+                },
+                # ML 모델 임베딩 벡터 (512차원, cosine 유사도)
+                # ML 파이프라인 완성 후 실제 벡터 값이 채워짐
+                "embedding": {
+                    "type": "dense_vector",
+                    "dims": 512,
+                    "index": True,
+                    "similarity": "cosine"
+                },
+                "base_price":    {"type": "integer"},
+                "lowest_price":  {"type": "integer"},
+                "mall_name":     {"type": "keyword"},
+                "mall_url":      {"type": "keyword"},
+                "image_url":     {"type": "keyword"},
+                "indexed_at":    {"type": "date"}
+            }
+        }
+    }
+
+    try:
+        if not es.indices.exists(index=index_name):
+            es.indices.create(index=index_name, body=index_body)
+            logger.info(f"✅ Elasticsearch index '{index_name}' created (products).")
+        else:
+            logger.info(f"ℹ️  Elasticsearch index '{index_name}' already exists.")
+    except Exception as e:
+        # 상품 인덱스 생성 실패는 치명적이지 않음 - DB fallback으로 동작 가능
+        logger.warning(f"⚠️ Failed to initialize products index (will use DB fallback): {e}")
+

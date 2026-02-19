@@ -15,13 +15,12 @@
 | 컬럼명 | 타입 | 제약조건 | 설명 |
 |--------|------|----------|------|
 | product_id | BIGINT | PK, AUTO_INCREMENT | 상품 고유 ID |
-| origine_prod_id | VARCHAR(50) | | 원본 상품 ID (크롤링 소스) |
 | model_code | VARCHAR(50) | | 모델 코드 |
 | prod_name | VARCHAR(50) | | 상품명 |
 | base_price | INTEGER | | 기준 가격 (정가) |
 | category_code | VARCHAR(50) | | 카테고리 코드 (상의, 하의, 아우터 등) |
 | img_hdfs_path | VARCHAR(512) | | 이미지 HDFS 경로 |
-| **brand_name** | **VARCHAR(100)** | | **브랜드명 (2024-02-15 추가)** |
+| brand_name | VARCHAR(100) | | 브랜드명 |
 | create_dt | TIMESTAMP | DEFAULT now() | 생성일시 |
 | update_dt | TIMESTAMP | DEFAULT now() | 수정일시 |
 
@@ -79,15 +78,14 @@
 | log_id | BIGINT | PK, AUTO_INCREMENT | 검색 로그 ID |
 | user_id | VARCHAR(50) | FK | 사용자 ID (users 참조) |
 | input_img_path | VARCHAR(512) | | 업로드 이미지 경로 (원본, 현재 미사용) |
-| **thumbnail_path** | **VARCHAR(512)** | | **썸네일 이미지 경로 (2024-02-15 추가)** |
+| thumbnail_path | VARCHAR(512) | | 썸네일 이미지 HDFS 경로 |
 | input_text | TEXT | | 검색어 (텍스트 검색) |
 | applied_category | VARCHAR(50) | | 적용된 카테고리 필터 |
-| **image_size** | **INTEGER** | | **이미지 파일 크기 (bytes) (2024-02-15 추가)** |
-| **image_width** | **INTEGER** | | **이미지 너비 (px) (2024-02-15 추가)** |
-| **image_height** | **INTEGER** | | **이미지 높이 (px) (2024-02-15 추가)** |
-| **search_status** | **VARCHAR(20)** | **DEFAULT 'pending'** | **검색 상태 (2024-02-15 추가)** |
-| **search_result** | **JSON** | | **검색 결과 (JSON) (2024-02-15 추가)** |
-| **result_count** | **INTEGER** | **DEFAULT 0** | **검색 결과 개수 (2024-02-15 추가)** |
+| image_size | INTEGER | | 이미지 파일 크기 (bytes) |
+| image_width | INTEGER | | 이미지 너비 (px) |
+| image_height | INTEGER | | 이미지 높이 (px) |
+| search_status | VARCHAR(20) | DEFAULT 'completed' | 검색 상태 (completed / failed) |
+| result_count | INTEGER | DEFAULT 0 | 검색 결과 개수 |
 | nprice_id | BIGINT | FK | 네이버 가격 ID (naver_prices 참조) |
 | create_dt | TIMESTAMP | DEFAULT now() | 생성일시 |
 | update_dt | TIMESTAMP | DEFAULT now() | 수정일시 |
@@ -105,23 +103,27 @@
 
 ### 5. search_results (검색 결과 상세)
 
-**⚠️ 2024-02-15 신규 생성**
+> **설계 방침 (비정규화):** 검색 당시 상품 정보를 직접 저장합니다.
+> product_id FK 조인 방식 대신 스냅샷으로 보존하여, 추후 상품 정보가 변경되더라도 검색 이력이 오염되지 않습니다.
+> ML/ES 검색 결과의 외부 소스 상품도 동일 구조로 저장 가능합니다.
 
 | 컬럼명 | 타입 | 제약조건 | 설명 |
 |--------|------|----------|------|
-| result_id | INTEGER | PK, AUTO_INCREMENT | 결과 ID |
-| log_id | INTEGER | FK | 검색 로그 ID (search_logs 참조) |
-| product_id | VARCHAR(50) | | 상품 ID |
-| similarity_score | DOUBLE PRECISION | | 유사도 점수 (0.0 ~ 1.0) |
-| rank | INTEGER | | 검색 결과 순위 |
+| result_id | BIGINT | PK, AUTO_INCREMENT | 결과 ID |
+| log_id | BIGINT | FK | 검색 로그 ID (search_logs 참조) |
+| product_name | VARCHAR(200) | | 상품명 (검색 당시 스냅샷) |
+| brand | VARCHAR(100) | | 브랜드명 (검색 당시 스냅샷) |
+| price | INTEGER | | 판매 가격 (검색 당시 스냅샷) |
+| image_url | VARCHAR(512) | | 상품 이미지 URL |
+| mall_name | VARCHAR(100) | | 쇼핑몰명 |
+| mall_url | VARCHAR(500) | | 쇼핑몰 URL |
+| rank | SMALLINT | | 검색 결과 순위 (1부터 시작) |
 | create_dt | TIMESTAMP | DEFAULT now() | 생성일시 |
 
 **인덱스:**
 - PRIMARY KEY: result_id
+- INDEX: log_id
 - FOREIGN KEY: log_id → search_logs.log_id (ON DELETE CASCADE)
-
-**참고:**
-- 검색 결과의 상세 정보(상품명, 가격 등)는 product_id로 products 테이블 조인하여 조회
 
 ---
 
@@ -187,30 +189,40 @@
 
 ## 📝 주요 변경 이력
 
+### 2026-02-19 (검색 서비스 리팩토링 - Phase 1)
+1. **search_results 테이블 구조 변경**
+   - `product_id` (FK) + `similarity_score` 방식 → **비정규화 스냅샷 방식**으로 전환
+   - 추가: `product_name`, `brand`, `price`, `image_url`, `mall_name`, `mall_url`
+   - 삭제: `product_id`, `similarity_score`
+   - 이유: ML/ES 검색 결과(외부 소스)를 products 테이블 없이도 저장 가능, 이력 불변성 보장
+
+2. **search_service.py 신규 생성** (코드 변경, DB 무관)
+   - 전략 패턴: ES kNN → ES 텍스트 → DB fallback 자동 선택
+
 ### 2024-02-15
 1. **products 테이블**
    - `brand_name` 컬럼 추가 (VARCHAR(100))
-   - 브랜드 정보를 별도 관리하여 검색 및 필터링 개선
+   - `origine_prod_id` 컬럼 삭제 (미사용)
 
 2. **search_logs 테이블 확장**
-   - `thumbnail_path`: 썸네일 이미지 경로 (원본 대신 썸네일만 저장)
+   - `thumbnail_path`: 썸네일 이미지 HDFS 경로
    - `image_size`, `image_width`, `image_height`: 이미지 메타데이터
-   - `search_status`: 검색 상태 추적
-   - `search_result`: 검색 결과 JSON 저장
+   - `search_status`: 검색 상태 (DEFAULT 'completed')
    - `result_count`: 검색 결과 개수
 
 3. **search_results 테이블 신규 생성**
-   - 검색 결과를 별도 테이블로 관리
-   - log_id와 1:N 관계
-   - 검색 이력 분석 및 추천 시스템 기반 데이터
+   - 검색 결과를 별도 테이블로 관리 (search_logs와 1:N)
 
-### 2024-02-10
-1. **users 테이블**
-   - 소셜 로그인 지원: `provider`, `provider_id`, `profile_image` 추가
+4. **recent_views, likes 테이블 신규 생성**
 
 ### 2024-02-11
 1. **inquiry_board 테이블**
    - `post_id` → `inquiry_board_id`로 컬럼명 변경
+
+### 2024-02-10
+1. **users 테이블**
+   - 소셜 로그인 지원: `provider`, `provider_id`, `profile_image` 추가
+   - `social_id` → `provider_id` 컬럼명 변경
 
 ---
 
@@ -231,7 +243,7 @@ users (1) ──< (N) inquiry_board (1) ──< (N) comments
 
 ## 📊 테스트 데이터 현황
 
-### insert_test_data.sql 실행 결과
+### insert_test_data.sh 실행 결과
 - **products**: 10개 (의류 상품)
 - **naver_prices**: 50개 (각 상품당 5개 쇼핑몰)
 - **product_features**: 10개 (상품 설명)
@@ -256,19 +268,25 @@ rank=3: 19000원 (쿠팡)
 
 ## 🚀 마이그레이션 스크립트
 
-### apply_db_changes.sh
-- Airflow DB 분리
-- users 소셜 로그인 컬럼 추가
-- inquiry_board 테이블 생성 및 마이그레이션
-- comments 테이블 생성
-- search_logs 확장 (썸네일, 메타데이터)
-- search_results 테이블 생성
-- **products.brand_name 컬럼 추가**
+### apply_db_changes.sh 적용 항목 (순서대로)
 
-### insert_test_data.sql
-- 의류 상품 10개 삽입
-- 각 상품당 5개 쇼핑몰 최저가 정보
-- 상품 설명/특징 데이터
+| 단계 | 내용 |
+|------|------|
+| 1 | Airflow DB (airflowdb) 분리 |
+| 2 | users 소셜 로그인 컬럼 (provider, provider_id, profile_image) |
+| 3 | inquiry_board 테이블 생성/마이그레이션 (posts → inquiry_board, post_id → inquiry_board_id) |
+| 3 | comments 테이블 생성 |
+| 4 | search_logs 확장 (thumbnail_path, image_size/width/height, search_status, result_count) |
+| 4 | search_results 테이블 생성 (비정규화 구조) |
+| 5 | products.brand_name 컬럼 추가 |
+| 6 | products.origine_prod_id 컬럼 삭제 |
+| 7 | users.social_id → provider_id 컬럼명 변경 |
+| 8 | recent_views, likes 테이블 생성 |
+
+### insert_test_data.sh
+- 의류 상품 10개 이상 삽입
+- 각 상품당 최저가 정보 (naver_prices)
+- 상품 설명/특징 데이터 (product_features)
 
 ---
 
@@ -278,10 +296,11 @@ rank=3: 19000원 (쿠팡)
    - 원본 이미지: 저장하지 않음 (메모리 절약)
    - 썸네일만 HDFS에 저장 (`/images/thumb/`)
 
-2. **product_id 타입**
-   - products 테이블: BIGINT (AUTO_INCREMENT)
-   - search_results 테이블: VARCHAR(50) (호환성 유지)
+2. **search_results 비정규화 설계**
+   - `product_id` FK 방식을 사용하지 않고 검색 당시 상품 정보를 직접 저장
+   - ML/ES 외부 검색 결과도 동일 구조로 저장 가능
+   - 상품 정보 변경과 무관하게 검색 이력 불변성 보장
 
-3. **검색 결과 저장**
-   - search_logs: 검색 메타데이터
-   - search_results: 개별 검색 결과 (product_id, similarity_score, rank)
+3. **검색 결과 저장 구조**
+   - `search_logs`: 검색 메타데이터 (검색어, 이미지 정보, 검색 상태)
+   - `search_results`: 실제 반환된 상품 목록 (log_id와 1:N)

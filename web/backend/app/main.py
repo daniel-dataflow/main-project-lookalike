@@ -41,9 +41,14 @@ async def lifespan(app: FastAPI):
     # Elasticsearch 인덱스 초기화
     logger.info("📊 Elasticsearch 인덱스 초기화")
     try:
-        from .core.elasticsearch_setup import init_elasticsearch_index, init_metric_index
-        init_elasticsearch_index()
-        init_metric_index()
+        from .core.elasticsearch_setup import (
+            init_elasticsearch_index,
+            init_metric_index,
+            init_product_index,
+        )
+        init_elasticsearch_index()    # container-logs
+        init_metric_index()           # container-metrics
+        init_product_index()          # products (ML 임베딩 + VLM 설명용)
     except Exception as e:
         logger.warning(f"⚠️ Elasticsearch 인덱스 초기화 실패: {e}")
     
