@@ -580,8 +580,16 @@
     // [성능 최적화] 통합 대시보드 API (ES msearch 1회 왕복)
     async function fetchDashboard() {
         try {
-            const resp = await fetch('/api/logs/dashboard');
-            const data = await resp.json();
+            // [성능] 프리로드된 데이터가 있으면 재사용 (초기 로딩 시)
+            let data;
+            if (window.__preload?.logsDashboard) {
+                data = await window.__preload.logsDashboard;
+                window.__preload.logsDashboard = null; // 1회 사용 후 폐기
+            }
+            if (!data) {
+                const resp = await fetch('/api/logs/dashboard');
+                data = await resp.json();
+            }
 
             // --- stats 적용 ---
             const levels = data.stats?.by_level || {};

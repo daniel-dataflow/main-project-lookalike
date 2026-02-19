@@ -229,8 +229,14 @@
     let cpuChart = null;
     let memChart = null;
     const CHART_COLORS = [
-        '#4e73df', '#1cc88a', '#36b9cc', '#f6c23e', '#e74a3b', '#858796', '#5a5c69'
+        '#3366CC', '#22B573', '#FF8C1A', '#E63946', '#8E44AD', '#0EA5A0', '#D63384'
     ];
+
+    // 서비스명 표시 변환 (database→DB, search→Elastic, 나머지 첫 글자 대문자)
+    const SERVICE_DISPLAY = { database: 'DB', search: 'Elastic', api: 'API' };
+    function displayName(svc) {
+        return SERVICE_DISPLAY[svc] || svc.charAt(0).toUpperCase() + svc.slice(1);
+    }
 
     document.addEventListener('DOMContentLoaded', () => {
         initCharts();
@@ -272,37 +278,111 @@
         const cpuCtx = document.getElementById('cpuChart').getContext('2d');
         const memCtx = document.getElementById('memChart').getContext('2d');
 
-        const commonOptions = {
-            responsive: true,
-            maintainAspectRatio: false,
-            interaction: {
-                mode: 'index',
-                intersect: false,
-            },
-            scales: {
-                x: {
-                    type: 'category',
-                    display: false
-                },
-                y: {
-                    beginAtZero: true
+        // 시간 포맷 (ISO → '오후 4:13')
+        function fmtTime(iso) {
+            const t = iso.endsWith('Z') ? iso : iso + 'Z';
+            return new Date(t).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
+        }
+        // 차트 외부에서도 사용할 수 있도록 저장
+        window._fmtTime = fmtTime;
+
+        // hover 시 해당 라인만 강조, 나머지 fade 처리
+        const hoverPlugin = {
+            id: 'hoverHighlight',
+            beforeDatasetsDraw(chart) {
+                const active = chart.getActiveElements();
+                if (active.length > 0) {
+                    const activeIdx = active[0].datasetIndex;
+                    chart.data.datasets.forEach((ds, i) => {
+                        ds.borderColor = i === activeIdx
+                            ? ds._originalColor
+                            : ds._originalColor + '20';  // 비활성: 12% 투명도 (확실히 fade)
+                        ds.borderWidth = i === activeIdx ? 3.5 : 0.8;
+                    });
+                } else {
+                    chart.data.datasets.forEach(ds => {
+                        ds.borderColor = ds._originalColor;
+                        ds.borderWidth = 1.5;
+                    });
                 }
-            },
-            elements: {
-                point: { radius: 0 }
             }
         };
+
+        const sharedOptions = (yConfig) => ({
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            scales: {
+                x: {
+                    display: true,
+                    ticks: {
+                        maxTicksLimit: 6,
+                        maxRotation: 0,
+                        font: { size: 10 },
+                        color: '#aaa',
+                        callback: (_, idx) => fmtTime(cpuChart?.data?.labels?.[idx] || memChart?.data?.labels?.[idx] || '')
+                    },
+                    grid: { display: false }
+                },
+                y: yConfig
+            },
+            elements: {
+                point: { radius: 0, hoverRadius: 3, hoverBorderWidth: 2 },
+                line: { borderJoinStyle: 'round' }
+            },
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        boxWidth: 10, boxHeight: 2,
+                        padding: 15,
+                        font: { size: 11 },
+                        usePointStyle: false
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0,0,0,0.8)',
+                    titleFont: { size: 12 },
+                    bodyFont: { size: 11 },
+                    padding: 10,
+                    cornerRadius: 6,
+                    mode: 'index',
+                    intersect: false,
+                    filter: item => item.parsed.y !== null && item.parsed.y !== undefined
+                }
+            }
+        });
 
         cpuChart = new Chart(cpuCtx, {
             type: 'line',
             data: { labels: [], datasets: [] },
-            options: { ...commonOptions, plugins: { title: { display: false } } }
+            options: sharedOptions({
+                beginAtZero: true,
+                suggestedMax: 50,
+                ticks: {
+                    stepSize: 10,
+                    callback: v => v + '%',
+                    font: { size: 10 },
+                    color: '#aaa'
+                },
+                grid: { color: 'rgba(0,0,0,0.04)', drawBorder: false }
+            }),
+            plugins: [hoverPlugin]
         });
 
         memChart = new Chart(memCtx, {
             type: 'line',
             data: { labels: [], datasets: [] },
-            options: { ...commonOptions, plugins: { title: { display: false } } }
+            options: sharedOptions({
+                beginAtZero: true,
+                ticks: {
+                    callback: v => (v >= 1000 ? (v / 1024).toFixed(1) + ' GB' : v.toFixed(0) + ' MB'),
+                    font: { size: 10 },
+                    color: '#aaa'
+                },
+                grid: { color: 'rgba(0,0,0,0.04)', drawBorder: false }
+            }),
+            plugins: [hoverPlugin]
         });
     }
 
@@ -339,8 +419,16 @@
     // ── [성능 최적화] 통합 대시보드 API (system + DB, 1회 왕복) ──
     async function loadInfraDashboard() {
         try {
-            const response = await fetch('/api/admin/infra/dashboard');
-            const data = await response.json();
+            // [성능] 프리로드된 데이터가 있으면 재사용 (초기 로딩 시)
+            let data;
+            if (window.__preload?.infraDashboard) {
+                data = await window.__preload.infraDashboard;
+                window.__preload.infraDashboard = null; // 1회 사용 후 폐기
+            }
+            if (!data) {
+                const response = await fetch('/api/admin/infra/dashboard');
+                data = await response.json();
+            }
 
             // System 데이터 적용
             if (data.system) {
@@ -450,8 +538,16 @@
     // ── 메트릭 통계 (Elasticsearch) ──
     async function fetchStats() {
         try {
-            const resp = await fetch('/api/metrics/stats');
-            const data = await resp.json();
+            // [성능] 프리로드된 데이터가 있으면 재사용
+            let data;
+            if (window.__preload?.metricsStats) {
+                data = await window.__preload.metricsStats;
+                window.__preload.metricsStats = null;
+            }
+            if (!data) {
+                const resp = await fetch('/api/metrics/stats');
+                data = await resp.json();
+            }
 
             let totalCpu = 0, totalMem = 0, count = 0;
             let maxMem = 0, maxMemService = '-';
@@ -481,8 +577,16 @@
     // ── 메트릭 스트림 (Elasticsearch) ──
     async function fetchStream() {
         try {
-            const resp = await fetch('/api/metrics/stream?limit=200');
-            const data = await resp.json();
+            // [성능] 프리로드된 데이터가 있으면 재사용
+            let data;
+            if (window.__preload?.metricsStream) {
+                data = await window.__preload.metricsStream;
+                window.__preload.metricsStream = null;
+            }
+            if (!data) {
+                const resp = await fetch('/api/metrics/stream?limit=200');
+                data = await resp.json();
+            }
             const logs = data.metrics.reverse();
 
             if (!logs.length) return;
@@ -522,12 +626,14 @@
             });
 
             datasetsCpu.push({
-                label: svc, borderColor: color, backgroundColor: color,
-                data: dataCpu, borderWidth: 2, tension: 0.3, fill: false
+                label: displayName(svc), borderColor: color, backgroundColor: color,
+                _originalColor: color,
+                data: dataCpu, borderWidth: 1.5, tension: 0.4, fill: false
             });
             datasetsMem.push({
-                label: svc, borderColor: color, backgroundColor: color,
-                data: dataMem, borderWidth: 2, tension: 0.3, fill: false
+                label: displayName(svc), borderColor: color, backgroundColor: color,
+                _originalColor: color,
+                data: dataMem, borderWidth: 1.5, tension: 0.4, fill: false
             });
         });
 
@@ -558,7 +664,7 @@
             else if (log.cpu_percent > 50) cpuClass = "text-warning fw-bold";
 
             tr.innerHTML = `
-                <td><span class="badge bg-light text-dark border">${log.service}</span></td>
+                <td><span class="badge bg-light text-dark border">${displayName(log.service)}</span></td>
                 <td class="small">${log.container}</td>
                 <td class="${cpuClass}">${log.cpu_percent.toFixed(2)} %</td>
                 <td>${log.memory_percent.toFixed(2)} %</td>
