@@ -570,7 +570,7 @@ services:
   # ================================================================
   #  AIRFLOW_FERNET_KEY=<자동생성>
   #  AIRFLOW_WEBSERVER_SECRET_KEY=<자동생성>
-  #  AIRFLOW_ADMIN_PASSWORD=***REMOVED***
+  #  AIRFLOW_ADMIN_PASSWORD=${ADMIN_PASSWORD}   ← .env의 ADMIN_PASSWORD에서 자동 설정
   #  AIRFLOW_DB=airflowdb          ← 기존 .env에 이미 존재
 
   # ================================================================

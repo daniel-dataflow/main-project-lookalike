@@ -1,17 +1,24 @@
 # 기존 테이블 삭제후 새로 만듬
+import os
 import psycopg2
 from pymongo import MongoClient
 from elasticsearch import Elasticsearch
 from datetime import datetime
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv(os.path.join(os.path.dirname(__file__), '..', '..', '..', '.env'))
+except ImportError:
+    pass  # python-dotenv 없으면 시스템 환경변수만 사용
+
 
 # =====================
-# 설정 정보
+# 설정 정보 (.env에서 로드)
 # =====================
-DB_USER = "datauser"
-DB_PASS = "***REMOVED***"
-DB_NAME = "datadb"
-ES_URL = "http://localhost:8903"
+DB_USER = os.environ.get("POSTGRES_USER", "datauser")
+DB_PASS = os.environ.get("POSTGRES_PASSWORD", "")
+DB_NAME = os.environ.get("POSTGRES_DB", "datadb")
+ES_URL = os.environ.get("ELASTICSEARCH_URL", "http://localhost:8903")
 
 
 # =====================
@@ -184,10 +191,10 @@ def init_postgresql():
 def init_mongodb():
     try:
         client = MongoClient(
-            host="localhost",
-            port=27017,
-            username="datauser",
-            password="***REMOVED***",
+            host=os.environ.get("MONGODB_HOST", "localhost"),
+            port=int(os.environ.get("MONGODB_PORT", 27017)),
+            username=os.environ.get("MONGODB_USER", "datauser"),
+            password=os.environ.get("MONGODB_PASSWORD", ""),
             authSource="admin"
         )
 

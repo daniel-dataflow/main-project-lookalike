@@ -140,7 +140,10 @@ ensure_airflow_secrets() {
     if ! grep -q "^AIRFLOW_ADMIN_PASSWORD=.\+" "${env_file}" 2>/dev/null; then
         local pw
         pw=$(grep "^ADMIN_PASSWORD=" "${env_file}" | cut -d= -f2)
-        pw="${pw:-***REMOVED***}"
+        if [ -z "${pw}" ]; then
+            log_error "  ⚠️  ADMIN_PASSWORD가 .env에 설정되지 않았습니다. .env 파일을 확인하세요."
+            pw="changeme"
+        fi
         if grep -q "^AIRFLOW_ADMIN_PASSWORD=" "${env_file}" 2>/dev/null; then
             sed -i "s|^AIRFLOW_ADMIN_PASSWORD=.*|AIRFLOW_ADMIN_PASSWORD=${pw}|" "${env_file}"
         else

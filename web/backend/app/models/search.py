@@ -48,8 +48,6 @@ class SearchLogResponse(BaseModel):
     input_text: Optional[str] = None
     applied_category: Optional[str] = None
     create_dt: Optional[datetime] = None
-<<<<<<< HEAD
-=======
 
 
 # ──────────────────────────────────────
@@ -92,4 +90,3 @@ class SearchHistoryListResponse(BaseModel):
     page: int
     limit: int
     history: List[SearchHistoryItem]
->>>>>>> feature/web-mainpage
