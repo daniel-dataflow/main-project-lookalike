@@ -49,26 +49,16 @@ class Settings(BaseSettings):
     # OAUTH_REDIRECT_URI: Optional[str] = None
 
     # === 세션 ===
-<<<<<<< HEAD
-    SESSION_SECRET_KEY: str = "lookalike-session-secret-change-in-production-2024"
-    SESSION_EXPIRE_HOURS: int = 24
-
-    # === 관리자 ===
-    ADMIN_PASSWORD: str = "admin1234!"
-=======
     SESSION_SECRET_KEY: str = "change-this-in-production"  # Set in .env
     SESSION_EXPIRE_HOURS: int = 24
 
     # === 관리자 ===
     ADMIN_USERNAME: str = ""  # Set in .env
     ADMIN_PASSWORD: str = ""  # Set in .env
->>>>>>> feature/web-mainpage
 
     # === FastAPI ===
     FASTAPI_PORT: int = 8900
 
-<<<<<<< HEAD
-=======
     # === Hadoop / HDFS ===
     HADOOP_NAMENODE_HOST: str = "namenode"
     HDFS_NAMENODE_PORT: int = 9000
@@ -80,7 +70,6 @@ class Settings(BaseSettings):
     THUMBNAIL_QUALITY: int = 85
     USE_MOCK_ML: bool = True
 
->>>>>>> feature/web-mainpage
     @property
     def DATABASE_URL(self) -> str:
         return (
