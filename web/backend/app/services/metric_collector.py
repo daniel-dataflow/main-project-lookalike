@@ -125,8 +125,8 @@ class MetricCollector:
         logger.info("Starting Background Metric Collector...")
         while True:
             try:
-                self.collect_metrics()
+                await asyncio.to_thread(self.collect_metrics)
             except Exception as e:
                 logger.error(f"Metric collection error: {e}")
             
-            await asyncio.sleep(15) # Collect every 5 seconds
+            await asyncio.sleep(15) # Collect every 15 seconds

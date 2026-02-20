@@ -169,7 +169,7 @@ class LogCollector:
         except Exception as e:
             logger.error(f"로그 벌크 인덱싱 실패: {e}")
 
-    async def run_collection_cycle(self):
+    def run_collection_cycle(self):
         """모든 모니터링 대상 컨테이너에 대해 수집 주기 실행"""
         all_logs = []
         for container_name in self.monitored_containers:
@@ -190,7 +190,7 @@ class LogCollector:
         logger.info("백그라운드 로그 수집 서비스 시작...")
         while True:
             try:
-                await self.run_collection_cycle()
+                await asyncio.to_thread(self.run_collection_cycle)
             except Exception as e:
                 logger.error(f"로그 수집 주기 중 오류: {e}")
             
