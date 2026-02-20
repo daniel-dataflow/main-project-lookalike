@@ -38,7 +38,7 @@ async def get_metrics_stream(
         metrics = [h['_source'] for h in hits]
         return {"total": resp['hits']['total']['value'], "metrics": metrics}
     except Exception as e:
-        print(f"Error fetching metrics: {e}")
+        print(f"Error fetching metrics (ES Connection Issue): {type(e).__name__} - {e}")
         return {"total": 0, "metrics": []}
 
 @router.get("/stats")
@@ -78,5 +78,5 @@ async def get_metric_stats():
             
         return result
     except Exception as e:
-        print(f"Error fetching metric stats: {e}")
+        print(f"Error fetching metric stats (ES Connection Issue): {type(e).__name__} - {e}")
         return {}

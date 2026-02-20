@@ -9,8 +9,16 @@ logger = logging.getLogger(__name__)
 ELASTICSEARCH_URL = os.getenv("ELASTICSEARCH_URL", "http://elasticsearch:9200")
 
 def get_es_client():
-    """Elasticsearch 클라이언트 생성"""
-    return Elasticsearch(ELASTICSEARCH_URL)
+    """
+    Elasticsearch 클라이언트 생성
+    - 빠른 실패(Fast-Fail)를 위해 timeout을 1초로 제한하고 재시도를 비활성화합니다.
+    """
+    return Elasticsearch(
+        ELASTICSEARCH_URL,
+        request_timeout=1.0,
+        max_retries=0,
+        retry_on_timeout=False
+    )
 
 def init_elasticsearch_index():
     """

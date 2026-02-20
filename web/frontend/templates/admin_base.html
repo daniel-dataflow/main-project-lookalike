@@ -30,7 +30,39 @@
 <body>
     <!-- 어드민 인증 오버레이 (생략 없이 유지) -->
 
-    <!-- ... (인증 오버레이 코드) ... -->
+    <!-- 어드민 인증 오버레이 -->
+    <div id="adminAuthOverlay"
+        style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:9999; align-items:center; justify-content:center;">
+        <div
+            style="background:#fff; border-radius:16px; padding:40px 36px; width:100%; max-width:380px; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+            <div class="text-center mb-4">
+                <div
+                    style="width:56px;height:56px;background:linear-gradient(135deg,#1a1a2e,#16213e);border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">
+                    <i class="fas fa-shield-alt text-white fs-5"></i>
+                </div>
+                <h5 class="fw-bold mb-1">관리자 인증</h5>
+                <p class="text-muted" style="font-size:0.85rem">관리자 비밀번호를 입력하세요</p>
+            </div>
+            <form onsubmit="adminLogin(event)">
+                <div class="mb-3">
+                    <input type="password" id="adminPassword" class="form-control form-control-lg"
+                        placeholder="관리자 비밀번호"
+                        style="border-radius:10px; border:2px solid #e9ecef; text-align:center; letter-spacing:4px;"
+                        autocomplete="current-password">
+                </div>
+                <div id="adminAuthError" style="display:none;" class="alert alert-danger py-2 mb-3" role="alert">
+                    <i class="fas fa-exclamation-circle me-1"></i>
+                    <span id="adminAuthErrorMsg"></span>
+                </div>
+                <button type="submit" id="adminLoginBtn" class="btn btn-dark w-100 py-2"
+                    style="border-radius:10px; font-weight:600;">
+                    <span class="btn-text"><i class="fas fa-unlock me-2"></i>인증하기</span>
+                    <span class="spinner-border spinner-border-sm d-none" id="adminLoginSpinner"></span>
+                </button>
+            </form>
+        </div>
+    </div>
+
 
     <!-- 프로페셔널 사이드바 -->
     <div class="sidebar" id="adminSidebar">
