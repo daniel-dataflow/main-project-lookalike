@@ -666,9 +666,11 @@ class SlackNotifier:
                 if self._should_alert(log):
                     self.notify_critical_error(log)
 
-                # 급증 추적 (기동 유예/노이즈 필터는 track_error 내부에서 처리)
+                # 급증 추적: min_alert_level 이상인 경우만 카운트
+                # 예) min_alert_level=CRITICAL이면 ERROR는 급증 추적에서도 제외
                 if not self._is_in_startup_grace():
-                    self.track_error(log)
+                    if self._level_priority.get(level, 0) >= self._level_priority.get(self.min_alert_level, 0):
+                        self.track_error(log)
 
     # ─── 테스트 ───
 
