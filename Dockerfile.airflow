@@ -1,0 +1,57 @@
+FROM apache/airflow:2.10.4-python3.11
+
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    libgl1 \
+    libglib2.0-0 \
+ && rm -rf /var/lib/apt/lists/*
+
+USER airflow
+
+# Airflow provider + DB
+RUN python -m pip install --no-cache-dir \
+    --constraint https://raw.githubusercontent.com/apache/airflow/constraints-2.10.4/constraints-3.11.txt \
+    apache-airflow-providers-postgres==5.14.0 \
+    apache-airflow-providers-apache-spark==4.11.3 \
+    psycopg2-binary \
+    pyspark==3.5.3
+
+# ML/runtime pins (충돌 방지 고정)
+RUN python -m pip install --no-cache-dir --force-reinstall \
+    numpy==1.26.4 \
+    packaging==24.1 \
+    fsspec==2024.10.0 \
+    opencv-python-headless==4.10.0.84 \
+    pillow==12.1.1 \
+    torch==2.10.0 \
+    torchvision==0.25.0 \
+    matplotlib==3.10.8 \
+    scipy==1.17.0 \
+    seaborn==0.13.2 \
+    ultralytics-thop==2.0.18 \
+    transformers==4.46.3 \
+    huggingface-hub==0.26.2 \
+    tokenizers==0.20.3 \
+    annoy==1.17.3 \
+    requests
+
+# 의존성 자동 업그레이드 방지
+RUN python -m pip install --no-cache-dir --no-deps \
+    ultralytics==8.3.0 \
+    fashion-clip==0.2.2
+
+    
+RUN mkdir -p \
+    /opt/airflow/model \
+    /opt/airflow/data/incoming \
+    /opt/airflow/data/crops \
+    /opt/airflow/data/embeddings
+
+
+# 새 DAG에서 추가 설치 필요함
+RUN python -m pip install --no-cache-dir \
+    --constraint https://raw.githubusercontent.com/apache/airflow/constraints-2.10.4/constraints-3.11.txt \
+    appdirs validators datasets ipyplot
+RUN python -m pip install --no-cache-dir pymongo
+

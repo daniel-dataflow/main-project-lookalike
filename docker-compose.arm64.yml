@@ -1,0 +1,147 @@
+services:
+  # hadoop
+  namenode:
+    image: my-hadoop-base:arm64-3.3.6
+    volumes:
+      - namenode_data:/data/dfs/name
+      - /home/lookalike/arm-main-project-lookalike/hadoop-conf:/opt/hadoop/etc/hadoop:ro
+      - ./hadoop-scripts:/opt/cluster-scripts:ro
+    command: ["/bin/bash", "/opt/cluster-scripts/start-namenode.sh"]
+
+  datanode:
+    image: my-hadoop-base:arm64-3.3.6
+    volumes:
+      - datanode_data:/data/dfs/data
+      - /home/lookalike/arm-main-project-lookalike/hadoop-conf:/opt/hadoop/etc/hadoop:ro
+      - ./hadoop-scripts:/opt/cluster-scripts:ro
+    command: ["/bin/bash", "/opt/cluster-scripts/start-datanode.sh"]
+
+  resourcemanager:
+    image: my-hadoop-base:arm64-3.3.6
+    volumes:
+      - /home/lookalike/arm-main-project-lookalike/hadoop-conf:/opt/hadoop/etc/hadoop:ro
+      - ./hadoop-scripts:/opt/cluster-scripts:ro
+    command: ["/bin/bash", "/opt/cluster-scripts/start-resourcemanager.sh"]
+
+  nodemanager:
+    image: my-hadoop-base:arm64-3.3.6
+    volumes:
+      - /home/lookalike/arm-main-project-lookalike/hadoop-conf:/opt/hadoop/etc/hadoop:ro
+      - ./hadoop-scripts:/opt/cluster-scripts:ro
+    command: ["/bin/bash", "/opt/cluster-scripts/start-nodemanager.sh"]
+
+  # 스파크
+  spark-master:
+    image: apache/spark:3.3.3-scala2.12-java11-python3-r-ubuntu
+    command:
+      - /bin/bash
+      - -lc
+      - /opt/spark/sbin/start-master.sh && tail -F /opt/spark/logs/*
+
+  spark-worker-1:
+    image: apache/spark:3.3.3-scala2.12-java11-python3-r-ubuntu
+    command:
+      - /bin/bash
+      - -lc
+      - /opt/spark/sbin/start-worker.sh spark://spark-master:7077 && tail -F /opt/spark/logs/*
+
+  # 주키퍼
+  zookeeper:  
+    image: confluentinc/cp-zookeeper:7.5.0
+    env_file: []
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+      ZOOKEEPER_INIT_LIMIT: 5
+      ZOOKEEPER_SYNC_LIMIT: 2
+      ZOOKEEPER_MAX_CLIENT_CNXNS: 60
+      TZ: ${TZ}
+  
+  # 카프카
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    depends_on:
+      - zookeeper
+    env_file: []
+    restart: "unless-stopped"  # 개발 중일땐 unless-stopped로 바꾸기!!!!!
+    command: ["/bin/bash", "-lc", "unset PORT KAFKA_PORT; /etc/confluent/docker/run"]
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092  # 컨테이너 내부 통신용 주소
+      # KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:${KAFKA_PORT}
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      TZ: ${TZ}
+    ports:
+      - "${KAFKA_PORT}:9092"
+
+  # fastAPI
+  fastapi:
+    platform: linux/arm64/v8
+    working_dir: /app
+    volumes:
+     - /home/lookalike/arm-main-project-lookalike:/app
+
+    command: >
+      bash -lc "pip install --no-cache-dir -r /app/web/backend/requirements.txt &&
+                python -m uvicorn web.backend.app.main:app --host 0.0.0.0 --port 8900"
+
+  # airflow webserver, scheduler
+  airflow-webserver:
+    build:
+      context: /home/lookalike/arm-main-project-lookalike
+      dockerfile: Dockerfile.airflow
+    image: custom-airflow:2.10.4
+    platform: linux/arm64/v8
+    env_file: [ .env ]
+    environment:
+      - PYTHONPATH=/app
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+    volumes:
+      - /home/lookalike/arm-main-project-lookalike:/app
+      - /home/lookalike/best.pt:/opt/airflow/model/best.pt:ro
+    command: >
+      bash -lc "airflow db migrate && airflow webserver"
+    ports:
+      - "8080:8080"
+
+
+  airflow-scheduler:
+    build:
+      context: /home/lookalike/arm-main-project-lookalike
+      dockerfile: Dockerfile.airflow
+    image: custom-airflow:2.10.4
+    platform: linux/arm64/v8
+    env_file: [ .env ]
+    environment:
+      - PYTHONPATH=/app
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+    volumes:
+      - /home/lookalike/arm-main-project-lookalike:/app
+      - /home/lookalike/best.pt:/opt/airflow/model/best.pt:ro
+    command: >
+      bash -lc "airflow scheduler"
+
+  # kibana - ES 대시보드로 보기
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    container_name: kibana-main
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+    networks:
+      - main-network
+    restart: unless-stopped
+
+
+
+
