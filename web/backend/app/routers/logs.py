@@ -578,6 +578,11 @@ class SlackConfigRequest(BaseModel):
     spike_window_sec: Optional[int] = None
     critical_cooldown: Optional[int] = None
     error_spike_cooldown: Optional[int] = None
+    # [NEW] 폭주 방지 설정
+    startup_grace_sec: Optional[int] = None
+    max_alerts_per_window: Optional[int] = None
+    rate_window_sec: Optional[int] = None
+    circuit_open_sec: Optional[int] = None
 
 
 class RecoveryConfigRequest(BaseModel):

@@ -15,6 +15,38 @@ logger = logging.getLogger(__name__)
 KST = timezone(timedelta(hours=9))
 
 
+def _parse_int_env(key: str) -> Optional[int]:
+    """환경변수를 int로 파싱. 비어 있으면 None 반환."""
+    v = os.environ.get(key, "").strip()
+    return int(v) if v else None
+
+
+# ─── 기동 노이즈 패턴 (서버 재시작 시 정상적으로 발생하는 에러) ───
+_STARTUP_NOISE_PATTERNS = [
+    # Hadoop
+    "incompatible clusterids",
+    "initialization failed for block pool",
+    "all specified directories have failed to load",
+    "datanode registration failed",
+    "warn datanode",
+    "namenode is in safe mode",
+    # Kafka
+    "broker is not available",
+    "nobrokersavailable",
+    "error while fetching metadata",
+    "leader not available",
+    "notleaderforpartitionerror",
+    # Airflow
+    "scheduler is not running",
+    "dag file processor manager",
+    # 공통 - 컨테이너 기동 순서 차이
+    "connection refused",
+    "connection reset by peer",
+    "failed to connect",
+    "temporary failure in name resolution",
+]
+
+
 class SlackNotifier:
     """
     Slack Webhook 기반 알림 서비스
@@ -27,31 +59,50 @@ class SlackNotifier:
     5. 서비스별 제외 필터
     6. 쿨다운으로 알림 폭주 방지
     7. 전체 비활성화 토글
+    8. [NEW] 기동 유예 기간: 서비스 시작 후 N초간 알림 억제 (재부팅 노이즈 방지)
+    9. [NEW] 기동 노이즈 패턴 필터: Hadoop/Kafka/Airflow 초기화 에러 무시
+    10. [NEW] Global Rate Limiter + Circuit Breaker: 알림 폭주 자동 차단
     """
 
     def __init__(self, webhook_url: Optional[str] = None):
+        # ─── Webhook URL ───
         self.webhook_url = webhook_url or os.environ.get("SLACK_WEBHOOK_URL", "")
         self.enabled = bool(self.webhook_url)
 
-        # ─── 알림 필터 설정 ───
-        # 알림 대상 레벨: "CRITICAL", "ERROR", "WARN"
-        # 해당 레벨 '이상'의 로그만 알림 (CRITICAL > ERROR > WARN > INFO)
-        self.min_alert_level = "CRITICAL"  # 기본: CRITICAL만 알림
-
-        # 활성 시간대 (KST 기준, None이면 24시간)
-        self.active_hours_start: Optional[int] = None  # e.g. 9 (09:00)
-        self.active_hours_end: Optional[int] = None     # e.g. 18 (18:00)
-
-        # 알림 제외 서비스 목록
+        # ─── .env에서 알림 필터 설정 읽기 ───
+        self.min_alert_level = os.environ.get("SLACK_MIN_ALERT_LEVEL", "CRITICAL")
+        self.active_hours_start: Optional[int] = _parse_int_env("SLACK_ACTIVE_HOURS_START")
+        self.active_hours_end: Optional[int] = _parse_int_env("SLACK_ACTIVE_HOURS_END")
         self.excluded_services: list[str] = []
 
-        # ─── 쿨다운 설정 (초) ───
-        self.critical_cooldown = 60         # 같은 메시지 쿨다운
-        self.error_spike_cooldown = 300     # 급증 알림 쿨다운
+        # ─── .env에서 쿨다운 설정 읽기 ───
+        self.critical_cooldown = 60         # 같은 메시지 쿨다운 (초)
+        self.error_spike_cooldown = 300     # 급증 알림 쿨다운 (초)
 
-        # ─── 에러 급증 감지 ───
-        self.spike_window_sec = 600         # 10분 윈도우
-        self.spike_threshold = 15           # 임계치
+        # ─── .env에서 에러 급증 감지 설정 읽기 ───
+        self.spike_window_sec = int(os.environ.get("SLACK_SPIKE_WINDOW_SEC", 600))
+        self.spike_threshold = int(os.environ.get("SLACK_SPIKE_THRESHOLD", 15))
+
+        # ─── [NEW] 기동 유예 기간 ───
+        # 서버 재시작 직후 N초 동안은 모든 알림 억제 (Hadoop/Kafka 초기화 노이즈 방지)
+        self._start_time = time.time()
+        self._startup_grace_sec = int(os.environ.get("SLACK_STARTUP_GRACE_SEC", 300))
+
+        # ─── [NEW] 기동 노이즈 패턴 필터 ───
+        self._startup_noise_patterns = list(_STARTUP_NOISE_PATTERNS)
+
+        # ─── [NEW] Global Rate Limiter ───
+        # 지정 시간 창 내에서 최대 N건만 전송
+        self._rate_window_sec = int(os.environ.get("SLACK_RATE_WINDOW_SEC", 300))
+        self._max_alerts_per_window = int(os.environ.get("SLACK_MAX_ALERTS_PER_WINDOW", 10))
+        self._sent_timestamps: deque = deque()
+
+        # ─── [NEW] Circuit Breaker ───
+        # 상태: "closed" | "open" | "half_open"
+        self._circuit_state = "closed"
+        self._circuit_opened_at = 0.0
+        self._circuit_open_sec = int(os.environ.get("SLACK_CIRCUIT_OPEN_SEC", 1800))
+        self._circuit_backoff_multiplier = 1  # OPEN 반복 시 2배씩 증가
 
         # ─── 내부 상태 ───
         self._last_critical_alerts = {}     # {message_hash: timestamp}
@@ -65,8 +116,6 @@ class SlackNotifier:
         }
 
         # 서버 접속 URL (슬랙 링크에 사용)
-        # APP_ENV=production → APP_BASE_URL_PROD
-        # APP_ENV=development/local/기타 → APP_BASE_URL_LOCAL
         _env = os.environ.get("APP_ENV", "development").lower()
         if _env == "production":
             self.app_base_url = os.environ.get(
@@ -78,7 +127,10 @@ class SlackNotifier:
             ).rstrip("/")
 
         if self.enabled:
-            logger.info(f"Slack 알림 서비스 활성화됨 (env={_env}, base_url={self.app_base_url})")
+            logger.info(
+                f"Slack 알림 서비스 활성화됨 (env={_env}, base_url={self.app_base_url}, "
+                f"grace={self._startup_grace_sec}s, max_per_window={self._max_alerts_per_window})"
+            )
         else:
             logger.info("Slack 알림 비활성화 (SLACK_WEBHOOK_URL 미설정)")
 
@@ -124,16 +176,39 @@ class SlackNotifier:
         if "error_spike_cooldown" in settings:
             self.error_spike_cooldown = max(60, int(settings["error_spike_cooldown"]))
 
-        logger.info(f"Slack 알림 설정 업데이트: level={self.min_alert_level}, "
-                     f"hours={self.active_hours_start}-{self.active_hours_end}, "
-                     f"excluded={self.excluded_services}")
+        if "startup_grace_sec" in settings:
+            self._startup_grace_sec = max(0, int(settings["startup_grace_sec"]))
+
+        if "max_alerts_per_window" in settings:
+            self._max_alerts_per_window = max(1, int(settings["max_alerts_per_window"]))
+
+        if "rate_window_sec" in settings:
+            self._rate_window_sec = max(60, int(settings["rate_window_sec"]))
+
+        if "circuit_open_sec" in settings:
+            self._circuit_open_sec = max(60, int(settings["circuit_open_sec"]))
+
+        if "noise_patterns_add" in settings:
+            for p in settings["noise_patterns_add"]:
+                if p.lower() not in [x.lower() for x in self._startup_noise_patterns]:
+                    self._startup_noise_patterns.append(p)
+
+        logger.info(
+            f"Slack 알림 설정 업데이트: level={self.min_alert_level}, "
+            f"hours={self.active_hours_start}-{self.active_hours_end}, "
+            f"excluded={self.excluded_services}"
+        )
 
     def get_config(self) -> dict:
         """현재 설정 반환"""
         return {
             "enabled": self.enabled,
             "webhook_url_set": bool(self.webhook_url),
-            "webhook_url_preview": self.webhook_url[:30] + "..." if len(self.webhook_url) > 30 else self.webhook_url if self.webhook_url else "",
+            "webhook_url_preview": (
+                self.webhook_url[:30] + "..."
+                if len(self.webhook_url) > 30
+                else self.webhook_url
+            ) if self.webhook_url else "",
             "min_alert_level": self.min_alert_level,
             "active_hours_start": self.active_hours_start,
             "active_hours_end": self.active_hours_end,
@@ -142,41 +217,78 @@ class SlackNotifier:
             "spike_window_sec": self.spike_window_sec,
             "spike_threshold": self.spike_threshold,
             "spike_cooldown_sec": self.error_spike_cooldown,
+            "startup_grace_sec": self._startup_grace_sec,
+            "max_alerts_per_window": self._max_alerts_per_window,
+            "rate_window_sec": self._rate_window_sec,
+            "circuit_open_sec": self._circuit_open_sec,
         }
 
     def get_status(self) -> dict:
         """현재 런타임 상태 반환"""
         now = time.time()
+        grace_remaining = max(0.0, self._startup_grace_sec - (now - self._start_time))
+
+        # 속도 제한 창 내 전송 건수 계산
+        while self._sent_timestamps and now - self._sent_timestamps[0] > self._rate_window_sec:
+            self._sent_timestamps.popleft()
+
         return {
             "enabled": self.enabled,
             "is_in_active_hours": self._is_in_active_hours(),
+            # 기동 유예
+            "startup_grace_remaining_sec": round(grace_remaining),
+            "in_startup_grace": grace_remaining > 0,
+            # 에러 급증
             "error_window_size": len(self._error_window),
             "spike_threshold": self.spike_threshold,
             "last_spike_alert_ago_sec": round(now - self._last_spike_alert) if self._last_spike_alert > 0 else None,
+            # 쿨다운
             "active_cooldowns": len(self._last_critical_alerts),
+            # Circuit Breaker
+            "circuit_state": self._circuit_state,
+            "circuit_backoff_multiplier": self._circuit_backoff_multiplier,
+            # Rate Limiter
+            "rate_window_sent_count": len(self._sent_timestamps),
+            "rate_limit_max": self._max_alerts_per_window,
+            # 이력
             "recent_alerts": list(self._alert_history)[-10:],
         }
+
+    # ─── 기동 유예 기간 ───
+
+    def _is_in_startup_grace(self) -> bool:
+        """서비스 시작 후 grace 기간 내인지 확인"""
+        return (time.time() - self._start_time) < self._startup_grace_sec
+
+    # ─── 기동 노이즈 패턴 필터 ───
+
+    def _is_startup_noise(self, message: str) -> bool:
+        """알려진 기동 노이즈 패턴인지 확인 (대소문자 무시)"""
+        msg_lower = message.lower()
+        return any(p in msg_lower for p in self._startup_noise_patterns)
 
     # ─── 필터 체크 ───
 
     def _is_in_active_hours(self) -> bool:
         """현재 시각이 활성 시간대인지 확인 (KST 기준)"""
         if self.active_hours_start is None or self.active_hours_end is None:
-            return True  # 시간 제한 없음 = 항상 활성
+            return True
 
         now_kst = datetime.now(KST)
         current_hour = now_kst.hour
 
         if self.active_hours_start <= self.active_hours_end:
-            # 예: 09~18
             return self.active_hours_start <= current_hour < self.active_hours_end
         else:
-            # 예: 22~06 (야간)
             return current_hour >= self.active_hours_start or current_hour < self.active_hours_end
 
     def _should_alert(self, log_entry: dict) -> bool:
         """해당 로그에 대해 알림을 보낼지 판단"""
         if not self.enabled:
+            return False
+
+        # [NEW] 기동 유예 기간 체크 (가장 먼저)
+        if self._is_in_startup_grace():
             return False
 
         if not self._is_in_active_hours():
@@ -192,7 +304,112 @@ class SlackNotifier:
         if self._level_priority.get(level, 0) < self._level_priority.get(self.min_alert_level, 0):
             return False
 
+        # [NEW] 기동 노이즈 패턴 필터 (유예 기간 이후에도 계속 적용)
+        message = log_entry.get('message', '')
+        if self._is_startup_noise(message):
+            return False
+
         return True
+
+    # ─── Circuit Breaker ───
+
+    def _check_circuit(self) -> bool:
+        """True이면 알림 차단"""
+        if self._circuit_state == "closed":
+            return False
+
+        now = time.time()
+        if self._circuit_state == "open":
+            elapsed = now - self._circuit_opened_at
+            open_duration = self._circuit_open_sec * self._circuit_backoff_multiplier
+            if elapsed >= open_duration:
+                self._circuit_state = "half_open"
+                logger.info(
+                    f"[SlackCircuit] HALF_OPEN: {int(elapsed)}초 경과, 탐색 알림 1건 허용"
+                )
+                return False  # half_open: 1건 허용
+            return True  # 아직 OPEN
+
+        # half_open: 1건 허용하여 복구 테스트
+        return False
+
+    def _on_alert_sent(self):
+        """알림 전송 성공 후 호출"""
+        self._sent_timestamps.append(time.time())
+        if self._circuit_state == "half_open":
+            self._circuit_state = "closed"
+            self._circuit_backoff_multiplier = 1
+            logger.info("[SlackCircuit] CLOSED: 정상 복귀")
+
+    def _on_rate_limit_hit(self):
+        """속도 초과 감지 시 차단기 OPEN"""
+        if self._circuit_state != "open":
+            self._circuit_state = "open"
+            self._circuit_opened_at = time.time()
+            open_min = (self._circuit_open_sec * self._circuit_backoff_multiplier) // 60
+            logger.warning(
+                f"[SlackCircuit] OPEN: {self._rate_window_sec}초 창에서 알림 "
+                f"{self._max_alerts_per_window}건 초과 → {open_min}분간 차단"
+            )
+            # 차단 진입 전 마지막 경고 1건 전송
+            self._send_circuit_open_notice()
+        else:
+            # 반복 폭주: 차단 시간 2배 (최대 16배)
+            self._circuit_backoff_multiplier = min(self._circuit_backoff_multiplier * 2, 16)
+            self._circuit_opened_at = time.time()  # 타이머 리셋
+            open_min = (self._circuit_open_sec * self._circuit_backoff_multiplier) // 60
+            logger.warning(f"[SlackCircuit] 차단 시간 연장 → {open_min}분")
+
+    def _send_circuit_open_notice(self):
+        """차단기 진입 시 Slack에 경고 1건 전송"""
+        if not self.enabled or not self.webhook_url:
+            return
+        open_min = (self._circuit_open_sec * self._circuit_backoff_multiplier) // 60
+        now_kst = datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S KST")
+        payload = {
+            "text": f"🚫 Slack 알림 일시 차단 ({open_min}분)",
+            "attachments": [{
+                "color": "#E74A3B",
+                "blocks": [
+                    {
+                        "type": "header",
+                        "text": {"type": "plain_text", "text": "🚫 알림 폭주 감지 — 자동 차단", "emoji": True}
+                    },
+                    {
+                        "type": "section",
+                        "text": {"type": "mrkdwn", "text":
+                            f"*{self._rate_window_sec // 60}분* 안에 알림이 *{self._max_alerts_per_window}건* 초과되어 "
+                            f"향후 *{open_min}분*간 알림을 차단합니다.\n"
+                            f"차단 후 자동 복귀됩니다.\n*감지 시각:* {now_kst}"}
+                    },
+                    {
+                        "type": "context",
+                        "elements": [{"type": "mrkdwn", "text": f"📋 <{self.app_base_url}/admin/logs|로그 모니터링 열기>"}]
+                    }
+                ]
+            }]
+        }
+        # 차단기 상태를 일시 우회해서 전송
+        try:
+            data = json.dumps(payload).encode('utf-8')
+            req = urllib.request.Request(
+                self.webhook_url, data=data,
+                headers={'Content-Type': 'application/json'}
+            )
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                if resp.status == 200:
+                    self._record_alert("circuit_open", f"{open_min}분 차단")
+        except Exception as e:
+            logger.error(f"[SlackCircuit] 차단 알림 전송 실패: {e}")
+
+    # ─── 속도 제한 ───
+
+    def _is_rate_limited(self) -> bool:
+        """전송 속도가 한계를 초과했는지 확인"""
+        now = time.time()
+        while self._sent_timestamps and now - self._sent_timestamps[0] > self._rate_window_sec:
+            self._sent_timestamps.popleft()
+        return len(self._sent_timestamps) >= self._max_alerts_per_window
 
     # ─── 메시지 전송 ───
 
@@ -200,6 +417,17 @@ class SlackNotifier:
         if not self.enabled:
             return False
 
+        # 1. Circuit Breaker 체크
+        if self._check_circuit():
+            logger.debug("[SlackCircuit] 차단기 OPEN — 메시지 스킵")
+            return False
+
+        # 2. 속도 제한 체크
+        if self._is_rate_limited():
+            self._on_rate_limit_hit()
+            return False
+
+        # 3. 실제 전송
         try:
             data = json.dumps(payload).encode('utf-8')
             req = urllib.request.Request(
@@ -208,7 +436,10 @@ class SlackNotifier:
                 headers={'Content-Type': 'application/json'}
             )
             with urllib.request.urlopen(req, timeout=5) as resp:
-                return resp.status == 200
+                if resp.status == 200:
+                    self._on_alert_sent()
+                    return True
+                return False
         except urllib.error.URLError as e:
             logger.error(f"Slack 알림 전송 실패: {e}")
             return False
@@ -249,7 +480,6 @@ class SlackNotifier:
         container = log_entry.get('container', 'unknown')
         message = log_entry.get('message', 'N/A')
         level = log_entry.get('level', 'CRITICAL')
-        timestamp = log_entry.get('timestamp', datetime.utcnow().isoformat())
 
         color = "#4A154B" if level == "CRITICAL" else "#E74A3B"
         emoji = "🚨" if level == "CRITICAL" else "❌"
@@ -302,6 +532,10 @@ class SlackNotifier:
         if service in self.excluded_services:
             return
 
+        # [NEW] 기동 노이즈 패턴은 급증 추적에서도 제외
+        if self._is_startup_noise(message):
+            return
+
         self._error_window.append((now, service, message))
 
         while self._error_window and (now - self._error_window[0][0]) > self.spike_window_sec:
@@ -312,6 +546,10 @@ class SlackNotifier:
 
     def _send_spike_alert(self, error_count: int):
         if not self.enabled or not self._is_in_active_hours():
+            return
+
+        # [NEW] 기동 유예 기간 중에는 급증 알림도 억제
+        if self._is_in_startup_grace():
             return
 
         now = time.time()
@@ -342,7 +580,7 @@ class SlackNotifier:
                 "blocks": [
                     {
                         "type": "header",
-                        "text": {"type": "plain_text", "text": f"⚠️ 에러 급증 감지", "emoji": True}
+                        "text": {"type": "plain_text", "text": "⚠️ 에러 급증 감지", "emoji": True}
                     },
                     {
                         "type": "section",
@@ -428,8 +666,9 @@ class SlackNotifier:
                 if self._should_alert(log):
                     self.notify_critical_error(log)
 
-                # 급증 추적 (필터와 별개로 항상 추적)
-                self.track_error(log)
+                # 급증 추적 (기동 유예/노이즈 필터는 track_error 내부에서 처리)
+                if not self._is_in_startup_grace():
+                    self.track_error(log)
 
     # ─── 테스트 ───
 
@@ -439,6 +678,7 @@ class SlackNotifier:
 
         now_kst = datetime.now(KST).strftime("%Y-%m-%d %H:%M:%S KST")
         in_hours = self._is_in_active_hours()
+        grace_remaining = max(0.0, self._startup_grace_sec - (time.time() - self._start_time))
 
         payload = {
             "text": "✅ Lookalike 모니터링 알림 테스트",
@@ -456,13 +696,27 @@ class SlackNotifier:
                             f"*시각:* {now_kst}\n"
                             f"*알림 레벨:* {self.min_alert_level} 이상\n"
                             f"*활성 시간:* {self.active_hours_start or '제한없음'}시 ~ {self.active_hours_end or '제한없음'}시\n"
-                            f"*현재 활성 시간대:* {'✅ 예' if in_hours else '❌ 아니오'}"}
+                            f"*현재 활성 시간대:* {'✅ 예' if in_hours else '❌ 아니오'}\n"
+                            f"*기동 유예 잔여:* {int(grace_remaining)}초\n"
+                            f"*차단기 상태:* {self._circuit_state}"}
                     }
                 ]
             }]
         }
 
-        success = self.send_message(payload)
+        # 테스트 메시지는 circuit breaker / rate limiter 우회하여 전송
+        try:
+            data = json.dumps(payload).encode('utf-8')
+            req = urllib.request.Request(
+                self.webhook_url, data=data,
+                headers={'Content-Type': 'application/json'}
+            )
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                success = resp.status == 200
+        except Exception as e:
+            logger.error(f"Slack 테스트 전송 실패: {e}")
+            success = False
+
         return {"success": success, "error": None if success else "전송 실패"}
 
 

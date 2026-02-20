@@ -343,7 +343,43 @@
                 </div>
             </div>
         </div>
-        <!-- 3행: 제외 서비스 -->
+        <!-- 3행: 폭주 방지 설정 -->
+        <div class="row g-3 mb-3">
+            <div class="col-md-3">
+                <label class="form-label small fw-bold"><i class="fas fa-hourglass-start me-1 text-warning"></i>기동 유예
+                    기간</label>
+                <div class="input-group input-group-sm">
+                    <input type="number" class="form-control" id="slackStartupGrace" value="15" min="0" max="60">
+                    <span class="input-group-text">분</span>
+                </div>
+                <div class="form-text" style="font-size:0.7rem;">재시작 후 N분간 알림 억제</div>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small fw-bold"><i class="fas fa-tachometer-alt me-1 text-info"></i>최대 알림
+                    수</label>
+                <div class="input-group input-group-sm">
+                    <input type="number" class="form-control" id="slackMaxAlerts" value="10" min="1" max="50">
+                    <span class="input-group-text">건/5분</span>
+                </div>
+                <div class="form-text" style="font-size:0.7rem;">초과 시 차단기 동작</div>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small fw-bold"><i class="fas fa-ban me-1 text-danger"></i>차단기 유지 시간</label>
+                <div class="input-group input-group-sm">
+                    <input type="number" class="form-control" id="slackCircuitOpenMin" value="30" min="1" max="120">
+                    <span class="input-group-text">분</span>
+                </div>
+                <div class="form-text" style="font-size:0.7rem;">폭주 감지 후 차단 유지</div>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small fw-bold"><i class="fas fa-plug me-1"></i>차단기 상태</label>
+                <div class="pt-1">
+                    <span class="badge fs-6" id="slackCircuitBadge">-</span>
+                    <div class="form-text mt-1" style="font-size:0.7rem;" id="slackGraceInfo"></div>
+                </div>
+            </div>
+        </div>
+        <!-- 4행: 제외 서비스 -->
         <div class="mb-2">
             <label class="form-label small fw-bold">알림 제외 서비스</label>
             <div class="d-flex flex-wrap gap-2" id="excludeServicesGroup">
@@ -939,11 +975,40 @@
             endSel.value = config.active_hours_end !== null && config.active_hours_end !== undefined ? String(config.active_hours_end) : '';
             document.getElementById('slackSpikeThreshold').value = config.spike_threshold || 15;
 
+            // [NEW] 폭주 방지 설정값 반영
+            if (config.startup_grace_sec !== undefined)
+                document.getElementById('slackStartupGrace').value = Math.round(config.startup_grace_sec / 60);
+            if (config.max_alerts_per_window !== undefined)
+                document.getElementById('slackMaxAlerts').value = config.max_alerts_per_window;
+            if (config.circuit_open_sec !== undefined)
+                document.getElementById('slackCircuitOpenMin').value = Math.round(config.circuit_open_sec / 60);
+
             // 제외 서비스 체크박스
             const excluded = config.excluded_services || [];
             document.querySelectorAll('#excludeServicesGroup input').forEach(cb => {
                 cb.checked = excluded.includes(cb.value);
             });
+
+            // [NEW] Circuit Breaker 상태 배지
+            const circuitBadge = document.getElementById('slackCircuitBadge');
+            const circuitState = status.circuit_state || 'closed';
+            if (circuitState === 'closed') {
+                circuitBadge.className = 'badge bg-success'; circuitBadge.innerText = '정상 (CLOSED)';
+            } else if (circuitState === 'open') {
+                circuitBadge.className = 'badge bg-danger'; circuitBadge.innerText = '차단 중 (OPEN)';
+            } else {
+                circuitBadge.className = 'badge bg-warning text-dark'; circuitBadge.innerText = '복귀 시도 (HALF-OPEN)';
+            }
+
+            // [NEW] 기동 유예 잔여 시간
+            const graceInfo = document.getElementById('slackGraceInfo');
+            const graceRemain = status.startup_grace_remaining_sec || 0;
+            if (graceRemain > 0) {
+                const m = Math.floor(graceRemain / 60), s = graceRemain % 60;
+                graceInfo.innerHTML = `<span class="text-warning"><i class="fas fa-hourglass-half me-1"></i>유예 잔여 ${m}분 ${s}초</span>`;
+            } else {
+                graceInfo.innerHTML = '<span class="text-success"><i class="fas fa-check me-1"></i>유예 종료</span>';
+            }
 
             // 런타임 상태
             const winInfo = document.getElementById('slackWindowInfo');
@@ -951,6 +1016,7 @@
             if (status.error_window_size > 0) parts.push(`에러윈도우: ${status.error_window_size}건`);
             if (status.active_cooldowns > 0) parts.push(`쿨다운: ${status.active_cooldowns}건`);
             if (!status.is_in_active_hours) parts.push('⏸ 비활성 시간대');
+            if (status.rate_window_sent_count > 0) parts.push(`${status.rate_window_sent_count}/${status.rate_limit_max}건 전송됨`);
             winInfo.innerHTML = parts.length ? `<i class="fas fa-info-circle me-1"></i>${parts.join(' | ')}` : '';
 
             const histEl = document.getElementById('slackAlertHistory');
@@ -980,6 +1046,9 @@
         const startVal = document.getElementById('slackHoursStart').value;
         const endVal = document.getElementById('slackHoursEnd').value;
         const threshold = parseInt(document.getElementById('slackSpikeThreshold').value) || 15;
+        const graceMin = parseInt(document.getElementById('slackStartupGrace').value) || 15;
+        const maxAlerts = parseInt(document.getElementById('slackMaxAlerts').value) || 10;
+        const circuitMin = parseInt(document.getElementById('slackCircuitOpenMin').value) || 30;
         const excluded = [];
         document.querySelectorAll('#excludeServicesGroup input:checked').forEach(cb => excluded.push(cb.value));
 
@@ -988,7 +1057,10 @@
             active_hours_start: startVal !== '' ? parseInt(startVal) : null,
             active_hours_end: endVal !== '' ? parseInt(endVal) : null,
             excluded_services: excluded,
-            spike_threshold: threshold
+            spike_threshold: threshold,
+            startup_grace_sec: graceMin * 60,
+            max_alerts_per_window: maxAlerts,
+            circuit_open_sec: circuitMin * 60
         };
         if (url) body.webhook_url = url;
 
