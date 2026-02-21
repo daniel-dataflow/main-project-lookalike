@@ -248,7 +248,7 @@ services:
     deploy:
       resources:
         limits: { memory: 1G }
-    command: >
+    command: > 
       bash -c "
         mkdir -p /opt/hadoop/etc/hadoop
 
@@ -256,7 +256,13 @@ services:
         
         echo '<?xml version=\"1.0\"?><configuration><property><name>dfs.namenode.name.dir</name><value>/hadoop/dfs/name</value></property><property><name>dfs.replication</name><value>1</value></property><property><name>dfs.permissions.enabled</name><value>false</value></property><property><name>dfs.webhdfs.enabled</name><value>true</value></property><property><name>dfs.namenode.datanode.registration.ip-hostname-check</name><value>false</value></property></configuration>' > /opt/hadoop/etc/hadoop/hdfs-site.xml
 
-        hdfs namenode -format -nonInteractive -force 2>/dev/null || true
+        if [ ! -d \"/hadoop/dfs/name/current\" ]; then
+          echo 'Formatting NameNode...'
+          hdfs namenode -format -nonInteractive -force
+        else
+          echo 'NameNode is already formatted.'
+        fi
+
         hdfs namenode
       "
     healthcheck:
@@ -352,13 +358,14 @@ services:
       retries: 5
       start_period: 20s
 
-  # ============================================================
+# ============================================================
   # 10. Spark Worker — apache/spark:3.5.3
   # ============================================================
   spark-worker-1:
     image: apache/spark:3.5.3
     container_name: spark-worker-1-main
     hostname: spark-worker-1
+    user: "root"
     depends_on:
       spark-master: { condition: service_healthy }
     environment:
@@ -377,11 +384,14 @@ services:
         reservations: { memory: 1G }
     command: >
       bash -c "
-        mkdir -p /opt/spark/conf
+        echo '작업 폴더 권한 부여 중...' &&
+        mkdir -p /opt/spark/work &&
+        chmod -R 777 /opt/spark/work &&
         
-        echo 'spark.master spark://spark-master:7077' > /opt/spark/conf/spark-defaults.conf
-        echo 'spark.hadoop.fs.defaultFS hdfs://namenode:9000' >> /opt/spark/conf/spark-defaults.conf
-
+        mkdir -p /opt/spark/conf &&
+        echo 'spark.master spark://spark-master:7077' > /opt/spark/conf/spark-defaults.conf &&
+        echo 'spark.hadoop.fs.defaultFS hdfs://namenode:9000' >> /opt/spark/conf/spark-defaults.conf &&
+        
         /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker --cores 2 --memory 2g --webui-port 8081 spark://spark-master:7077
       "
 
@@ -439,7 +449,8 @@ services:
   # 12. Airflow Webserver — apache/airflow:2.10.4-python3.11
   # ============================================================
   airflow-webserver:
-    image: apache/airflow:2.10.4-python3.11
+    build: .
+    # image: apache/airflow:2.10.4-python3.11
     container_name: airflow-webserver-main
     hostname: airflow-webserver
     user: "50000:0"
@@ -461,6 +472,8 @@ services:
       - ./data-pipeline/airflow/dags:/opt/airflow/dags
       - ./data-pipeline/airflow/plugins:/opt/airflow/plugins
       - airflow_logs:/opt/airflow/logs
+      - ./data-pipeline/spark/jobs:/opt/airflow/data-pipeline/spark/jobs
+      
     networks: [ main-network ]
     restart: unless-stopped
     deploy:
@@ -488,8 +501,9 @@ services:
   # ============================================================
   # 13. Airflow Scheduler — apache/airflow:2.10.4-python3.11
   # ============================================================
-  airflow-scheduler:
-    image: apache/airflow:2.10.4-python3.11
+airflow-scheduler:
+    build: .
+    # image: apache/airflow:2.10.4-python3.11
     container_name: airflow-scheduler-main
     hostname: airflow-scheduler
     user: "50000:0"
@@ -500,6 +514,7 @@ services:
       - AIRFLOW__CORE__EXECUTOR=LocalExecutor
       - AIRFLOW__CORE__LOAD_EXAMPLES=False
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgresql:5432/${AIRFLOW_DB}
+      - AIRFLOW__WEBSERVER__SECRET_KEY=${AIRFLOW_WEBSERVER_SECRET_KEY}
       - AIRFLOW__CORE__FERNET_KEY=${AIRFLOW_FERNET_KEY}
       - AIRFLOW__CONN__SPARK_DEFAULT=spark://spark-master:7077
       - TZ=${TZ}
@@ -507,21 +522,20 @@ services:
       - ./data-pipeline/airflow/dags:/opt/airflow/dags
       - ./data-pipeline/airflow/plugins:/opt/airflow/plugins
       - airflow_logs:/opt/airflow/logs
+      - ./data-pipeline/spark/jobs:/opt/airflow/data-pipeline/spark/jobs
     networks: [ main-network ]
     restart: unless-stopped
     deploy:
       resources:
-        limits: { memory: 2G }
-        reservations: { memory: 1G }
-    command: >
-      bash -c "
-        pip install --no-cache-dir
-          apache-airflow-providers-apache-spark==4.10.0
-          apache-airflow-providers-postgres==5.12.0
-          psycopg2-binary
-          pyspark==3.5.3 &&
-        airflow scheduler
-      "
+        limits: 
+          memory: 2G
+        reservations: 
+          memory: 1G
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    command: airflow scheduler
     healthcheck:
       test: [ "CMD-SHELL", "airflow jobs check --job-type SchedulerJob --hostname \"$$HOSTNAME\"" ]
       interval: 30s
