@@ -349,18 +349,16 @@ async def get_search_history_detail(log_id: int, request: Request):
             cur.execute(
                 """
                 SELECT 
-                    p.prod_name as product_name,
-                    p.brand_name as brand,
-                    COALESCE(np.price, p.base_price) as price,
-                    p.img_hdfs_path as image_url,
-                    np.mall_name,
-                    np.mall_url,
-                    sr.rank
-                FROM search_results sr
-                JOIN products p ON sr.product_id::bigint = p.product_id
-                LEFT JOIN naver_prices np ON p.product_id = np.product_id AND np.rank = 1
-                WHERE sr.log_id = %s 
-                ORDER BY sr.rank ASC
+                    product_name,
+                    brand,
+                    price,
+                    image_url,
+                    mall_name,
+                    mall_url,
+                    rank
+                FROM search_results
+                WHERE log_id = %s 
+                ORDER BY rank ASC
                 """,
                 (log_id,),
             )
