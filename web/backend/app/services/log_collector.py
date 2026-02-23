@@ -2,6 +2,7 @@
 import asyncio
 import logging
 import hashlib
+import re
 from datetime import datetime
 import docker
 from docker.errors import DockerException
@@ -12,6 +13,14 @@ from .auto_recovery import get_auto_recovery
 import json
 
 logger = logging.getLogger(__name__)
+
+# 전역 상태: 마지막으로 Purge 기능이 호출된 시점 (UTC ISO 포맷 문자열)
+# 이 시점 이전의 도커 과거 로그들은 ES에 재수집되지 않고 즉각 버려집니다. (좀비 로그 부활 영구 차단)
+_GLOBAL_PURGE_TIMESTAMP = None
+
+def set_global_purge_time(iso_timestamp_str: str):
+    global _GLOBAL_PURGE_TIMESTAMP
+    _GLOBAL_PURGE_TIMESTAMP = iso_timestamp_str
 
 class LogCollector:
     def __init__(self):
@@ -130,6 +139,11 @@ class LogCollector:
                     message = line
 
                 service = self.container_to_service.get(container_name, "unknown")
+                
+                # [중요] 사용자가 대시보드에서 '초기화(Purge)'를 누른 시점보다
+                # 이전에 발생한 과거 찌꺼기 로그가 재수집되어 좀비처럼 살아나는 현상을 완벽 원천 차단
+                if _GLOBAL_PURGE_TIMESTAMP and timestamp < _GLOBAL_PURGE_TIMESTAMP:
+                    continue
                 
                 # 개선된 파싱 로직 적용
                 level, parsed_message = self._parse_log_line(message)
