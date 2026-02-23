@@ -1,7 +1,6 @@
 networks:
   main-network:
     driver: bridge
-    # name: main-project-network
 
 volumes:
   postgres_data: { name: main_postgres_data }
@@ -44,7 +43,6 @@ services:
         limits: { memory: 1G }
         reservations: { memory: 512M }
     healthcheck:
-      # ✅ FIX ①: $${} → ${} — env_file 변수는 컨테이너 내부에서 $VAR 으로 참조
       test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
       interval: 5s
       timeout: 5s
@@ -120,7 +118,6 @@ services:
         limits: { memory: 512M }
         reservations: { memory: 256M }
     healthcheck:
-      # ✅ FIX ①: $${REDIS_PASSWORD} → ${REDIS_PASSWORD}
       test: [ "CMD-SHELL", "redis-cli -a ${REDIS_PASSWORD} ping | grep PONG" ]
       interval: 5s
       timeout: 5s
@@ -128,7 +125,7 @@ services:
       start_period: 5s
 
   # ============================================================
-  # 4. Elasticsearch 8.11.0
+  # 4. Elasticsearch 8.11.0 & Kibana (추가됨)
   # ============================================================
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
@@ -156,6 +153,18 @@ services:
       timeout: 10s
       retries: 5
       start_period: 30s
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    container_name: kibana-main
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+    networks: [ main-network ]
+    restart: unless-stopped
 
   # ============================================================
   # 5. Zookeeper (Confluent 7.5.0)
@@ -185,9 +194,6 @@ services:
 
   # ============================================================
   # 6. Kafka (Confluent 7.5.0)
-  #    내/외부 리스너 분리
-  #    · INTERNAL://kafka:9092  — 컨테이너 간 통신
-  #    · EXTERNAL://localhost:${KAFKA_PORT}  — 호스트 직접 접근
   # ============================================================
   kafka:
     image: confluentinc/cp-kafka:7.5.0
@@ -226,10 +232,6 @@ services:
 
   # ============================================================
   # 7. Hadoop NameNode — apache/hadoop:3.3.6
-  #
-  # ✅ FIX ④: conf 파일 마운트 제거 → command에서 직접 XML 생성
-  #    이유: conf 파일이 없으면 Docker가 빈 디렉토리로 마운트해
-  #          /opt/hadoop/etc/hadoop/core-site.xml 이 디렉토리가 돼버림
   # ============================================================
   namenode:
     image: apache/hadoop:3.3.6
@@ -266,7 +268,6 @@ services:
         hdfs namenode
       "
     healthcheck:
-      # curl 대신 bash 내장 기능으로 9870 포트 확인
       test: [ "CMD-SHELL", "bash -c '</dev/tcp/localhost/9870'" ]
       interval: 10s
       timeout: 10s
@@ -302,7 +303,6 @@ services:
         hdfs datanode
       "
     healthcheck:
-      # 9864 포트 확인
       test: [ "CMD-SHELL", "bash -c '</dev/tcp/localhost/9864'" ]
       interval: 10s
       timeout: 10s
@@ -311,10 +311,6 @@ services:
 
   # ============================================================
   # 9. Spark Master — apache/spark:3.5.3
-  #
-  # ✅ FIX ③⑤: SPARK_MODE 제거 + spark-defaults.conf 마운트 제거
-  #    apache/spark 공식 이미지는 SPARK_MODE 환경변수 미지원 (Bitnami 전용)
-  #    spark.hadoop.fs.defaultFS 는 environment로 직접 전달
   # ============================================================
   spark-master:
     image: apache/spark:3.5.3
@@ -351,14 +347,13 @@ services:
         /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
       "
     healthcheck:
-      # 8080 포트 확인
       test: [ "CMD-SHELL", "bash -c '</dev/tcp/localhost/8080'" ]
       interval: 10s
       timeout: 10s
       retries: 5
       start_period: 20s
 
-# ============================================================
+  # ============================================================
   # 10. Spark Worker — apache/spark:3.5.3
   # ============================================================
   spark-worker-1:
@@ -428,7 +423,7 @@ services:
       - "${FASTAPI_PORT}:8900"
     volumes:
       - .:/app
-      - /var/run/docker.sock:/var/run/docker.sock # Docker 모니터링용
+      - /var/run/docker.sock:/var/run/docker.sock
     networks: [ main-network ]
     restart: unless-stopped
     deploy:
@@ -446,11 +441,12 @@ services:
       start_period: 60s
 
   # ============================================================
-  # 12. Airflow Webserver — apache/airflow:2.10.4-python3.11
+  # 12. Airflow Webserver (커스텀 빌드 및 모델 마운트 추가됨)
   # ============================================================
   airflow-webserver:
-    build: .
-    # image: apache/airflow:2.10.4-python3.11
+    build: 
+      context: .
+      dockerfile: Dockerfile
     container_name: airflow-webserver-main
     hostname: airflow-webserver
     user: "50000:0"
@@ -465,6 +461,7 @@ services:
       - AIRFLOW__WEBSERVER__SECRET_KEY=${AIRFLOW_WEBSERVER_SECRET_KEY}
       - AIRFLOW__WEBSERVER__EXPOSE_CONFIG=True
       - AIRFLOW__CONN__SPARK_DEFAULT=spark://spark-master:7077
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
       - TZ=${TZ}
     ports:
       - "${AIRFLOW_WEBSERVER_PORT}:8080"
@@ -473,13 +470,13 @@ services:
       - ./data-pipeline/airflow/plugins:/opt/airflow/plugins
       - airflow_logs:/opt/airflow/logs
       - ./data-pipeline/spark/jobs:/opt/airflow/data-pipeline/spark/jobs
-      
+      - ./best.pt:/opt/airflow/model/best.pt:ro  # ✅ YOLO 모델 마운트
     networks: [ main-network ]
     restart: unless-stopped
     deploy:
       resources:
-        limits: { memory: 2G }
-        reservations: { memory: 1G }
+        limits: { memory: 6G }
+        reservations: { memory: 2G }
     command: >
       bash -c "
         echo '패키지 설치 중...' &&
@@ -499,11 +496,12 @@ services:
       start_period: 180s
 
   # ============================================================
-  # 13. Airflow Scheduler — apache/airflow:2.10.4-python3.11
+  # 13. Airflow Scheduler (NVIDIA GPU 유지, 커스텀 빌드 적용)
   # ============================================================
-airflow-scheduler:
-    build: .
-    # image: apache/airflow:2.10.4-python3.11
+  airflow-scheduler:
+    build: 
+      context: .
+      dockerfile: Dockerfile
     container_name: airflow-scheduler-main
     hostname: airflow-scheduler
     user: "50000:0"
@@ -517,22 +515,24 @@ airflow-scheduler:
       - AIRFLOW__WEBSERVER__SECRET_KEY=${AIRFLOW_WEBSERVER_SECRET_KEY}
       - AIRFLOW__CORE__FERNET_KEY=${AIRFLOW_FERNET_KEY}
       - AIRFLOW__CONN__SPARK_DEFAULT=spark://spark-master:7077
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
       - TZ=${TZ}
     volumes:
       - ./data-pipeline/airflow/dags:/opt/airflow/dags
       - ./data-pipeline/airflow/plugins:/opt/airflow/plugins
       - airflow_logs:/opt/airflow/logs
       - ./data-pipeline/spark/jobs:/opt/airflow/data-pipeline/spark/jobs
+      - ./best.pt:/opt/airflow/model/best.pt:ro  # ✅ YOLO 모델 마운트
     networks: [ main-network ]
     restart: unless-stopped
     deploy:
       resources:
         limits: 
-          memory: 2G
+          memory: 6G
         reservations: 
-          memory: 1G
+          memory: 2G
           devices:
-            - driver: nvidia
+            - driver: nvidia  # ✅ GPU 설정 유지
               count: 1
               capabilities: [gpu]
     command: airflow scheduler
@@ -542,62 +542,3 @@ airflow-scheduler:
       timeout: 10s
       retries: 5
       start_period: 180s
-  # ============================================================
-  # 14. Airflow Triggerer — apache/airflow:2.10.4-python3.11
-  # ============================================================
-  # airflow-triggerer:
-  #   image: apache/airflow:2.10.4-python3.11
-  #   container_name: airflow-triggerer-main
-  #   hostname: airflow-triggerer
-  #   user: "50000:0"
-  #   depends_on:
-  #     airflow-webserver: { condition: service_healthy }
-  #   environment:
-  #     - AIRFLOW_HOME=/opt/airflow
-  #     - AIRFLOW__CORE__EXECUTOR=LocalExecutor
-  #     - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgresql:5432/${AIRFLOW_DB}
-  #     - AIRFLOW__CORE__FERNET_KEY=${AIRFLOW_FERNET_KEY}
-  #     - TZ=${TZ}
-  #   volumes:
-  #     - ./data-pipeline/airflow/dags:/opt/airflow/dags
-  #     - airflow_logs:/opt/airflow/logs
-  #   networks: [main-network]
-  #   restart: unless-stopped
-  #   deploy:
-  #     resources:
-  #       limits:       { memory: 512M }
-  #       reservations: { memory: 256M }
-  #   command: >
-  #     bash -c "
-  #       pip install --no-cache-dir
-  #         apache-airflow-providers-apache-spark==4.10.0
-  #         psycopg2-binary &&
-  #       airflow triggerer
-  #     "
-  #   # healthcheck:
-  #   #   test: ["CMD-SHELL", "airflow jobs check --job-type TriggererJob --hostname \"$$HOSTNAME\" --limit 1"]
-  #   #   interval: 30s
-  #   #   timeout: 10s
-  #   #   retries: 5
-  #   #   start_period: 180s
-
-  # ================================================================
-  #  .env 필수 추가 항목 (start_all.sh가 자동 생성)
-  # ================================================================
-  #  AIRFLOW_FERNET_KEY=<자동생성>
-  #  AIRFLOW_WEBSERVER_SECRET_KEY=<자동생성>
-  #  AIRFLOW_ADMIN_PASSWORD=${ADMIN_PASSWORD}   ← .env의 ADMIN_PASSWORD에서 자동 설정
-  #  AIRFLOW_DB=airflowdb          ← 기존 .env에 이미 존재
-
-  # ================================================================
-  #  서비스 기동 순서 (의존성 체인)
-  # ================================================================
-  #
-  #  postgresql ──→ init-db ──→ airflow-webserver ──→ airflow-scheduler
-  #                                               └──→ airflow-triggerer
-  #  postgresql ──→ fastapi
-  #  mongodb    ──→ fastapi
-  #  redis      ──→ fastapi
-  #  zookeeper  ──→ kafka
-  #  namenode   ──→ datanode
-  #  namenode   ──→ spark-master ──→ spark-worker-1
