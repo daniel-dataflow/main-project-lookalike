@@ -467,7 +467,8 @@ services:
       - AIRFLOW__CORE__FERNET_KEY=${AIRFLOW_FERNET_KEY}
       - AIRFLOW__WEBSERVER__SECRET_KEY=${AIRFLOW_WEBSERVER_SECRET_KEY}
       - AIRFLOW__WEBSERVER__EXPOSE_CONFIG=True
-      - AIRFLOW__CONN__SPARK_DEFAULT=spark://spark-master:7077
+      - AIRFLOW_CONN_SPARK_DEFAULT=spark://spark-master:7077
+      - AIRFLOW_CONN_POSTGRES_DEFAULT=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgresql:5432/${POSTGRES_DB}
       - TZ=${TZ}
     ports:
       - "${AIRFLOW_WEBSERVER_PORT}:8080"
@@ -515,7 +516,8 @@ services:
       - AIRFLOW__CORE__LOAD_EXAMPLES=False
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgresql:5432/${AIRFLOW_DB}
       - AIRFLOW__CORE__FERNET_KEY=${AIRFLOW_FERNET_KEY}
-      - AIRFLOW__CONN__SPARK_DEFAULT=spark://spark-master:7077
+      - AIRFLOW_CONN_SPARK_DEFAULT=spark://spark-master:7077
+      - AIRFLOW_CONN_POSTGRES_DEFAULT=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgresql:5432/${POSTGRES_DB}
       - TZ=${TZ}
     volumes:
       - ./data-pipeline/airflow/dags:/opt/airflow/dags
