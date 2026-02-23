@@ -23,40 +23,62 @@ class KafkaMetricConsumer:
         """
         Kafka consumer loop for metrics
         """
-        logger.info(f"Starting Kafka Metric consumer for topic: {self.topic}")
+        logger.info(f"Starting Kafka Metric consumer thread for topic: {self.topic}")
         buffer = []
         last_flush_time = time.time()
         flush_interval = 2.0
         batch_size = 10
 
-        try:
-            for message in self.consumer:
-                if not self.running:
-                    break
-                
+        while self.running:
+            if not self.consumer:
                 try:
-                    metric_data = message.value
-                    
-                    if metric_data:
-                        buffer.append({
-                            "_index": self.index_name,
-                            "_source": metric_data
-                        })
-
-                    # Flush buffer
-                    current_time = time.time()
-                    if len(buffer) >= batch_size or (current_time - last_flush_time) >= flush_interval:
-                        if buffer:
-                            helpers.bulk(self.es_client, buffer)
-                            buffer = []
-                        last_flush_time = current_time
-                        
-                except Exception as e:
-                    logger.error(f"Error processing metric message: {e}")
+                    self.consumer = KafkaConsumer(
+                        self.topic,
+                        bootstrap_servers=self.bootstrap_servers,
+                        group_id=self.group_id,
+                        auto_offset_reset="latest",
+                        enable_auto_commit=True,
+                        value_deserializer=lambda x: json.loads(x.decode('utf-8')),
+                        request_timeout_ms=20000,
+                        api_version_auto_timeout_ms=20000
+                    )
+                    self.consumer.topics()
+                    logger.info("✅ Kafka Metric connection successful. Starting consumption.")
+                except (KafkaError, NoBrokersAvailable) as e:
+                    logger.warning(f"❌ Kafka Metric connection failed ({e}). Retrying in 5 seconds...")
+                    time.sleep(5)
                     continue
 
-        except Exception as e:
-            logger.error(f"Kafka Metric consumer error: {e}")
+            try:
+                for message in self.consumer:
+                    if not self.running:
+                        break
+                    
+                    try:
+                        metric_data = message.value
+                        
+                        if metric_data:
+                            buffer.append({
+                                "_index": self.index_name,
+                                "_source": metric_data
+                            })
+
+                        # Flush buffer
+                        current_time = time.time()
+                        if len(buffer) >= batch_size or (current_time - last_flush_time) >= flush_interval:
+                            if buffer:
+                                helpers.bulk(self.es_client, buffer)
+                                buffer = []
+                            last_flush_time = current_time
+                            
+                    except Exception as e:
+                        logger.error(f"Error processing metric message: {e}")
+                        continue
+
+            except Exception as e:
+                logger.error(f"Kafka Metric consumer error: {e}")
+                self.consumer = None
+                time.sleep(5)
 
     def start(self):
         """
@@ -64,32 +86,8 @@ class KafkaMetricConsumer:
         """
         self.running = True
         
-        try:
-            # Try connecting to Kafka
-            self.consumer = KafkaConsumer(
-                self.topic,
-                bootstrap_servers=self.bootstrap_servers,
-                group_id=self.group_id,
-                auto_offset_reset="latest",
-                enable_auto_commit=True,
-                value_deserializer=lambda x: json.loads(x.decode('utf-8')),
-                request_timeout_ms=20000,
-                api_version_auto_timeout_ms=20000
-            )
-            
-            # Test connection
-            self.consumer.topics()
-            logger.info("✅ Kafka Metric connection successful. Starting consumer thread.")
-            
-            thread = threading.Thread(target=self.consume_and_index, daemon=True)
-            thread.start()
-            
-        except (KafkaError, NoBrokersAvailable) as e:
-            logger.warning(f"❌ Kafka Metric connection failed: {e}")
-            # Metrics are less critical than logs, so maybe we don't need a robust fallback immediately,
-            # or we could implement direct pushing to ES from MetricCollector if Kafka fails.
-            # For now, we'll just log the error.
-            pass
+        thread = threading.Thread(target=self.consume_and_index, daemon=True)
+        thread.start()
 
     def stop(self):
         self.running = False

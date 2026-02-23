@@ -656,7 +656,7 @@
         Object.values(latestMap).sort((a, b) => a.service.localeCompare(b.service)).forEach(log => {
             const tr = document.createElement('tr');
             const ts = log.timestamp.endsWith('Z') ? log.timestamp : log.timestamp + 'Z';
-            const timeStr = new Date(ts).toLocaleTimeString('ko-KR');
+            const timeStr = new Date(ts).toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
             const memMB = (log.memory_usage / 1024 / 1024).toFixed(1);
 
             let cpuClass = "";
