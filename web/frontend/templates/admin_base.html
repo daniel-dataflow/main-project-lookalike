@@ -45,6 +45,9 @@
             </div>
             <form onsubmit="adminLogin(event)">
                 <div class="mb-3">
+                    <input type="text" id="adminUsername" class="form-control form-control-lg mb-2"
+                        placeholder="관리자 아이디" style="border-radius:10px; border:2px solid #e9ecef; text-align:center;"
+                        autocomplete="username">
                     <input type="password" id="adminPassword" class="form-control form-control-lg"
                         placeholder="관리자 비밀번호"
                         style="border-radius:10px; border:2px solid #e9ecef; text-align:center; letter-spacing:4px;"
@@ -375,7 +378,7 @@
             // 사이드바는 d-none d-md-flex 클래스가 있으므로 추가 제어 불필요하지만, 확실히 숨기려면:
             // document.getElementById('adminSidebar').classList.add('d-none'); 
 
-            document.getElementById('adminPassword').focus();
+            document.getElementById('adminUsername').focus();
         }
 
         function showAdminContent() {
@@ -400,8 +403,9 @@
         async function adminLogin(e) {
             e.preventDefault();
 
+            const username = document.getElementById('adminUsername').value.trim();
             const password = document.getElementById('adminPassword').value.trim();
-            if (!password) return;
+            if (!username || !password) return;
 
             const btn = document.getElementById('adminLoginBtn');
             const spinner = document.getElementById('adminLoginSpinner');
@@ -418,7 +422,7 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'same-origin',
-                    body: JSON.stringify({ password }),
+                    body: JSON.stringify({ username, password }),
                 });
 
                 if (resp.ok) {
