@@ -23,12 +23,12 @@ IMAGE_DIR = f"{RAW_PATH}/image"
 # 세션 생성 시 mongodb 전용 옵션을 확실히 추가합니다.
 spark = SparkSession.builder \
     .appName(f"{BRAND_NAME}_ETL_{TARGET_DATE}") \
-    .config("spark.jars.packages", "org.postgresql:postgresql:42.5.0,org.mongodb.spark:mongo-spark-connector_2.12:10.1.1") \
+    .config("spark.jars.packages", "org.postgresql:postgresql:42.6.0,org.mongodb.spark:mongo-spark-connector_2.12:10.1.1") \
     .getOrCreate()
 
 # --- [2. ID 채번 함수] ---
 def get_and_update_sequence(count):
-    conn = psycopg2.connect(host="localhost", database="datadb", user="datauser", password="DataPass2024!")
+    conn = psycopg2.connect(host="localhost", database="datadb", user="datauser", password="DataPass2026!")
     cur = conn.cursor()
     cur.execute("""
         UPDATE brand_sequences 
@@ -134,13 +134,13 @@ pg_data = final_df.select(
     current_timestamp().alias("create_dt"),
     current_timestamp().alias("update_dt")
 )
-
+# 26.2.16(#.option("url", "jdbc:postgresql://localhost:5432/datadb") \)
 pg_data.write.format("jdbc") \
-    .option("url", "jdbc:postgresql://localhost:5432/datadb") \
+    .option("url", "jdbc:postgresql://postgresql:5432/datadb") \
     .option("driver", "org.postgresql.Driver") \
     .option("dbtable", "products") \
     .option("user", "datauser") \
-    .option("password", "DataPass2024!") \
+    .option("password", "DataPass2026!") \
     .mode("append").save()
 
 # --- [6. MongoDB 적재] ---
@@ -155,7 +155,7 @@ mongo_data = final_df.select(
 )
 
 # .option에 authSource와 database를 명확히 풀 경로로 적어줍니다.
-clean_mongo_uri = f"mongodb://datauser:DataPass2024!@{MONGO_IP}:27017/?authSource=admin"
+clean_mongo_uri = f"mongodb://datauser:DataPass2026!@{MONGO_IP}:27017/?authSource=admin"
 
 # 2. 명시적인 옵션 키를 사용하여 적재합니다.
 mongo_data.write.format("mongodb") \

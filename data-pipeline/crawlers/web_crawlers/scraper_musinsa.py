@@ -9,24 +9,40 @@ from hdfs import InsecureClient # pip install hdfs 필요
 # --- 설정 ---
 BRAND_NAME = "musinsa"
 LOCAL_OUTPUT_PATH = f"crawlers/data/{BRAND_NAME}_json_files"
+## 26.2.15
+TODAY_STR = datetime.now().strftime('%Y%m%d') # 20260215 형태
+##
+TARGET_MAP = {
+    'MEN': {
+        'TOPS': ['https://www.musinsa.com/categories/item/001'],
+        'OUTER': ['https://www.musinsa.com/categories/item/002'],
+        'PANTS': ['https://www.musinsa.com/categories/item/003']
+    },
+    'WOMEN': {
+        'TOPS': ['https://www.musinsa.com/categories/item/001?d_cat_cd=001'],
+        'PANTS': ['https://www.musinsa.com/categories/item/003?d_cat_cd=003']
+    }
+}
+## 26.2.15 
+# --- 하둡 설정 (Spark 프로그램과 경로 통일) ---
+HDFS_URL = "http://namenode:9870"  # Docker 내부 통신용
+HDFS_USER = "root"                 
+DATE_STR = datetime.now().strftime('%Y%m%d')
 
-# --- 하둡 설정 ---
-HDFS_URL = "http://your-namenode-host:9870"  # 네임노드 IP 및 포트
-HDFS_USER = "hadoop"                         # 하둡 유저명
-DATE_STR = datetime.now().strftime('%Y%m%d') # 오늘 날짜 (예: 20240522)
-# 저장 구조: raw/brand/date
-HDFS_BASE_PATH = f"/user/{HDFS_USER}/raw/{BRAND_NAME}/{DATE_STR}"
+# [중요] Spark가 읽는 경로(/raw/...)와 정확히 일치시켰습니다.
+HDFS_BASE_PATH = f"/raw/{BRAND_NAME}/{TODAY_STR}"
 
 # 하둡 클라이언트 초기화
 try:
     hdfs_client = InsecureClient(HDFS_URL, user=HDFS_USER)
     # 시작 전 하둡 디렉토리 미리 생성
     hdfs_client.makedirs(HDFS_BASE_PATH)
+    print(f"✅ 하둡 경로 확인 완료: {HDFS_BASE_PATH}")
 except Exception as e:
     print(f"⚠️ 하둡 연결 초기화 실패: {e}")
 
 visited_products = set()
-sem = asyncio.Semaphore(4)
+sem = asyncio.Semaphore(4) # 4
 async def extract_attribute_focus_data(page):
     try:
         # [1] 가벼운 스크롤 (속성 정보 로딩용)

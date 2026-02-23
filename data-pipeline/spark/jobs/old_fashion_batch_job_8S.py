@@ -24,7 +24,7 @@ CONTAINER_NAME = "namenode-main"
 spark = SparkSession.builder \
     .appName(f"{BRAND_NAME}_ETL_{TARGET_DATE}") \
     .config("spark.mongodb.write.connection.uri", f"mongodb://datauser:DataPass2024!@{MONGO_IP}:27017/datadb.product_details?authSource=admin") \
-    .config("spark.jars.packages", "org.postgresql:postgresql:42.5.0,org.mongodb.spark:mongo-spark-connector_2.12:10.1.1") \
+    .config("spark.jars.packages", "org.postgresql:postgresql:42.6.0,org.mongodb.spark:mongo-spark-connector_2.12:10.1.1") \
     .getOrCreate()
 
 # --- [2. ID 채번 함수] ---

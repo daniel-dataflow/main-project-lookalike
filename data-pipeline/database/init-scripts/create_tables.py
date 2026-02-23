@@ -53,6 +53,9 @@ def init_postgresql():
                 name VARCHAR(50),
                 email VARCHAR(100) UNIQUE,
                 role VARCHAR(20) DEFAULT 'USER',
+                provider VARCHAR(20),
+                provider_id  VARCHAR(255),
+                profile_image VARCHAR(512),
                 last_login TIMESTAMP DEFAULT NOW(),
                 create_dt TIMESTAMP DEFAULT NOW(),
                 update_dt TIMESTAMP DEFAULT NOW()
@@ -88,9 +91,10 @@ def init_postgresql():
             # Products
             """
             CREATE TABLE products (
-                product_id BIGSERIAL PRIMARY KEY,
-                origine_prod_id VARCHAR(50),
+                product_id VARCHAR(20) PRIMARY KEY,
+                #origine_prod_id VARCHAR(50),
                 model_code VARCHAR(50),
+                brand_name VARCHAR(100),
                 prod_name VARCHAR(50),
                 base_price INTEGER,
                 category_code VARCHAR(50),
@@ -100,16 +104,26 @@ def init_postgresql():
             );
             """,
 
+               # Brand Sequence file
+            """
+            CREATE TABLE IF NOT EXISTS brand_sequences (
+                brand_name VARCHAR(50) PRIMARY KEY,
+                last_seq INT DEFAULT 0
+            );
+            """,
+
             # Naver Prices
             """
             CREATE TABLE naver_prices (
                 nprice_id BIGSERIAL PRIMARY KEY,
-                product_id BIGINT REFERENCES products(product_id),
+                product_id VARCHAR(20) REFERENCES products(product_id),
                 rank SMALLINT,
                 price INTEGER,
                 mall_name VARCHAR(100),
-                mall_url VARCHAR(500),
-                create_dt TIMESTAMP DEFAULT NOW()
+                mall_url VARCHAR(512),
+                create_dt TIMESTAMP DEFAULT NOW(),
+                update_dt TIMESTAMP DEFAULT NOW(),
+                image_url VARCHAR(512)
             );
             """,
             "CREATE INDEX idx_naver_prices_product_id ON naver_prices(product_id);",
@@ -117,9 +131,11 @@ def init_postgresql():
             # Product Features
             """
             CREATE TABLE product_features (
-                product_id BIGINT PRIMARY KEY REFERENCES products(product_id),
+                product_id VARCHAR(20) PRIMARY KEY REFERENCES products(product_id),
                 detected_desc VARCHAR(1000),
-                create_dt TIMESTAMP DEFAULT NOW()
+                create_dt TIMESTAMP DEFAULT NOW(),
+                update_dt TIMESTAMP DEFAULT NOW(),
+                crop_path array
             );
             """,
 
@@ -129,8 +145,15 @@ def init_postgresql():
                 log_id BIGSERIAL PRIMARY KEY,
                 user_id VARCHAR(50) REFERENCES users(user_id),
                 input_img_path VARCHAR(512),
+                thumbnail_path VARCHAR(512),
                 input_text TEXT,
                 applied_category VARCHAR(50),
+                image_size INTEGER,
+                image_width INTEGER,
+                image_height INTEGER,
+                search_status VARCHAR(20),
+                search_result JSON,
+                result_count INTEGER DEFAULT 0,
                 nprice_id BIGINT REFERENCES naver_prices(nprice_id),
                 create_dt TIMESTAMP DEFAULT NOW(),
                 update_dt TIMESTAMP DEFAULT NOW()

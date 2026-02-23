@@ -2,21 +2,22 @@ import os
 import asyncio
 import re
 import json
-import glob
-import pandas as pd
+import shutil
+import subprocess
 from datetime import datetime
 from playwright.async_api import async_playwright
-from pyspark.sql import SparkSession
-from pyspark.sql.types import StructType, StructField, StringType
 
-# --- 설정 ---
+# 설정
 BRAND_NAME = "uniqlo"
-LOCAL_OUTPUT_PATH = f"crawlers/data/{BRAND_NAME}_json_files"
+TODAY_STR = datetime.now().strftime('%Y%m%d')
+
+LOCAL_TEMP_DIR = f"data/{BRAND_NAME}/{TODAY_STR}"
+HDFS_ROOT_PATH = f"/raw/{BRAND_NAME}/{TODAY_STR}"
 
 TARGET_MAP = {
     "Men": {
         "Outer": [
-            "https://www.uniqlo.com/kr/ko/men/outerwear/coats"
+            "https://www.uniqlo.com/kr/ko/men/outerwear"
         ]
     }
 }
@@ -24,40 +25,26 @@ TARGET_MAP = {
 visited_products = set()
 sem = asyncio.Semaphore(3)
 
-# Spark Schema
-schema = StructType([
-    StructField("gender", StringType(), True),
-    StructField("category", StringType(), True),
-    StructField("product_id", StringType(), True),
-    StructField("raw_json", StringType(), True)
-])
-
-async def extract_product_data_from_dom(page, product_id):
-    """갤러리 그리드 타겟팅으로 이미지 전수 조사"""
+async def extract_product_base_data(page, product_id):
+    """기본 정보, 가격, 옵션, 소재 정보 등 추출 (이미지 제외)"""
     try:
-        # [1] 로딩 유도 & 아코디언 강제 개방
-        await page.mouse.wheel(0, 2000)
-        await asyncio.sleep(1.5)
+        await page.mouse.wheel(0, 1000)
+        await asyncio.sleep(1.0)
         
-        # CSS 강제 조작 (숨겨진 내용 펼치기)
+        # 아코디언 개방
         await page.evaluate("""() => {
             document.querySelectorAll('.rah-static, [aria-hidden="true"]').forEach(el => {
-                el.style.display = 'block';
-                el.style.height = 'auto';
-                el.style.visibility = 'visible';
+                el.style.display = 'block'; el.style.height = 'auto'; el.style.visibility = 'visible';
             });
             document.querySelectorAll('button').forEach(btn => {
-                if(btn.innerText.includes('상세 설명') || btn.innerText.includes('소재 정보')) {
-                    btn.click();
-                }
+                if(btn.innerText.includes('상세 설명') || btn.innerText.includes('소재 정보')) btn.click();
             });
         }""")
-        await asyncio.sleep(1.0)
+        await asyncio.sleep(0.5)
 
         data = await page.evaluate("""() => {
             const result = {};
 
-            // 1. 기본 정보
             const urlMatch = location.href.match(/\/products\/([A-Z0-9-]+)/);
             result.goodsNo = urlMatch ? urlMatch[1] : ""; 
             
@@ -70,7 +57,6 @@ async def extract_product_data_from_dom(page, product_id):
             result.brandName = "UNIQLO";
             result.thumbnailImageUrl = document.querySelector('meta[property="og:image"]')?.content || "";
 
-            // 2. 가격
             let price = 0;
             const priceEl = document.querySelector('.fr-ec-price-text') || document.querySelector('.price');
             if (priceEl) price = parseInt(priceEl.innerText.replace(/[^0-9]/g, '') || "0");
@@ -83,7 +69,6 @@ async def extract_product_data_from_dom(page, product_id):
             }
             result.price = price;
 
-            // 3. 품절 여부
             let isSoldOut = false;
             if (price === 0) isSoldOut = true;
             document.querySelectorAll('button').forEach(btn => {
@@ -93,7 +78,6 @@ async def extract_product_data_from_dom(page, product_id):
             });
             result.is_sold_out = isSoldOut;
 
-            // 4. 사이즈
             const sizeStockInfo = [];
             document.querySelectorAll('button.chip, label.chip').forEach(chip => {
                 const name = chip.innerText.trim();
@@ -106,7 +90,6 @@ async def extract_product_data_from_dom(page, product_id):
             });
             result.size_stock = sizeStockInfo;
 
-            // 5. 색상
             const colors = [];
             document.querySelectorAll('.collection-list-horizontal button.chip, .color-chip button').forEach(btn => {
                 const code = btn.value || (btn.id.split('-').length > 1 ? btn.id.split('-')[1] : ""); 
@@ -119,88 +102,10 @@ async def extract_product_data_from_dom(page, product_id):
             });
             result.colors = colors;
 
-            // ---------------------------------------------------------
-            // [6] 이미지 (사용자 제보 구조 반영: .media-gallery--grid)
-            // ---------------------------------------------------------
-            const images = [];
-            
-            // 1) 갤러리 그리드 내부 이미지 우선 탐색 (여기에 다 모여있음)
-            const galleryImgs = document.querySelectorAll('.media-gallery--grid img');
-            
-            galleryImgs.forEach(img => {
-                // data-src가 있으면 우선 사용 (Lazy Loading 대응), 없으면 src 사용
-                let src = img.getAttribute('data-src') || img.src;
-                
-                if (src && src.includes('uniqlo.com')) {
-                    // ?width=600 등 쿼리 스트링 제거하여 원본 화질 확보
-                    src = src.split('?')[0];
-                    images.push(src);
-                }
-            });
-
-            // 2) 만약 갤러리에서 못 찾았으면(구조 변경 등), 페이지 전체 이미지 탐색 (백업)
-            if (images.length === 0) {
-                document.querySelectorAll('img').forEach(img => {
-                    let src = img.src;
-                    if (src && (src.includes('/goods/') || src.includes('/item/') || src.includes('/sub/')) && !src.includes('/chip/')) {
-                        src = src.split('?')[0];
-                        images.push(src);
-                    }
-                });
-            }
-
-            result.goodsImages = [...new Set(images)]; // 중복 제거
-
-            // ---------------------------------------------------------
-            // 7. 상세 정보
-            // ---------------------------------------------------------
             const detailedInfo = { "description": "", "material_info": {} };
-            
-            // 설명 (ID 우선)
             const descEl = document.getElementById('productLongDescription-content');
             if (descEl) {
                 detailedInfo['description'] = descEl.innerText.replace(/\\n+/g, ' ').trim();
-            } else {
-                // 텍스트 마이닝
-                const pTags = document.querySelectorAll('p, div.typography');
-                let capture = false;
-                for (const p of pTags) {
-                    if (p.innerText.includes('제품 상세 설명')) capture = true;
-                    else if (p.innerText.includes('소재 정보')) capture = false;
-                    else if (capture && p.innerText.length > 20) {
-                        detailedInfo['description'] += p.innerText + " ";
-                    }
-                }
-            }
-
-            // 소재 (ID 우선)
-            const matEl = document.getElementById('productMaterialDescription-content');
-            let rawMatText = matEl ? matEl.innerText : "";
-            
-            if (!rawMatText) {
-                const bodyTxt = document.body.innerText;
-                const match = bodyTxt.match(/소재 정보[\\s\\S]{0,800}품질보증기준/);
-                if (match) rawMatText = match[0];
-            }
-
-            if (rawMatText) {
-                const lines = rawMatText.split('\\n');
-                let currentKey = null;
-                const keywords = ['소재', '세탁 방법', '제조국', '제조연월', '제조사/수입자', '품질보증기준'];
-                
-                lines.forEach(line => {
-                    const txt = line.trim();
-                    if (!txt) return;
-                    if (keywords.includes(txt)) {
-                        currentKey = txt;
-                    } else if (currentKey) {
-                        if (!detailedInfo['material_info'][currentKey]) {
-                            detailedInfo['material_info'][currentKey] = txt;
-                        } else {
-                            detailedInfo['material_info'][currentKey] += " " + txt;
-                        }
-                    }
-                });
             }
             result.goodsMaterial = detailedInfo;
 
@@ -209,15 +114,37 @@ async def extract_product_data_from_dom(page, product_id):
         
         if not data or not data.get('goodsNm') or "Notice" in data.get('goodsNm', ''): 
             return None
-            
-        data['url'] = page.url
-        data['scraped_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         return data
-
     except Exception:
         return None
 
-async def process_product(product_id, gender, category, context, collected_data):
+async def extract_current_images(page):
+    """현재 화면에 렌더링된 이미지만 수집"""
+    return await page.evaluate("""() => {
+        const images = [];
+        const galleryImgs = document.querySelectorAll('.media-gallery--grid img');
+        
+        galleryImgs.forEach(img => {
+            let src = img.getAttribute('data-src') || img.src;
+            if (src && src.includes('uniqlo.com')) {
+                src = src.split('?')[0]; // 고해상도 원본 유지를 위해 쿼리 제거
+                images.push(src);
+            }
+        });
+        
+        if (images.length === 0) {
+            document.querySelectorAll('img').forEach(img => {
+                let src = img.src;
+                if (src && (src.includes('/goods/') || src.includes('/item/') || src.includes('/sub/')) && !src.includes('/chip/')) {
+                    src = src.split('?')[0];
+                    images.push(src);
+                }
+            });
+        }
+        return [...new Set(images)];
+    }""")
+
+async def process_product(product_id, gender, category, context):
     if product_id in visited_products: return
     visited_products.add(product_id)
 
@@ -230,36 +157,66 @@ async def process_product(product_id, gender, category, context, collected_data)
             print(f"   🔎 {clean_id} 접속 중...")
             await p_page.goto(url, timeout=60000, wait_until="domcontentloaded")
             
-            product_dict = None
+            # 1. 공통 데이터 추출
+            base_data = None
             for _ in range(2):
-                product_dict = await extract_product_data_from_dom(p_page, clean_id)
-                if product_dict: break
+                base_data = await extract_product_base_data(p_page, clean_id)
+                if base_data: break
                 await asyncio.sleep(1)
 
-            if product_dict:
-                colors = product_dict.get('colors', [])
-                # 색상이 있으면 분할 저장, 없으면 단일 저장
+            if base_data:
+                if not os.path.exists(LOCAL_TEMP_DIR): os.makedirs(LOCAL_TEMP_DIR)
+                colors = base_data.get('colors', [])
+                
+                # 2. 색상이 여러 개면 하나씩 클릭하며 이미지 추출
                 if colors:
-                    print(f"   🎨 {clean_id} 색상 {len(colors)}개 발견")
+                    print(f"   🎨 {clean_id} 색상 {len(colors)}개 발견. 개별 이미지 스캔 중...")
                     for color in colors:
-                        final_data = product_dict.copy()
-                        final_data['color_name'] = color['color_name'] 
-                        final_data['goodsNo'] = f"{clean_id}_{color['color_code']}" 
-                        final_data['url'] = f"{url}?colorDisplayCode={color['color_code']}"
-                        if color['icon_url']: final_data['thumbnailImageUrl'] = color['icon_url']
+                        color_code = color['color_code']
+                        
+                        # 화면에서 해당 색상 버튼 클릭
+                        await p_page.evaluate(f"""(code) => {{
+                            const btns = document.querySelectorAll('.collection-list-horizontal button.chip, .color-chip button');
+                            for (let btn of btns) {{
+                                if (btn.value === code || btn.id.includes(code)) {{
+                                    btn.click();
+                                    break;
+                                }}
+                            }}
+                        }}""", color_code)
 
-                        collected_data.append({
-                            "gender": gender, "category": category, 
-                            "product_id": final_data['goodsNo'], 
-                            "raw_json": json.dumps(final_data, ensure_ascii=False)
-                        })
+                        await asyncio.sleep(0.8) 
+                        
+                        # 현재 바뀐 화면의 이미지 긁어오기
+                        current_images = await extract_current_images(p_page)
+                        
+                        # 최종 데이터 조립
+                        final_data = base_data.copy()
+                        final_data['color_name'] = color['color_name'] 
+                        final_data['goodsNo'] = f"{clean_id}_{color_code}" 
+                        final_data['url'] = f"{url}?colorDisplayCode={color_code}"
+                        final_data['goodsImages'] = current_images
+                        final_data['scraped_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                        if color['icon_url']: 
+                            final_data['thumbnailImageUrl'] = color['icon_url']
+                        
+                        filename = f"{BRAND_NAME}_{gender.lower()}_{category.lower()}_{final_data['goodsNo']}.json"
+                        filepath = os.path.join(LOCAL_TEMP_DIR, filename)
+                        
+                        with open(filepath, 'w', encoding='utf-8') as f:
+                            json.dump(final_data, f, ensure_ascii=False, indent=4)
+                
+                # 색상이 단일인 경우
                 else:
-                    collected_data.append({
-                        "gender": gender, "category": category, 
-                        "product_id": clean_id, 
-                        "raw_json": json.dumps(product_dict, ensure_ascii=False)
-                    })
-                    print(f"   ✅ {clean_id} 단일 저장 (가격: {product_dict.get('price')}원)")
+                    base_data['goodsImages'] = await extract_current_images(p_page)
+                    base_data['scraped_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    filename = f"{BRAND_NAME}_{gender.lower()}_{category.lower()}_{clean_id}.json"
+                    filepath = os.path.join(LOCAL_TEMP_DIR, filename)
+                    
+                    with open(filepath, 'w', encoding='utf-8') as f:
+                        json.dump(base_data, f, ensure_ascii=False, indent=4)
+                    
+                print(f"   ✅ [수집 완료] {clean_id}")
             else:
                 print(f"   ⚠️ {clean_id} 데이터 추출 실패")
 
@@ -268,14 +225,13 @@ async def process_product(product_id, gender, category, context, collected_data)
         finally:
             await p_page.close()
 
-async def crawl_category(gender, category_name, target_url, context, collected_data):
+async def crawl_category(gender, category_name, target_url, context):
     print(f"\n>>> 🎯 [{gender}-{category_name}] 목록 수집 시작")
     page = await context.new_page()
     product_ids = set()
     
     try:
         await page.goto(target_url, timeout=60000, wait_until="domcontentloaded")
-        print("   📜 목록 스크롤 중...")
         for _ in range(5):
             await page.evaluate("window.scrollBy(0, document.body.scrollHeight)")
             await asyncio.sleep(1.0)
@@ -286,74 +242,67 @@ async def crawl_category(gender, category_name, target_url, context, collected_d
             if len(pid) >= 5 and "review" not in pid:
                 product_ids.add(pid)
         
-        print(f"   🔗 총 발견된 상품 수: {len(product_ids)}개")
         await page.close()
-        
-        tasks = [process_product(pid, gender, category_name, context, collected_data) for pid in list(product_ids)]
+        tasks = [process_product(pid, gender, category_name, context) for pid in list(product_ids)]
         await asyncio.gather(*tasks)
 
     except Exception as e:
         print(f"   ❌ 목록 수집 실패: {e}")
-        await page.close()
+        if not page.is_closed(): await page.close()
 
 async def run():
-    print(f"--- [START] UNIQLO 안전 모드 수집 ---")
-    collected_data = [] 
+    print(f"--- [START] UNIQLO 크롤링 시작 ---")
     
     async with async_playwright() as p:
-        browser = await p.chromium.launch(
-            headless=True, 
-            args=["--start-maximized", "--disable-blink-features=AutomationControlled"]
-        ) 
+        browser = await p.chromium.launch(headless=True, args=["--start-maximized"]) 
         context = await browser.new_context(
             viewport={"width": 1920, "height": 1080},
-            locale="ko-KR",
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
         )
-        await context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
 
         for gender, categories in TARGET_MAP.items():
             for category, urls in categories.items():
                 if isinstance(urls, str): urls = [urls]
                 for url in urls:
-                    await crawl_category(gender, category, url, context, collected_data)
+                    await crawl_category(gender, category, url, context)
         
         await browser.close()
 
-    if collected_data:
-        print(f"\n📦 {len(collected_data)}건 수집 완료. Spark 저장 시작...")
-        pdf = pd.DataFrame(collected_data)
-        
-        spark = SparkSession.builder \
-            .appName(f"{BRAND_NAME}_Crawler") \
-            .config("spark.master", "local[1]") \
-            .config("spark.driver.memory", "4g") \
-            .config("spark.sql.execution.arrow.pyspark.enabled", "true") \
-            .getOrCreate()
-        
+    if os.path.exists(LOCAL_TEMP_DIR) and os.listdir(LOCAL_TEMP_DIR):
+        print(f"\n📦 크롤링 완료! HDFS({HDFS_ROOT_PATH})에 업로드 시작...")
         try:
-            df = spark.createDataFrame(pdf, schema=schema).coalesce(1)
-            temp_path = f"crawlers/data/temp_{BRAND_NAME}_output"
-            df.write.mode("overwrite").json(temp_path)
+        #     subprocess.run(f"hdfs dfs -mkdir -p {HDFS_ROOT_PATH}", shell=True, check=True)
+        #     subprocess.run(f"hdfs dfs -put -f {LOCAL_TEMP_DIR}/*.json {HDFS_ROOT_PATH}/", shell=True, check=True)
+        #     print("✅ HDFS 업로드 성공!")
             
-            if not os.path.exists(LOCAL_OUTPUT_PATH):
-                os.makedirs(LOCAL_OUTPUT_PATH)
+        #     shutil.rmtree(LOCAL_TEMP_DIR)
+        #     print(f"🧹 로컬 임시 폴더 삭제 완료")
+        # except subprocess.CalledProcessError as e:
+        #     print(f"❌ HDFS 업로드 실패: {e}")
+        ##
+                # 26.2.22 네임노드 주소 정의
+            HDFS_ADDR = "hdfs://namenode:9000"
+            
+            # 1. mkdir에도 주소를 명시해서 정확한 곳에 폴더 생성
+            subprocess.run(f"hdfs dfs -mkdir -p {HDFS_ADDR}{HDFS_ROOT_PATH}", shell=True, check=True)
+            
+            # 2. put 명령어 (잘 수정하신 부분)
+            upload_cmd = f"hdfs dfs -put -f {LOCAL_TEMP_DIR}/*.json {HDFS_ADDR}{HDFS_ROOT_PATH}/"
+            subprocess.run(upload_cmd, shell=True, check=True)
+            
+            print(f"✅ HDFS 업로드 성공! -> {HDFS_ADDR}{HDFS_ROOT_PATH}")
+            
+            # 업로드가 확실히 성공하면 그때 로컬 파일을 지우도록 rmtree를 다시 살려도 됩니다. (선택사항)
+            # shutil.rmtree(LOCAL_TEMP_DIR)
+            
+        except subprocess.CalledProcessError as e:
+            print(f"❌ HDFS 업로드 에러: {e}")
+        ## 26.2.22
 
-            json_files = glob.glob(f"{temp_path}/*.json")
-            for file in json_files:
-                with open(file, 'r', encoding='utf-8') as f:
-                    for line in f:
-                        row = json.loads(line)
-                        raw_data = json.loads(row['raw_json'])
-                        
-                        filename = f"{BRAND_NAME}_{row['gender'].lower()}_{row['category'].lower()}_{row['product_id']}.json"
-                        with open(os.path.join(LOCAL_OUTPUT_PATH, filename), 'w', encoding='utf-8') as out_f:
-                            json.dump(raw_data, out_f, ensure_ascii=False, indent=4)
-            print(f"\n✨ 저장 완료: {LOCAL_OUTPUT_PATH}")
-        finally:
-            spark.stop()
+        ##
+
     else:
-        print("\n❌ 수집된 데이터가 없습니다.")
+        print("\n❌ 저장된 데이터가 없습니다.")
 
 if __name__ == "__main__":
     asyncio.run(run())

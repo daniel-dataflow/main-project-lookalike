@@ -1,34 +1,40 @@
 # fashion_batch_job_UQ.py
 
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import (lit, col, current_timestamp, concat, format_string, 
+from pyspark.sql.functions import (lit, col, element_at, current_timestamp, concat, format_string, 
                                    input_file_name, regexp_extract, lower, 
                                    coalesce, to_json, row_number, explode)
 from pyspark.sql.window import Window
 import subprocess
+import datetime
 import psycopg2
+# 26.2.21
+import requests
+from hdfs import InsecureClient
 
 # --- [1. 설정 정보] ---
 BRAND_NAME = "uniqlo"
 BRAND_PREFIX = "UQ"
-TARGET_DATE = datetime.now().strftime("%Y%m%d") #
+TARGET_DATE = datetime.datetime.now().strftime("%Y%m%d")
 #TARGET_DATE = "20260210" 
 
-PG_HOST = "localhost"
+PG_HOST = "postgresql"
 PG_DB = "datadb"
 PG_USER = "datauser"
-PG_PASS = "DataPass2024!"
+PG_PASS = "DataPass2026!"
 
-MONGO_URI = "mongodb://datauser:DataPass2024!@127.0.0.1:27017/admin?authSource=admin"
-
-HDFS_BASE = "hdfs://localhost:9000"
+MONGO_URI = "mongodb://datauser:DataPass2026!@mongo-main:27017"
+#MONGO_URI = "mongodb://datauser:DataPass2026!@mongo-main:27017/admin?authSource=admin"
+HDFS_BASE = "hdfs://namenode-main:9000"
+# [수정] 26.2.21 WebHDFS 접속용 URL 추가 (포트 9870)
+HDFS_WEB_URL = "http://namenode:9870"
 RAW_PATH = f"/raw/{BRAND_NAME}/{TARGET_DATE}"
-IMAGE_DIR = f"{RAW_PATH}/image"
+IMAGE_DIR = f"/raw/{BRAND_NAME}/image"
 CONTAINER_NAME = "namenode-main"
 
 spark = SparkSession.builder \
     .appName("FashionBatchJobUniqlo") \
-    .config("spark.jars.packages", "org.postgresql:postgresql:42.5.0,org.mongodb.spark:mongo-spark-connector_2.12:10.1.1") \
+    .config("spark.jars.packages", "org.postgresql:postgresql:42.6.0,org.mongodb.spark:mongo-spark-connector_2.12:10.1.1") \
     .getOrCreate()
 
 # --- [2. PostgreSQL에서 현재 시퀀스 조회] ---
@@ -41,6 +47,28 @@ seq_df = spark.read.format("jdbc") \
     .load()
 
 row = seq_df.filter(col("brand_name") == BRAND_NAME.upper()).select("last_seq").collect()
+# 26.2.18
+if not row:
+    print(f"✨ {BRAND_NAME} sequence not found. Registering new brand in DB...")
+    # 1. 새 데이터를 담은 DF 생성
+    new_seq_data = [(BRAND_NAME.upper(), 0)]
+    new_seq_df = spark.createDataFrame(new_seq_data, ["brand_name", "last_seq"])
+    
+    # 2. DB에 실제 INSERT 수행 (이게 빠져있었습니다!)
+    new_seq_df.write.format("jdbc") \
+        .option("url", f"jdbc:postgresql://{PG_HOST}:5432/{PG_DB}") \
+        .option("dbtable", "brand_sequences") \
+        .option("user", PG_USER) \
+        .option("password", PG_PASS) \
+        .option("driver", "org.postgresql.Driver") \
+        .mode("append") \
+        .save()
+    
+    start_seq = 1
+else:
+    start_seq = row[0]['last_seq'] + 1
+##
+
 start_seq = row[0]['last_seq'] + 1 if row else 1
 print(f"🚀 Starting {BRAND_NAME.upper()} job from sequence: {start_seq}")
 
@@ -98,6 +126,7 @@ mongo_data = processed_df.select(
 
 mongo_data.write.format("mongodb") \
     .option("spark.mongodb.write.connection.uri", MONGO_URI) \
+    .option("authSource", "admin") \
     .option("database", "datadb") \
     .option("collection", "product_details") \
     .mode("append") \
@@ -105,24 +134,49 @@ mongo_data.write.format("mongodb") \
 print("✅ MongoDB 적재 완료")
 
 # --- [6. 이미지 처리 (colors 내 모든 icon_url 수집)] ---
-subprocess.run(f"docker exec -i {CONTAINER_NAME} hdfs dfs -mkdir -p {IMAGE_DIR}", shell=True)
+# subprocess.run(f"docker exec -i {CONTAINER_NAME} hdfs dfs -mkdir -p {IMAGE_DIR}", shell=True)
 
-# colors 배열을 explode하여 모든 color_code와 icon_url 쌍을 추출 후 중복 제거
-color_images = processed_df.select(
-    explode(col("colors")).alias("color_info")
-).select(
-    col("color_info.color_code"),
-    col("color_info.icon_url")
-).distinct().collect()
+# # colors 배열을 explode하여 모든 color_code와 icon_url 쌍을 추출 후 중복 제거
+# color_images = processed_df.select(
+#     explode(col("colors")).alias("color_info")
+# ).select(
+#     col("color_info.color_code"),
+#     col("color_info.icon_url")
+# ).distinct().collect()
 
-print(f"📸 총 {len(color_images)}개의 고유 컬러 아이콘 이미지를 전송합니다.")
+# print(f"📸 총 {len(color_images)}개의 고유 컬러 아이콘 이미지를 전송합니다.")
 
-for r in color_images:
-    if r.icon_url:
-        # URL에서 원본 파일명 추출 (예: goods_09_481666_chip.jpg)
-        file_name = r.icon_url.split('/')[-1] 
-        cmd = f"wget -qO- --header='User-Agent: Mozilla/5.0' '{r.icon_url}' | docker exec -i {CONTAINER_NAME} hdfs dfs -put -f - {IMAGE_DIR}/{file_name}"
-        subprocess.run(cmd, shell=True)
+# for r in color_images:
+#     if r.icon_url:
+#         # URL에서 원본 파일명 추출 (예: goods_09_481666_chip.jpg)
+#         file_name = r.icon_url.split('/')[-1] 
+#         cmd = f"wget -qO- --header='User-Agent: Mozilla/5.0' '{r.icon_url}' | docker exec -i {CONTAINER_NAME} hdfs dfs -put -f - {IMAGE_DIR}/{file_name}"
+#         subprocess.run(cmd, shell=True)
+try:
+    hdfs_client = InsecureClient(HDFS_WEB_URL, user="root")
+    hdfs_client.makedirs(IMAGE_DIR)
+    
+    image_list = processed_df.select(element_at(col("images"), 1).alias("main_img"), col("product_id")).collect()
+    
+    print(f"📸 이미지 다운로드 및 HDFS 직접 전송 시작 (총 {len(image_list)}건)...")
+    success_img = 0
+    for r in image_list:
+        if r.main_img:
+            hdfs_target_path = f"{IMAGE_DIR}/{r.product_id}.jpg"
+            try:
+                # requests로 웹 이미지 다운로드
+                img_content = requests.get(r.main_img, timeout=10).content
+                # hdfs_client로 하둡에 직접 쓰기
+                hdfs_client.write(hdfs_target_path, data=img_content, overwrite=True)
+                success_img += 1
+            except Exception as e:
+                print(f"❌ {r.product_id} 저장 실패: {e}")
+    print(f"✅ 이미지 처리 완료: {success_img}건 저장 성공")
+
+except Exception as e:
+    print(f"🚨 하둡 클라이언트 연결 실패: {e}")
+
+
 
 # --- [7. 시퀀스 업데이트] ---
 try:

@@ -7,9 +7,15 @@ from hdfs import InsecureClient
 
 # --- 설정 ---
 BRAND_NAME = "zara"
-
+## 26.2.15
+TODAY_STR = datetime.now().strftime('%Y%m%d') # 20260215 형태
+# namenode는 docker-compose의 서비스 이름이고, 9000은 설정하신 포트입니다.
+#HDFS_ROOT_PATH = f"hdfs://namenode:9000/user/airflow/data/{BRAND_NAME}/{TODAY_STR}"
+HDFS_ROOT_PATH = f"/raw/{BRAND_NAME}/{TODAY_STR}" # 'hdfs://' 빼고 깔끔하게 경로만
 # HDFS 설정
-HDFS_NAMENODE_URL = "http://localhost:9870"  # WebHDFS 포트 (9870 or 50070)
+## 26.2.15
+HDFS_NAMENODE_URL = "http://namenode:9870"
+#HDFS_NAMENODE_URL = "http://localhost:9870"  # WebHDFS 포트 (9870 or 50070)
 HDFS_USER = "hadoop"  # HDFS 유저명
 
 # 수집 대상 URL
@@ -21,8 +27,10 @@ TARGET_MAP = {
     }
 }
 
+
+
 visited_products = set()
-sem = asyncio.Semaphore(3)
+sem = asyncio.Semaphore(3) # 3
 
 async def extract_product_data_from_dom(page):
     """DOM 데이터 추출 로직 (이전과 동일)"""
@@ -173,7 +181,9 @@ async def run():
     collected_data = [] 
     
     async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=False, args=["--start-maximized", "--disable-blink-features=AutomationControlled"]) 
+        # 26.2.15
+        browser = await p.chromium.launch(headless=True, args=["--start-maximized", "--disable-blink-features=AutomationControlled"]) 
+        #browser = await p.chromium.launch(headless=False, args=["--start-maximized", "--disable-blink-features=AutomationControlled"]) 
         context = await browser.new_context(viewport={"width": 1920, "height": 1080}, locale="ko-KR")
         await context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
 
@@ -193,7 +203,9 @@ async def run():
             
             # [수정됨] 날짜 기반 동적 경로 생성
             # 예: /raw/zara/2024-05-21
+            # 26.2.15
             today_date = datetime.now().strftime('%Y-%m-%d')
+            #today_date = datetime.now().strftime('%Y-%m-%d')
             target_dir = f"/raw/{BRAND_NAME}/{today_date}"
             
             # 디렉토리 생성 (있으면 무시, 없으면 생성)
