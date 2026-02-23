@@ -27,7 +27,8 @@ MONGO_URI = "mongodb://datauser:DataPass2026!@mongo-main:27017"
 #MONGO_URI = "mongodb://datauser:DataPass2026!@mongo-main:27017/admin?authSource=admin"
 HDFS_BASE = "hdfs://namenode-main:9000"
 # [수정] 26.2.21 WebHDFS 접속용 URL 추가 (포트 9870)
-HDFS_WEB_URL = "http://namenode:9870"
+#HDFS_WEB_URL = "http://namenode:9870"
+HDFS_WEB_URL = "http://namenode-main:9870"
 RAW_PATH = f"/raw/{BRAND_NAME}/{TARGET_DATE}"
 IMAGE_DIR = f"/raw/{BRAND_NAME}/image"
 CONTAINER_NAME = "namenode-main"
@@ -134,29 +135,12 @@ mongo_data.write.format("mongodb") \
 print("✅ MongoDB 적재 완료")
 
 # --- [6. 이미지 처리 (colors 내 모든 icon_url 수집)] ---
-# subprocess.run(f"docker exec -i {CONTAINER_NAME} hdfs dfs -mkdir -p {IMAGE_DIR}", shell=True)
 
-# # colors 배열을 explode하여 모든 color_code와 icon_url 쌍을 추출 후 중복 제거
-# color_images = processed_df.select(
-#     explode(col("colors")).alias("color_info")
-# ).select(
-#     col("color_info.color_code"),
-#     col("color_info.icon_url")
-# ).distinct().collect()
-
-# print(f"📸 총 {len(color_images)}개의 고유 컬러 아이콘 이미지를 전송합니다.")
-
-# for r in color_images:
-#     if r.icon_url:
-#         # URL에서 원본 파일명 추출 (예: goods_09_481666_chip.jpg)
-#         file_name = r.icon_url.split('/')[-1] 
-#         cmd = f"wget -qO- --header='User-Agent: Mozilla/5.0' '{r.icon_url}' | docker exec -i {CONTAINER_NAME} hdfs dfs -put -f - {IMAGE_DIR}/{file_name}"
-#         subprocess.run(cmd, shell=True)
 try:
     hdfs_client = InsecureClient(HDFS_WEB_URL, user="root")
     hdfs_client.makedirs(IMAGE_DIR)
     
-    image_list = processed_df.select(element_at(col("images"), 1).alias("main_img"), col("product_id")).collect()
+    image_list = processed_df.select(element_at(col("goodsImages"), 1).alias("main_img"), col("product_id")).collect()
     
     print(f"📸 이미지 다운로드 및 HDFS 직접 전송 시작 (총 {len(image_list)}건)...")
     success_img = 0

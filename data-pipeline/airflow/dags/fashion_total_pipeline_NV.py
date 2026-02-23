@@ -35,8 +35,8 @@ with DAG(
         #'topten': 'TT',
         #'8seconds': '8S',
         #'zara': 'ZR',
-        #'uniqlo': 'UQ',
-        'musinsa': 'MS'
+        'uniqlo': 'UQ',
+        #'musinsa': 'MS'
     }
 
     for crawler_key, spark_key in brands.items():

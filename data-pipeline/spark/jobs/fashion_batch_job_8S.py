@@ -32,7 +32,8 @@ MONGO_URI = "mongodb://datauser:DataPass2026!@mongo-main:27017"
 
 HDFS_BASE = "hdfs://namenode-main:9000"
 # [수정] 26.2.21 WebHDFS 접속용 URL 추가 (포트 9870)
-HDFS_WEB_URL = "http://namenode:9870"
+#HDFS_WEB_URL = "http://namenode:9870"
+HDFS_WEB_URL = "http://namenode-main:9870"
 RAW_PATH = f"/raw/{BRAND_NAME}/{TARGET_DATE}"
 IMAGE_DIR = f"/raw/{BRAND_NAME}/image"
 CONTAINER_NAME = "namenode-main"
@@ -172,7 +173,7 @@ try:
     hdfs_client = InsecureClient(HDFS_WEB_URL, user="root")
     hdfs_client.makedirs(IMAGE_DIR)
     
-    image_list = processed_df.select(element_at(col("images"), 1).alias("main_img"), col("product_id")).collect()
+    image_list = processed_df.select(element_at(col("goodsImages"), 1).alias("main_img"), col("product_id")).collect()
     
     print(f"📸 이미지 다운로드 및 HDFS 직접 전송 시작 (총 {len(image_list)}건)...")
     success_img = 0
