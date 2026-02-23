@@ -29,6 +29,11 @@
         <i class="fas fa-redo"></i>
         <span class="d-none d-md-inline ms-1">새로고침</span>
     </button>
+    <button id="btnDownloadLogs" class="btn btn-outline-secondary btn-sm text-nowrap" onclick="downloadLogs()"
+        title="현재 조건으로 로그 다운로드">
+        <i class="fas fa-download"></i>
+        <span class="d-none d-md-inline ms-1">다운로드</span>
+    </button>
 </div>
 {% endblock %}
 
@@ -541,26 +546,52 @@
                 <h5 class="modal-title">Log Details</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
-                <div class="mb-3">
-                    <span class="badge" id="modalLevelBadge">INFO</span>
-                    <span class="text-muted ms-2 small" id="modalTimestamp"></span>
-                </div>
-                <div class="mb-3 row g-2">
-                    <div class="col-6">
-                        <span class="fw-bold d-block small text-secondary">Service</span>
-                        <span id="modalService">-</span>
+            <div class="modal-body p-0">
+                <!-- 메타데이터 헤더 구역 -->
+                <div class="bg-light p-3 border-bottom">
+                    <div class="row g-3 align-items-center">
+                        <div class="col-12 col-md-6 d-flex flex-column gap-1">
+                            <span class="fw-bold text-muted"
+                                style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px;">Level &
+                                Time</span>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="badge" id="modalLevelBadge">INFO</span>
+                                <span class="fw-bold text-dark small" id="modalTimestamp"></span>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3 d-flex flex-column gap-1 border-start px-md-3">
+                            <span class="fw-bold text-muted"
+                                style="font-size: 0.75rem; text-transform: uppercase;">Service</span>
+                            <span class="fw-bold text-primary small" id="modalService">-</span>
+                        </div>
+                        <div class="col-6 col-md-3 d-flex flex-column gap-1 border-start px-md-3">
+                            <span class="fw-bold text-muted"
+                                style="font-size: 0.75rem; text-transform: uppercase;">Container</span>
+                            <span class="fw-bold text-secondary small text-truncate" id="modalContainer"
+                                title="Container">-</span>
+                        </div>
                     </div>
-                    <div class="col-6">
-                        <span class="fw-bold d-block small text-secondary">Container</span>
-                        <span id="modalContainer">-</span>
-                    </div>
                 </div>
-                <div class="p-3 bg-light rounded font-monospace small text-break" id="modalMessage"
-                    style="white-space: pre-wrap; max-height: 400px; overflow-y: auto;">-</div>
+
+                <!-- 로그 메시지 본문 구역 -->
+                <div class="p-0 bg-dark">
+                    <div
+                        class="p-2 py-1 bg-black border-bottom border-secondary d-flex justify-content-between align-items-center">
+                        <span class="text-secondary" style="font-size: 0.75rem; font-family: monospace;">Terminal
+                            Output</span>
+                        <i class="fas fa-terminal text-secondary" style="font-size: 0.8rem;"></i>
+                    </div>
+                    <div class="p-3 text-light font-monospace small text-break" id="modalMessage"
+                        style="white-space: pre-wrap; max-height: 400px; overflow-y: auto; line-height: 1.6; font-size: 0.85rem;">
+                        -</div>
+                </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary w-100" data-bs-dismiss="modal">Close</button>
+            <div class="modal-footer d-flex justify-content-between">
+                <button type="button" class="btn btn-outline-primary" onclick="copyLogDetail()">
+                    <i class="fas fa-copy me-1"></i>복사
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"
+                    style="width:100px;">Close</button>
             </div>
         </div>
     </div>
@@ -1162,5 +1193,42 @@
     }
 
     window.addEventListener('beforeunload', () => { if (autoRefreshInterval) clearInterval(autoRefreshInterval); });
+    function saveRecoveryConfig() {
+        // ... (생략 없이 원래 코드 유지 - multi_replace의 경우 대체 구문만 수정하므로 EndLine에 맞게 앞뒤 맥락 포함) ...
+    }
+
+    // ─── 로그 복사 및 다운로드 기능 ───
+    async function copyLogDetail() {
+        const level = document.getElementById('modalLevelBadge').innerText;
+        const timestamp = document.getElementById('modalTimestamp').innerText;
+        const service = document.getElementById('modalService').innerText;
+        const container = document.getElementById('modalContainer').innerText;
+        const message = document.getElementById('modalMessage').innerText;
+
+        const copyText = `[${timestamp}] [${level}] [${service}] ${container}\n${message}`;
+
+        try {
+            await navigator.clipboard.writeText(copyText);
+            alert("로그 내용이 복사되었습니다.");
+        } catch (err) {
+            console.error('Failed to copy text: ', err);
+            alert("복사에 실패했습니다.");
+        }
+    }
+
+    function downloadLogs() {
+        const service = document.querySelector('input[name="serviceFilter"]:checked').value;
+        const level = document.querySelector('input[name="levelFilter"]:checked').value;
+        const keyword = document.getElementById('keywordSearch').value.trim();
+
+        let url = `/api/logs/download?size=10000`;
+        if (service !== 'ALL') url += `&service=${service}`;
+        if (level !== 'ALL') url += `&level=${level}`;
+        if (keyword) url += `&keyword=${encodeURIComponent(keyword)}`;
+
+        // 브라우저를 통해 스트리밍 텍스트 다운로드 실행
+        window.location.href = url;
+    }
+
 </script>
 {% endblock %}

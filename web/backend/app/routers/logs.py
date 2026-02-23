@@ -304,6 +304,65 @@ async def get_logs_stream(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Elasticsearch 조회 실패: {str(e)}")
 
+from fastapi.responses import StreamingResponse
+
+@router.get("/download")
+async def get_logs_download(
+    service: Optional[str] = None,
+    level: Optional[str] = None,
+    keyword: Optional[str] = None,
+    size: int = Query(10000, le=50000)
+):
+    """
+    로그 텍스트 추출 (다운로드용)
+    - size: 반환 개수 (기본 10000, 최대 50000)
+    """
+    must_conditions = []
+    
+    if service and service != "ALL":
+        must_conditions.append({"term": {"service": service}})
+    
+    if level and level != "ALL":
+        must_conditions.append({"term": {"level": level}})
+        
+    if keyword:
+        must_conditions.append({"match": {"message": keyword}})
+
+    query = {
+        "bool": {
+            "must": must_conditions
+        }
+    } if must_conditions else {"match_all": {}}
+
+    body = {
+        "query": query,
+        "sort": [{"timestamp": {"order": "desc"}}],
+        "size": size
+    }
+
+    try:
+        response = es_client.search(index=INDEX_NAME, body=body)
+        hits = response['hits']['hits']
+        
+        def iter_logs():
+            for hit in hits:
+                src = hit['_source']
+                ts = src.get('timestamp', '')[:19].replace('T', ' ')
+                lvl = src.get('level', 'INFO')
+                svc = src.get('service', 'unknown')
+                cnt = src.get('container', 'unknown')
+                msg = src.get('message', '').replace('\n', '  ')
+                yield f"[{ts}] [{lvl}] [{svc}] {cnt} - {msg}\n"
+                
+        headers = {
+            "Content-Disposition": f"attachment; filename=admin_logs_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.txt"
+        }
+        
+        return StreamingResponse(iter_logs(), media_type="text/plain", headers=headers)
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"로그 다운로드 중 오류 발생: {str(e)}")
+
 @router.get("/stats")
 async def get_log_stats():
     """

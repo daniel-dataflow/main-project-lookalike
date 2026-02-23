@@ -51,8 +51,14 @@ class LogCollector:
 
 
 
+    import re
+
     def _determine_level(self, message: str) -> str:
         """메시지 내용을 기반으로 로그 레벨 결정"""
+        # (Fix) HTTP 2xx, 3xx 정상 통신 로그 예외 처리 (URL에 "ERROR"나 "CRITICAL"이 들어있더라도 INFO 처리)
+        if re.search(r'HTTP/1\.[01]" [23]\d{2}', message):
+            return "INFO"
+
         lower_msg = message.lower()
         if "error" in lower_msg or "exception" in lower_msg:
             return "ERROR"
