@@ -66,6 +66,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       AIRFLOW_DB: ${AIRFLOW_DB}
     volumes:
+      - ./.env:/app/.env:ro
+      - ./scripts:/app/scripts:ro
       - ./scripts/init-db.sh:/init-db.sh:ro
     command: [ "sh", "/init-db.sh" ]
     networks: [ main-network ]
@@ -182,6 +184,12 @@ services:
       resources:
         limits: { memory: 512M }
         reservations: { memory: 256M }
+    healthcheck:
+      test: [ "CMD-SHELL", "echo stat | nc localhost 2181" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   # ============================================================
   # 6. Kafka (Confluent 7.5.0)
@@ -194,7 +202,7 @@ services:
     container_name: kafka-main
     hostname: kafka
     depends_on:
-      - zookeeper
+      zookeeper: { condition: service_healthy }
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
@@ -256,7 +264,13 @@ services:
         
         echo '<?xml version=\"1.0\"?><configuration><property><name>dfs.namenode.name.dir</name><value>/hadoop/dfs/name</value></property><property><name>dfs.replication</name><value>1</value></property><property><name>dfs.permissions.enabled</name><value>false</value></property><property><name>dfs.webhdfs.enabled</name><value>true</value></property><property><name>dfs.namenode.datanode.registration.ip-hostname-check</name><value>false</value></property></configuration>' > /opt/hadoop/etc/hadoop/hdfs-site.xml
 
-        hdfs namenode -format -nonInteractive -force 2>/dev/null || true
+        if [ ! -d \"/hadoop/dfs/name/current\" ]; then
+          echo \"HDFS Namenode formatting..\"
+          hdfs namenode -format -nonInteractive -force 2>/dev/null || true
+        else
+          echo \"HDFS Namenode already formatted, skipping format.\"
+        fi
+        
         hdfs namenode
       "
     healthcheck:

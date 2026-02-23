@@ -308,47 +308,126 @@ docker network create main-project-network 2>/dev/null || true
 log_service_info "system" "docker-network" "main-project-network 준비 완료" "ready"
 
 # ─────────────────────────────────────
-# 서비스 전체 시작 (병렬 부팅 - Docker Compose 의존성 위임)
+# Phase 1 — 데이터베이스
 # ─────────────────────────────────────
-log_phase "Phase 1 ~ 7 — 전체 서비스 병렬 시작 (Docker Compose 위임, 시각적 대기)"
-log_service_info "system" "docker-compose" "docker compose up --wait 호출" "starting"
+log_phase "Phase 1 — 데이터베이스 (PostgreSQL / MongoDB / Redis)"
+log_service_info "database" "all" "데이터베이스 클러스터 시작" "starting"
 
-log_info "전체 컨테이너가 정상 작동(Healthy) 상태가 될 때까지 부팅 과정을 추적합니다."
-log_info "최대 3분 정도 소요되며 각 서비스의 상태가 표시됩니다."
+docker compose up -d postgresql mongodb redis 2>&1 | tee -a "${MAIN_LOG}"
 
-# docker compose up --wait : 모든 의존성이 healthy 될때까지 대기하며 상태바 출력
-# (화면 UI 보존을 위해 tee를 제거하고, 에러 시 로그를 별도 수집합니다)
-docker compose up --wait
+wait_for_healthy "postgres-main"  60 3 || on_failure "PostgreSQL"
+wait_for_healthy "mongo-main"     60 3 || on_failure "MongoDB"
+wait_for_healthy "redis-main"     30 3 || on_failure "Redis"
 
-if [ $? -ne 0 ]; then
-    log_error "⚠️ 일부 서비스 부팅에 실패했거나 대기 시간을 초과했습니다."
-    
-    # 실패(Unhealthy) 컨테이너 원인 분석 및 로그 추출
-    UNHEALTHY_CONTAINERS=$(docker ps --filter "health=unhealthy" --format "{{.Names}}")
-    if [ -n "$UNHEALTHY_CONTAINERS" ]; then
-        log_error "❌ 다음 컨테이너가 Unhealthy 상태입니다: $UNHEALTHY_CONTAINERS"
-        for container in $UNHEALTHY_CONTAINERS; do
-            log_info "==== $container 실패 원인 로그 (Tail 50) ====" | tee -a "${MAIN_LOG}"
-            docker logs "$container" --tail 50 2>&1 | tee -a "${MAIN_LOG}"
-        done
-    fi
-    
-    # 비정상 종료(Exited) 컨테이너 원인 분석 (정상 종료된 init-db 제외)
-    EXITED_CONTAINERS=$(docker ps -a --filter "status=exited" --format "{{.Names}}" | grep -v "init-db" || true)
-    if [ -n "$EXITED_CONTAINERS" ]; then
-        log_error "❌ 다음 컨테이너가 비정상 종료(Exited) 되었습니다: $EXITED_CONTAINERS"
-        for container in $EXITED_CONTAINERS; do
-            log_info "==== $container 종료 원인 로그 (Tail 50) ====" | tee -a "${MAIN_LOG}"
-            docker logs "$container" --tail 50 2>&1 | tee -a "${MAIN_LOG}"
-        done
-    fi
+log_service_info "database" "all" "데이터베이스 클러스터 모두 정상" "completed"
 
-    log_info "전체 상태 확인: docker ps -a"
-    exit 1
-fi
+# ─────────────────────────────────────
+# Phase 1-1 — DB 초기화
+# ─────────────────────────────────────
+log_phase "Phase 1-1 — DB 초기화 (init-db)"
+log_service_info "database" "init-db" "init-db 실행" "starting"
 
-log_service_info "system" "all_services" "전체 컨테이너 헬스체크 통과" "completed"
+docker compose up init-db 2>&1 | tee -a "${MAIN_LOG}"
 
+log_service_info "database" "init-db" "init-db 완료" "completed"
+
+# ─────────────────────────────────────
+# Phase 2 — Elasticsearch
+# ─────────────────────────────────────
+log_phase "Phase 2 — Elasticsearch"
+log_service_info "elasticsearch" "elasticsearch" "Elasticsearch 시작" "starting"
+
+docker compose up -d elasticsearch 2>&1 | tee -a "${MAIN_LOG}"
+
+wait_for_healthy "elasticsearch-main" 90 5 || on_failure "Elasticsearch"
+
+log_service_info "elasticsearch" "elasticsearch" "Elasticsearch 정상 작동" "completed"
+
+# ─────────────────────────────────────
+# Phase 3 — Zookeeper → Kafka
+# ─────────────────────────────────────
+log_phase "Phase 3 — Zookeeper → Kafka"
+log_service_info "kafka" "zookeeper" "Zookeeper 시작" "starting"
+
+docker compose up -d zookeeper 2>&1 | tee -a "${MAIN_LOG}"
+wait_for_healthy "zookeeper-main" 60 5 || on_failure "Zookeeper"
+
+log_service_info "kafka" "kafka" "Kafka 시작" "starting"
+docker compose up -d kafka 2>&1 | tee -a "${MAIN_LOG}"
+wait_for_healthy "kafka-main" 120 10 || on_failure "Kafka"
+
+log_service_info "kafka" "all" "Kafka 클러스터 모두 정상" "completed"
+
+# ─────────────────────────────────────
+# Phase 4 — Hadoop  (NameNode → DataNode)
+#
+# V13 변경: resourcemanager / nodemanager 제거
+#   Spark Standalone 모드 → YARN 불필요
+# ─────────────────────────────────────
+log_phase "Phase 4 — Hadoop (NameNode → DataNode)"
+log_service_info "hadoop" "namenode" "Hadoop NameNode 시작" "starting"
+
+docker compose up -d namenode 2>&1 | tee -a "${MAIN_LOG}"
+wait_for_healthy "namenode-main" 60 5 || on_failure "Hadoop NameNode"
+
+log_service_info "hadoop" "datanode" "Hadoop DataNode 시작" "starting"
+docker compose up -d datanode 2>&1 | tee -a "${MAIN_LOG}"
+wait_for_healthy "datanode-main" 60 5 || on_failure "Hadoop DataNode"
+
+log_service_info "hadoop" "all" "Hadoop 클러스터 모두 정상 (Standalone 구성)" "completed"
+
+# ─────────────────────────────────────
+# Phase 5 — Spark (Master → Worker)
+# ─────────────────────────────────────
+log_phase "Phase 5 — Spark (Master → Worker)"
+log_service_info "spark" "spark-master" "Spark Master 시작" "starting"
+
+docker compose up -d spark-master 2>&1 | tee -a "${MAIN_LOG}"
+wait_for_healthy "spark-master-main" 60 5 || on_failure "Spark Master"
+
+log_service_info "spark" "spark-worker-1" "Spark Worker 시작" "starting"
+docker compose up -d spark-worker-1 2>&1 | tee -a "${MAIN_LOG}"
+wait_for_healthy "spark-worker-1-main" 60 5 || on_failure "Spark Worker"
+
+log_service_info "spark" "all" "Spark 클러스터 모두 정상" "completed"
+
+# ─────────────────────────────────────
+# Phase 6 — FastAPI
+# ─────────────────────────────────────
+log_phase "Phase 6 — FastAPI"
+log_service_info "fastapi" "fastapi" "FastAPI 시작" "starting"
+
+docker compose up -d fastapi 2>&1 | tee -a "${MAIN_LOG}"
+wait_for_healthy "fastapi-main" 90 5 || on_failure "FastAPI"
+
+log_service_info "fastapi" "fastapi" "FastAPI 정상 작동" "completed"
+
+# ─────────────────────────────────────
+# Phase 7 — Airflow  (Webserver → Scheduler → Triggerer)
+#
+# V13 변경:
+#   - 버전 2.10.4 기준 (3.0.3 제거)
+#   - airflow-triggerer 추가
+#   - db migrate는 webserver command에서 실행됨 → 별도 불필요
+# ─────────────────────────────────────
+log_phase "Phase 7 — Airflow (Webserver → Scheduler → Triggerer)"
+log_service_info "airflow" "airflow-webserver" "Airflow Webserver 시작" "starting"
+
+docker compose up -d airflow-webserver 2>&1 | tee -a "${MAIN_LOG}"
+
+# Airflow 2.10.4 기준: pip 설치 + db migrate 포함 → 여유 있게 대기
+wait_for_healthy "airflow-webserver-main" 180 10 || on_failure "Airflow Webserver"
+
+log_service_info "airflow" "airflow-scheduler" "Airflow Scheduler 시작" "starting"
+docker compose up -d airflow-scheduler 2>&1 | tee -a "${MAIN_LOG}"
+wait_for_healthy "airflow-scheduler-main" 180 10 || on_failure "Airflow Scheduler"
+
+# # V13 신규: Triggerer (Deferrable Operator 비동기 대기 처리)
+# log_service_info "airflow" "airflow-triggerer" "Airflow Triggerer 시작" "starting"
+# docker compose up -d airflow-triggerer 2>&1 | tee -a "${MAIN_LOG}"
+# wait_for_healthy "airflow-triggerer-main" 120 10 || on_failure "Airflow Triggerer"
+
+log_service_info "airflow" "all" "Airflow 모두 정상 (webserver + scheduler + triggerer)" "completed"
 
 # ─────────────────────────────────────
 # 완료

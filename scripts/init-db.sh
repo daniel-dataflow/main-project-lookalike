@@ -116,5 +116,12 @@ psql -h postgresql -U "$POSTGRES_USER" -d "$POSTGRES_DB" <<-EOSQL
 EOSQL
 
 echo '✅ 프로젝트 테이블 초기화 완료'
-echo '🚀 DB 초기화 완료!'
+
+echo '🔄 스키마 마이그레이션(apply_db_changes.sh) 적용 시작...'
+bash /app/scripts/apply_db_changes.sh || {
+    echo "❌ apply_db_changes.sh 실행 중 오류 발생. 로그를 확인하세요."
+    exit 1
+}
+
+echo '🚀 DB 초기화 및 마이그레이션 완료!'
 
