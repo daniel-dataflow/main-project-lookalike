@@ -174,7 +174,7 @@ async def search_by_image(
             logger.warning(f"검색 결과 저장 실패 (검색은 계속): {res_err}")
 
         # 6. 응답
-        # search_source: 실제 사용된 검색 전략 (프론트엜드 시디버깅, 향후 UI에서 활용 가능)
+        # search_source: 실제 사용된 검색 전략 (프론트엔드 디버깅, 향후 UI에서 활용 가능)
         used_source = ml_results[0]["search_source"] if ml_results else "db"
         return ImageSearchResponse(
             success=True,
@@ -182,7 +182,7 @@ async def search_by_image(
             thumbnail_url=f"/api/search/thumbnail/{log_id}",
             results=[
                 ProductResult(
-                    product_id=r["product_id"],
+                    product_id=str(r["product_id"]),
                     product_name=r["product_name"],
                     brand=r["brand"],
                     price=r["price"],
@@ -443,7 +443,7 @@ async def search_by_text(
 
         results = [
             SimilarProductResponse(
-                product_id=r["product_id"],
+                product_id=str(r["product_id"]),
                 prod_name=r["prod_name"],
                 base_price=r["base_price"],
                 img_hdfs_path=r["img_hdfs_path"],

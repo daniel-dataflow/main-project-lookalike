@@ -112,6 +112,27 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 FRONTEND_DIR = os.path.join(BASE_DIR, "..", "..", "frontend")
 
 app.mount("/static", StaticFiles(directory=os.path.join(FRONTEND_DIR, "static")), name="static")
+
+# HDFS 연동 전 임시/로컬 테스트용: DB에 저장된 /raw/... 경로를 FastAPI에서 임시 처리할 수 있도록 추가
+import re
+from starlette.requests import Request
+from starlette.responses import FileResponse, Response
+from starlette.routing import Route
+
+async def serve_raw_image(request: Request):
+    """
+    /raw/{brand}/image/{filename} 요청을 
+    /app/data-pipeline/elasticsearch/data/image/{filename} 으로 라우팅하여
+    No Image 버그를 방지합니다.
+    """
+    filename = request.path_params["filename"]
+    safe_path = os.path.join("/app/data-pipeline/elasticsearch/data/image", filename)
+    if os.path.exists(safe_path):
+        return FileResponse(safe_path)
+    return Response(content="Not Found", status_code=404)
+
+app.routes.append(Route("/raw/{brand}/image/{filename}", serve_raw_image))
+
 templates = Jinja2Templates(directory=os.path.join(FRONTEND_DIR, "templates"))
 
 # ──────────────────────────────────────

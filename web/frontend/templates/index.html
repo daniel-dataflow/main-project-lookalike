@@ -57,9 +57,9 @@
             <span class="text-muted small me-2">성별</span>
             <div class="d-flex gap-2 flex-wrap" id="genderBtns">
                 <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 gender-btn"
-                    data-gender="남자">남자</button>
+                    data-gender="men">남자</button>
                 <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 gender-btn"
-                    data-gender="여자">여자</button>
+                    data-gender="women">여자</button>
             </div>
         </div>
 
@@ -68,11 +68,11 @@
             <span class="text-muted small me-2">종류</span>
             <div class="d-flex gap-2 flex-wrap" id="categoryBtns">
                 <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 category-btn"
-                    data-category="상의">상의</button>
+                    data-category="top">상의</button>
                 <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 category-btn"
-                    data-category="하의">하의</button>
+                    data-category="bottom">하의</button>
                 <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 category-btn"
-                    data-category="아우터">아우터</button>
+                    data-category="outer">아우터</button>
             </div>
         </div>
 
@@ -270,12 +270,7 @@
                 return;
             }
 
-            // 카테고리 검증: 성별, 옷 종류 모두 선택 필수
-            if (!selectedGender || !selectedClothes) {
-                document.getElementById('categoryError').classList.remove('d-none');
-                document.getElementById('categoryError').scrollIntoView({ behavior: 'smooth', block: 'center' });
-                return;
-            }
+            // 카테고리 검증: 선택사항으로 변경됨 (경고창 생략)
             document.getElementById('categoryError').classList.add('d-none');
 
             // 로딩 표시
@@ -295,8 +290,11 @@
                 if (searchText) {
                     formData.append('search_text', searchText);
                 }
-                // 성별 + 옷종류 조합하여 카테고리로 전달
-                formData.append('category', `${selectedGender}_${selectedClothes}`);
+
+                // 성별 + 옷종류 조합하여 카테고리로 전달 (둘 다 선택된 경우에만)
+                if (selectedGender && selectedClothes) {
+                    formData.append('category', `${selectedGender}_${selectedClothes}`);
+                }
 
                 const response = await fetch('/api/search/by-image', {
                     method: 'POST',

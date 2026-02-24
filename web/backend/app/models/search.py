@@ -27,7 +27,7 @@ class SearchByTextRequest(BaseModel):
 # ──────────────────────────────────────
 class SimilarProductResponse(BaseModel):
     """유사 상품 결과"""
-    product_id: Optional[int] = None
+    product_id: Optional[str] = None
     prod_name: Optional[str] = None
     base_price: Optional[int] = None
     img_hdfs_path: Optional[str] = None
@@ -58,7 +58,7 @@ class ProductResult(BaseModel):
     - similarity_score: ES 검색 시 유사도 점수 (0.0~1.0), DB fallback 시 None
     - search_source: 검색 전략 ("elasticsearch_knn" | "elasticsearch_text" | "db")
     """
-    product_id: int
+    product_id: str
     product_name: str
     brand: str
     price: int

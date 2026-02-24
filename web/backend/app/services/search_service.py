@@ -41,7 +41,7 @@ async def search_products(
                 product_id, product_name, brand, price,
                 image_url, mall_name, mall_url,
                 similarity_score,    # float (0.0~1.0) or None (DB fallback)
-                search_source,       # "elasticsearch_knn" | "elasticsearch_text" | "db"
+                search_source,       # "elasticsearch_knn" | "db"
             },
             ...
         ]
@@ -51,16 +51,9 @@ async def search_products(
         try:
             return await _search_by_knn(query_embedding, category, limit)
         except Exception as e:
-            logger.warning(f"ES kNN 검색 실패, fallback to text/DB: {e}")
+            logger.warning(f"ES kNN 검색 실패, fallback to DB: {e}")
 
-    # 전략 2: ES 텍스트 검색 (query_text가 있을 때)
-    if query_text:
-        try:
-            return await _search_by_text_es(query_text, category, limit)
-        except Exception as e:
-            logger.warning(f"ES 텍스트 검색 실패, fallback to DB: {e}")
-
-    # 전략 3: DB fallback (현재 기본 동작 - 항상 성공 보장)
+    # 전략 2: DB fallback (현재 기본 동작 - ES 벡터 입력이 없거나 실패할 때 항상 작동)
     return _search_by_db(category, limit)
 
 
@@ -80,9 +73,19 @@ async def _search_by_knn(
     from ..core.elasticsearch_setup import get_es_client
 
     es = get_es_client()
+    
+    # query_vector 차원에 따라 조회 필드를 동적으로 선택 (image: 512차원, text: 384차원)
+    vec_len = len(query_vector)
+    if vec_len == 512:
+        target_field = "image_vector"
+    elif vec_len == 384:
+        target_field = "text_vector"
+    else:
+        target_field = "embedding"
+        
     knn_query = {
         "knn": {
-            "field": "embedding",
+            "field": target_field,
             "query_vector": query_vector,
             "k": limit,
             "num_candidates": limit * 10,
@@ -100,57 +103,91 @@ async def _search_by_knn(
         raise ValueError("ES kNN 검색 결과 없음 - fallback 필요")
 
     logger.info(f"ES kNN 검색 완료: {len(hits)}개 (카테고리: {category or '전체'})")
-    return [_hit_to_product(hit, source="elasticsearch_knn") for hit in hits]
+
+    # ES 결과에서 product_code 또는 product_id와 매칭 점수 추출
+    product_scores = {}
+    for hit in hits:
+        src = hit["_source"]
+        key = src.get("product_code")
+        if not key:
+            key = str(src.get("product_id"))
+        product_scores[key] = hit.get("_score", 0.0)
+    
+    # DB에서 최신 데이터(가격, 쇼핑몰 정보 등) 덧씌우기
+    return _hydrate_from_db(product_scores, source="elasticsearch_knn")
 
 
 # ──────────────────────────────────────────────────────────────────────
-# 전략 2: ES 텍스트 검색 (prod_name + detected_desc 대상)
+# DB 수화(Hydration) 헬퍼
 # ──────────────────────────────────────────────────────────────────────
 
-async def _search_by_text_es(
-    query_text: str,
-    category: Optional[str],
-    limit: int,
-) -> list:
+def _hydrate_from_db(product_scores: dict, source: str) -> list:
     """
-    Elasticsearch multi_match를 이용한 텍스트 검색.
-    products 인덱스의 prod_name, detected_desc(VLM 설명) 필드를 검색합니다.
+    ES에서 반환된 {product_code: score} 목록을 사용하여
+    PostgreSQL에서 표시용 부가 데이터(최저가, 쇼핑몰 이름, URL 등)를 채워 넣고,
+    원래의 ES 스코어(유사도) 순서를 유지한 채 반환합니다.
     """
-    from ..core.elasticsearch_setup import get_es_client
+    if not product_scores:
+        return []
 
-    es = get_es_client()
+    from ..database import get_pg_cursor
+    product_ids = list(product_scores.keys())
 
-    must_clause = {
-        "multi_match": {
-            "query": query_text,
-            "fields": ["prod_name^2", "detected_desc", "brand_name"],
-            "type": "best_fields",
-            "fuzziness": "AUTO",
-        }
-    }
+    try:
+        with get_pg_cursor() as cur:
+            # IN clause용 파라미터 생성
+            placeholders = ",".join(["%s"] * len(product_ids))
+            cur.execute(
+                f"""
+                SELECT
+                    p.product_id, p.prod_name, p.brand_name,
+                    p.base_price, p.img_hdfs_path, p.category_code,
+                    p.model_code,
+                    COALESCE(np.price, p.base_price) AS lowest_price,
+                    np.mall_name, np.mall_url
+                FROM products p
+                LEFT JOIN naver_prices np
+                    ON p.product_id = np.product_id AND np.rank = 1
+                WHERE p.model_code IN ({placeholders}) OR p.product_id::text IN ({placeholders})
+                """,
+                tuple(product_ids) + tuple(product_ids),
+            )
+            rows = cur.fetchall()
 
-    filter_clause = []
-    if category and category != "전체":
-        filter_clause.append({"term": {"category": category}})
+        # 결과를 list of dict로 변환하고 유사도 점수 삽입
+        products = []
+        seen = set()
+        for row in rows:
+            model_code = row["model_code"]
+            pid = str(row["product_id"])
+            
+            score_key = model_code if model_code in product_scores else pid
+            if score_key not in product_scores:
+                continue
+                
+            if score_key in seen:
+                continue
+            seen.add(score_key)
 
-    body = {
-        "query": {
-            "bool": {
-                "must": must_clause,
-                "filter": filter_clause,
-            }
-        },
-        "size": limit,
-    }
+            products.append({
+                "product_id": pid,
+                "product_name": row["prod_name"],
+                "brand": row["brand_name"],
+                "price": row["lowest_price"],
+                "image_url": row["img_hdfs_path"] or "https://placehold.co/300x300?text=No+Image",
+                "mall_name": row["mall_name"] or "공식몰",
+                "mall_url": row["mall_url"] or "#",
+                "similarity_score": round(product_scores.get(score_key, 0.0), 4),
+                "search_source": source,
+            })
 
-    response = es.search(index="products", body=body)
-    hits = response["hits"]["hits"]
+        # 원래 ES에서 반환된 스코어 순서대로 내림차순 정렬 (Hydration 후 순서 유지)
+        products.sort(key=lambda x: x["similarity_score"] or 0.0, reverse=True)
+        return products
 
-    if not hits:
-        raise ValueError("ES 텍스트 검색 결과 없음 - fallback 필요")
-
-    logger.info(f"ES 텍스트 검색 완료: {len(hits)}개 (쿼리: {query_text!r})")
-    return [_hit_to_product(hit, source="elasticsearch_text") for hit in hits]
+    except Exception as e:
+        logger.error(f"DB Hydration 실패: {e}", exc_info=True)
+        return []
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -234,23 +271,3 @@ def _search_by_db(category: Optional[str], limit: int) -> list:
         return []
 
 
-# ──────────────────────────────────────────────────────────────────────
-# 헬퍼
-# ──────────────────────────────────────────────────────────────────────
-
-def _hit_to_product(hit: dict, source: str) -> dict:
-    """ES hit → 통일된 상품 dict로 변환"""
-    src = hit["_source"]
-    score = hit.get("_score")  # kNN: cosine 유사도 / text: BM25 점수
-    # cosine 유사도는 이미 0~1 범위, BM25는 정규화 없이 그대로 전달
-    return {
-        "product_id": src["product_id"],
-        "product_name": src["prod_name"],
-        "brand": src.get("brand_name", ""),
-        "price": src.get("lowest_price") or src.get("base_price", 0),
-        "image_url": src.get("image_url") or "https://placehold.co/300x300?text=No+Image",
-        "mall_name": src.get("mall_name", "공식몰"),
-        "mall_url": src.get("mall_url", "#"),
-        "similarity_score": round(score, 4) if score is not None else None,
-        "search_source": source,
-    }

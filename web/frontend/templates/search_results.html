@@ -5,75 +5,114 @@
 {% block content %}
 <div class="d-flex align-items-center mb-4">
     <i class="fas fa-search me-2 text-primary"></i>
-    <h5 class="fw-bold m-0">검색 결과</h5>
+    <h5 class="fw-bold m-0" id="searchTitle">검색 결과</h5>
 </div>
 
 <p class="text-muted small mb-3">유사도 기준으로 정렬한 검색 결과입니다.</p>
 
-<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
-    <!-- Mock Product Card 1 -->
-    <div class="col">
-        <div class="card h-100 product-card position-relative overflow-hidden">
-            <span class="badge bg-primary position-absolute top-0 end-0 m-2">95% 유사</span>
-            <img src="https://placehold.co/400x400?text=Product+Image" class="card-img-top" alt="Product">
-            <div class="card-body">
-                <small class="text-muted d-block mb-1">UNIQLO</small>
-                <h6 class="card-title text-truncate fw-bold">프리미엄 코튼 반팔 티셔츠 - 네이비</h6>
-                <div class="d-flex align-items-center mt-2">
-                    <span class="text-danger fw-bold fs-5 me-2">29,900원</span>
-                    <span class="text-decoration-line-through text-muted small me-2">45,000원</span>
-                    <span class="badge bg-danger rounded-pill">34%</span>
-                </div>
-                <div class="text-muted small mt-1">네이버 쇼핑</div>
-            </div>
-            <div class="card-footer bg-white border-top-0 pt-0">
-                <a href="/product/1" class="btn btn-dark w-100 btn-sm">상품 상세보기 <i
-                        class="fas fa-external-link-alt ms-1"></i></a>
-            </div>
-        </div>
+<!-- Loading Overlay -->
+<div id="resultsLoading" class="text-center py-5">
+    <div class="spinner-border text-primary mb-3" role="status">
+        <span class="visually-hidden">검색 중...</span>
     </div>
-
-    <!-- Mock Product Card 2 -->
-    <div class="col">
-        <div class="card h-100 product-card position-relative overflow-hidden">
-            <span class="badge bg-primary position-absolute top-0 end-0 m-2">92% 유사</span>
-            <img src="https://placehold.co/400x400/gray/white?text=Sneakers" class="card-img-top" alt="Product">
-            <div class="card-body">
-                <small class="text-muted d-block mb-1">CONVERSE</small>
-                <h6 class="card-title text-truncate fw-bold">캐주얼 스니커즈 화이트 운동화</h6>
-                <div class="d-flex align-items-center mt-2">
-                    <span class="text-danger fw-bold fs-5 me-2">89,000원</span>
-                    <span class="text-decoration-line-through text-muted small me-2">129,000원</span>
-                    <span class="badge bg-danger rounded-pill">31%</span>
-                </div>
-                <div class="text-muted small mt-1">쿠팡</div>
-            </div>
-            <div class="card-footer bg-white border-top-0 pt-0">
-                <a href="/product/2" class="btn btn-dark w-100 btn-sm">상품 상세보기 <i
-                        class="fas fa-external-link-alt ms-1"></i></a>
-            </div>
-        </div>
-    </div>
-
-    <!-- Mock Product Card 3 -->
-    <div class="col">
-        <div class="card h-100 product-card position-relative overflow-hidden">
-            <span class="badge bg-primary position-absolute top-0 end-0 m-2">88% 유사</span>
-            <img src="https://placehold.co/400x400/black/white?text=Backpack" class="card-img-top" alt="Product">
-            <div class="card-body">
-                <small class="text-muted d-block mb-1">SAMSONITE</small>
-                <h6 class="card-title text-truncate fw-bold">데일리 백팩 노트북 수납 가능</h6>
-                <div class="d-flex align-items-center mt-2">
-                    <span class="text-danger fw-bold fs-5 me-2">49,900원</span>
-                    <!-- No discount -->
-                </div>
-                <div class="text-muted small mt-1">11번가</div>
-            </div>
-            <div class="card-footer bg-white border-top-0 pt-0">
-                <a href="/product/3" class="btn btn-dark w-100 btn-sm">상품 상세보기 <i
-                        class="fas fa-external-link-alt ms-1"></i></a>
-            </div>
-        </div>
-    </div>
+    <p class="text-muted mb-0">검색어 "<span id="displayQuery" class="fw-bold">{{ query }}</span>" 에 일치하는 상품을 찾는 중입니다...
+    </p>
 </div>
+
+<!-- Category Error or Empty View -->
+<div id="resultsEmpty" class="d-none text-center py-5">
+    <i class="fas fa-search text-muted mb-3" style="font-size: 3rem;"></i>
+    <p class="text-muted" id="emptyMessage">조건에 맞는 검색 결과를 찾지 못했습니다.</p>
+</div>
+
+<!-- Dynamic Search Results -->
+<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3" id="resultsContainer">
+    <!-- Results will be dynamically populated here -->
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", async function () {
+        const rawQuery = "{{ query }}";
+        const category = new URLSearchParams(window.location.search).get('category') || null;
+        const resultsContainer = document.getElementById("resultsContainer");
+        const resultsLoading = document.getElementById("resultsLoading");
+        const resultsEmpty = document.getElementById("resultsEmpty");
+        const emptyMessage = document.getElementById("emptyMessage");
+
+        if (!rawQuery) {
+            resultsLoading.classList.add("d-none");
+            resultsEmpty.classList.remove("d-none");
+            emptyMessage.textContent = "검색어가 입력되지 않았습니다.";
+            return;
+        }
+
+        try {
+            const formData = new FormData();
+            formData.append("search_text", rawQuery);
+            if (category) {
+                formData.append("category", category);
+            }
+
+            const response = await fetch("/api/search/by-image", {
+                method: "POST",
+                body: formData,
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.detail || "검색에 실패했습니다.");
+            }
+
+            resultsLoading.classList.add("d-none");
+
+            if (!data.results || data.results.length === 0) {
+                resultsEmpty.classList.remove("d-none");
+                return;
+            }
+
+            // Populate results
+            data.results.forEach((item) => {
+                const priceFormatted = item.price.toLocaleString();
+                // DB fallback에는 score가 None. score가 있을 때만 유사도 뱃지 표시
+                let badgeHtml = "";
+                if (item.similarity_score !== null && item.similarity_score !== undefined) {
+                    // 백분율(%)로 표기할지 그대로 보여줄지는 스코어 형태(ex: 0~1)에 따라 다름. 임시로 그대로 표시하거나 적절히 변환 
+                    let scoreText = (item.similarity_score * 100).toFixed(1) + "% 유사"; // cosine 유사도가 0~1이라고 가정 
+                    if (item.search_source === "elasticsearch_text") {
+                        scoreText = "점수: " + item.similarity_score; // Text 검색시엔 백분율 대체
+                    }
+                    badgeHtml = `<span class="badge bg-primary position-absolute top-0 end-0 m-2">${scoreText}</span>`;
+                }
+
+                const card = document.createElement("div");
+                card.className = "col";
+                card.innerHTML = `
+                <div class="card h-100 product-card position-relative overflow-hidden">
+                    ${badgeHtml}
+                    <img src="${item.image_url}" class="card-img-top" alt="${item.product_name}" onerror="this.src='https://placehold.co/400x400?text=No+Image'">
+                    <div class="card-body">
+                        <small class="text-muted d-block mb-1">${item.brand}</small>
+                        <h6 class="card-title text-truncate fw-bold">${item.product_name}</h6>
+                        <div class="d-flex align-items-center mt-2">
+                            <span class="text-danger fw-bold fs-5 me-2">${priceFormatted}원</span>
+                        </div>
+                        <div class="text-muted small mt-1">${item.mall_name}</div>
+                    </div>
+                    <div class="card-footer bg-white border-top-0 pt-0">
+                        <a href="/product/${item.product_id}" class="btn btn-dark w-100 btn-sm">상품 상세보기 <i class="fas fa-external-link-alt ms-1"></i></a>
+                    </div>
+                </div>
+            `;
+                resultsContainer.appendChild(card);
+            });
+
+        } catch (error) {
+            console.error("검색 오류:", error);
+            resultsLoading.classList.add("d-none");
+            resultsEmpty.classList.remove("d-none");
+            emptyMessage.textContent = error.message || "서버 통신 중 오류가 발생했습니다.";
+        }
+    });
+</script>
 {% endblock %}

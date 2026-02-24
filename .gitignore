@@ -209,3 +209,4 @@ __marimo__/
 miniconda3/
 logs/
 data-pipeline/airflow/simple_auth_manager_passwords.json.generated
+data-pipeline/elasticsearch/data/
