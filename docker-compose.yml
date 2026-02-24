@@ -403,7 +403,9 @@ services:
   # 11. FastAPI
   # ============================================================
   fastapi:
-    image: python:3.11-slim
+    build:
+      context: .
+      dockerfile: Dockerfile.fastapi
     container_name: fastapi-main
     hostname: fastapi
     depends_on:
@@ -440,8 +442,7 @@ services:
         limits: { memory: 1G }
         reservations: { memory: 512M }
     command: >
-      bash -c "pip install --no-cache-dir -r web/backend/requirements.txt &&
-               python -m uvicorn web.backend.app.main:app --host 0.0.0.0 --port 8900 --reload"
+      bash -c "python -m uvicorn web.backend.app.main:app --host 0.0.0.0 --port 8900 --reload"
     healthcheck:
       test: [ "CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8900/health\")'" ]
       interval: 15s
@@ -453,7 +454,9 @@ services:
   # 12. Airflow Webserver — apache/airflow:2.10.4-python3.11
   # ============================================================
   airflow-webserver:
-    image: apache/airflow:2.10.4-python3.11
+    build:
+      context: .
+      dockerfile: Dockerfile.airflow
     container_name: airflow-webserver-main
     hostname: airflow-webserver
     user: "50000:0"
@@ -484,8 +487,6 @@ services:
         reservations: { memory: 1G }
     command: >
       bash -c "
-        echo '패키지 설치 중...' &&
-        pip install --no-cache-dir apache-airflow-providers-apache-spark==4.10.0 apache-airflow-providers-postgres==5.12.0 psycopg2-binary pyspark==3.5.3 &&
         echo 'DB 마이그레이션 중...' &&
         airflow db migrate &&
         echo 'Admin 계정 생성 중...' &&
@@ -504,7 +505,9 @@ services:
   # 13. Airflow Scheduler — apache/airflow:2.10.4-python3.11
   # ============================================================
   airflow-scheduler:
-    image: apache/airflow:2.10.4-python3.11
+    build:
+      context: .
+      dockerfile: Dockerfile.airflow
     container_name: airflow-scheduler-main
     hostname: airflow-scheduler
     user: "50000:0"
@@ -531,7 +534,6 @@ services:
         reservations: { memory: 1G }
     command: >
       bash -c "
-        pip install --no-cache-dir apache-airflow-providers-apache-spark==4.10.0 apache-airflow-providers-postgres==5.12.0 psycopg2-binary pyspark==3.5.3 &&
         airflow scheduler
       "
     healthcheck:
@@ -540,44 +542,6 @@ services:
       timeout: 10s
       retries: 5
       start_period: 180s
-  # ============================================================
-  # 14. Airflow Triggerer — apache/airflow:2.10.4-python3.11
-  # ============================================================
-  # airflow-triggerer:
-  #   image: apache/airflow:2.10.4-python3.11
-  #   container_name: airflow-triggerer-main
-  #   hostname: airflow-triggerer
-  #   user: "50000:0"
-  #   depends_on:
-  #     airflow-webserver: { condition: service_healthy }
-  #   environment:
-  #     - AIRFLOW_HOME=/opt/airflow
-  #     - AIRFLOW__CORE__EXECUTOR=LocalExecutor
-  #     - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgresql:5432/${AIRFLOW_DB}
-  #     - AIRFLOW__CORE__FERNET_KEY=${AIRFLOW_FERNET_KEY}
-  #     - TZ=${TZ}
-  #   volumes:
-  #     - ./data-pipeline/airflow/dags:/opt/airflow/dags
-  #     - airflow_logs:/opt/airflow/logs
-  #   networks: [main-network]
-  #   restart: unless-stopped
-  #   deploy:
-  #     resources:
-  #       limits:       { memory: 512M }
-  #       reservations: { memory: 256M }
-  #   command: >
-  #     bash -c "
-  #       pip install --no-cache-dir
-  #         apache-airflow-providers-apache-spark==4.10.0
-  #         psycopg2-binary &&
-  #       airflow triggerer
-  #     "
-  #   # healthcheck:
-  #   #   test: ["CMD-SHELL", "airflow jobs check --job-type TriggererJob --hostname \"$$HOSTNAME\" --limit 1"]
-  #   #   interval: 30s
-  #   #   timeout: 10s
-  #   #   retries: 5
-  #   #   start_period: 180s
 
   # ================================================================
   #  .env 필수 추가 항목 (start_all.sh가 자동 생성)
@@ -592,7 +556,6 @@ services:
   # ================================================================
   #
   #  postgresql ──→ init-db ──→ airflow-webserver ──→ airflow-scheduler
-  #                                               └──→ airflow-triggerer
   #  postgresql ──→ fastapi
   #  mongodb    ──→ fastapi
   #  redis      ──→ fastapi

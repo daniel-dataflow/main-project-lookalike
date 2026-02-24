@@ -1,14 +1,11 @@
 #!/bin/bash
 # ============================================================
-# Main Project Lookalike — 통합 Docker 시작 스크립트  V13
+# Main Project Lookalike — 통합 Docker 시작 스크립트  V14
 # 위치: ~/main-project-lookalike/script/start_all.sh
 # 실행: bash ~/main-project-lookalike/script/start_all.sh
 #
-# V13 변경사항:
-#   - Hadoop: resourcemanager / nodemanager 제거 (Standalone 모드)
-#   - Airflow: airflow-triggerer 추가 / 2.10.4 기준 대기시간 조정
-#   - conf 파일 사전 체크 추가 (공식 이미지 직접 마운트 필요)
-#   - Fernet Key / Webserver Secret Key 미설정 시 자동 생성
+# V14 변경사항:
+#   - 불필요한 conf 파일 사전 체크 기능 10초 대기 로직 제거 (Docker 환경변수로 위임)
 # ============================================================
 
 # ──────────────────────────────────────────────
@@ -160,34 +157,6 @@ ensure_airflow_secrets() {
     fi
 }
 
-# ──────────────────────────────────────────────
-# conf 파일 사전 체크
-# (공식 이미지는 환경변수 자동변환 없음 → 직접 마운트 필수)
-# ──────────────────────────────────────────────
-check_conf_files() {
-    local missing=0
-
-    local conf_files="data-pipeline/hadoop/conf/core-site.xml data-pipeline/hadoop/conf/hdfs-site-nn.xml data-pipeline/hadoop/conf/hdfs-site-dn.xml data-pipeline/spark/conf/spark-defaults.conf data-pipeline/airflow/dags"
-
-    log_info "conf 파일 / 디렉토리 점검 중..."
-    for f in $conf_files; do
-        if [ ! -e "${PROJECT_ROOT}/${f}" ]; then
-            log_warn "  [없음] ${f}"
-            missing=$((missing + 1))
-        else
-            log_info "  [ OK ] ${f}"
-        fi
-    done
-
-    if [ $missing -gt 0 ]; then
-        log_warn "  ⚠️  누락된 conf 파일이 ${missing}개 있습니다."
-        log_warn "     공식 이미지(apache/hadoop, apache/spark)는"
-        log_warn "     conf 파일을 직접 마운트해야 합니다."
-        log_warn "     가이드: data-pipeline/hadoop/conf/  참조"
-        log_warn "     10초 후 계속 진행합니다. (Ctrl+C로 중단 가능)"
-        sleep 10
-    fi
-}
 
 # ──────────────────────────────────────────────
 # 헬스체크 대기 함수
@@ -293,7 +262,7 @@ on_failure() {
 # ══════════════════════════════════════════════════════
 # ▶ MAIN
 # ══════════════════════════════════════════════════════
-log_phase "Main Project Lookalike — 전체 서비스 시작  (V13)"
+log_phase "Main Project Lookalike — 전체 서비스 시작  (V14)"
 log_info "PROJECT_ROOT : ${PROJECT_ROOT}"
 log_info "MAIN LOG     : ${MAIN_LOG}"
 log_info "HC LOG       : ${HC_LOG}"
@@ -302,7 +271,6 @@ cd "${PROJECT_ROOT}"
 
 # ── 사전 점검 ────────────────────────────────
 ensure_airflow_secrets
-check_conf_files
 
 docker network create main-project-network 2>/dev/null || true
 log_service_info "system" "docker-network" "main-project-network 준비 완료" "ready"
