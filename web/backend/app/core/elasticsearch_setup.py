@@ -172,11 +172,16 @@ def init_product_index():
                     "type": "text",
                     "analyzer": "standard"
                 },
-                # ML 모델 임베딩 벡터 (512차원, cosine 유사도)
-                # ML 파이프라인 완성 후 실제 벡터 값이 채워짐
-                "embedding": {
+                # ML 모델 임베딩 벡터 (image: 512차원, text: 384차원, cosine 유사도)
+                "image_vector": {
                     "type": "dense_vector",
                     "dims": 512,
+                    "index": True,
+                    "similarity": "cosine"
+                },
+                "text_vector": {
+                    "type": "dense_vector",
+                    "dims": 384,
                     "index": True,
                     "similarity": "cosine"
                 },

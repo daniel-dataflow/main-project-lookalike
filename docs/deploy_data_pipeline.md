@@ -4,7 +4,7 @@
 **목적**: HDFS, PostgreSQL, 네이버 쇼핑 API, Elasticsearch 기반 통합 검색 환경을 일괄 구축하고, 테스트를 통해 무결성을 검증합니다.
 
 ## 파이프라인 아키텍처 및 자동화
-본 리포트는 다음과 같은 파이프라인의 통합 자동화(`scripts/rebuild_all_data.sh`) 구축 결과를 설명합니다. 데이터 일괄 구축 스크립트는 향후 프로덕션 환경에서 명령 한 줄(`bash scripts/rebuild_all_data.sh`)로 실행되도록 구성되었습니다.
+본 리포트는 다음과 같은 파이프라인의 통합 자동화(`scripts/test_DB/rebuild_all_data.sh`) 구축 결과를 설명합니다. 데이터 일괄 구축 스크립트는 향후 프로덕션 환경에서 명령 한 줄(`bash scripts/test_DB/rebuild_all_data.sh`)로 실행되도록 구성되었습니다.
 
 ### 1단계: HDFS 로컬 이미지 일괄 적재
 - ML 모델 파이프라인에서 산출된 `data/image/*.jpg` 에셋들을 읽어옵니다.

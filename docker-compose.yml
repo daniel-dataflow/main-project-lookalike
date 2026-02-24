@@ -451,6 +451,24 @@ services:
       start_period: 60s
 
   # ============================================================
+  # 11-1. ML Engine (FastAPI for Inference)
+  # ============================================================
+  ml-engine:
+    build:
+      context: ./ml-models/api
+      dockerfile: Dockerfile
+    container_name: ml-engine-main
+    hostname: ml-engine
+    ports:
+      - "8914:8914"
+    networks: [ main-network ]
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits: { memory: 2G }
+        reservations: { memory: 1G }
+
+  # ============================================================
   # 12. Airflow Webserver — apache/airflow:2.10.4-python3.11
   # ============================================================
   airflow-webserver:
@@ -542,7 +560,6 @@ services:
       timeout: 10s
       retries: 5
       start_period: 180s
-
   # ================================================================
   #  .env 필수 추가 항목 (start_all.sh가 자동 생성)
   # ================================================================
