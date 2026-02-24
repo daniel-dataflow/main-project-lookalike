@@ -132,6 +132,6 @@ with DAG(
         # =========================================================
         crawl_task >> spark_task >> naver_price_task >> fetched
 
-        [mongo_done, es_done] >> vlm_analyze_task
+        mongo_done >> vlm_analyze_task
 
         vlm_analyze_task >> text_embed_task >> sync_es_task

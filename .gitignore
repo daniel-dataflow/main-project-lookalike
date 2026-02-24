@@ -208,4 +208,17 @@ marimo/_lsp/
 __marimo__/
 miniconda3/
 logs/
-data-pipeline/airflow/simple_auth_manager_passwords.json.generated
+data-pipeline/airflow/simple_auth_manager_passwords.json.generateddata/ollama/id_ed25519
+
+# 데이터 및 모델 파일 (전체 제외)
+data/
+*.jpg
+*.json
+*.pub
+id_ed25519
+
+# 파이썬 가상환경 및 캐시
+venv/
+.venv/
+__pycache__/
+.ollama/

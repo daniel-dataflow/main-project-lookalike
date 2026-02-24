@@ -463,6 +463,9 @@ services:
       - AIRFLOW__CONN__SPARK_DEFAULT=spark://spark-master:7077
       - ELASTICSEARCH_URL=http://elasticsearch:9200
       - TZ=${TZ}
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./plugins:/opt/airflow/plugins
     ports:
       - "${AIRFLOW_WEBSERVER_PORT}:8080"
     volumes:
@@ -517,7 +520,12 @@ services:
       - AIRFLOW__CONN__SPARK_DEFAULT=spark://spark-master:7077
       - ELASTICSEARCH_URL=http://elasticsearch:9200
       - TZ=${TZ}
+      - HADOOP_CONF_DIR=/opt/hadoop/etc/hadoop  
     volumes:
+      - ./dags:/opt/airflow/dags
+      - ./logs:/opt/airflow/logs
+      - ./plugins:/opt/airflow/plugins
+      - ./data:/opt/airflow/data
       - ./data-pipeline/airflow/dags:/opt/airflow/dags
       - ./data-pipeline/airflow/plugins:/opt/airflow/plugins
       - airflow_logs:/opt/airflow/logs
@@ -528,7 +536,7 @@ services:
     deploy:
       resources:
         limits: 
-          memory: 6G
+          memory: 8G
         reservations: 
           memory: 2G
           devices:
@@ -542,3 +550,24 @@ services:
       timeout: 10s
       retries: 5
       start_period: 180s
+
+  # ============================================================
+  # Ollama (Local LLM Server)
+  # ============================================================
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama-main
+    command: >
+      bash -c "ollama serve & sleep 5 && ollama pull gemma3:4b && wait"
+    ports:
+      - "11434:11434"
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    volumes:
+      - ./data/ollama:/root/.ollama
+    restart: unless-stopped

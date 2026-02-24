@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import ollama
 import io
@@ -10,19 +11,19 @@ from datetime import datetime
 from PIL import Image
 from ollama import Client
 
-# 1. 연결 설정 (본인의 환경에 맞게 수정)
+# 1. 연결 설정 (AWS Docker 환경에 맞게 컨테이너 이름으로 통일)
 HDFS_URL = "http://namenode:9870"
-MONGO_URI = "mongodb://datauser:DataPass2026!@mongo-main:27017/datadb?authSource=admin" # Docker 네트워크상의 서비스명 사용
+MONGO_URI = "mongodb://datauser:DataPass2026!@mongo-main:27017/datadb?authSource=admin"
 HDFS_PATH = "/raw/8seconds/image"
-MODEL_NAME = "gemma3:4b" # Ollama에 해당 모델이 pull 되어 있어야 함
+MODEL_NAME = "gemma3:4b"
 
 # 클라이언트 초기화
 hdfs_client = InsecureClient(HDFS_URL, user='root')
 mongo_client = MongoClient(MONGO_URI)
 db = mongo_client['datadb']
 collection = db['analyzed_metadata']
-client = Client(host='http://host.docker.internal:11434')
 
+ollama_client = Client(host='http://172.31.11.240:11434') 
 translator = GoogleTranslator(source='en', target='ko')
 
 def parse_filename_category(filename):
@@ -67,12 +68,8 @@ def analyze_with_ollama(hdfs_img_path, basic_info):
         with hdfs_client.read(hdfs_img_path) as reader:
             img_bytes = reader.read()
 
-        # 🌟 1. Client 객체 생성 시에만 host를 넣습니다.
-        from ollama import Client
-        client = Client(host="http://192.168.35.27:11434")
-
-        # 🌟 2. chat 함수 안에는 host가 없어야 합니다!
-        response = client.chat(
+        # 🌟 수정: 함수 안에 있던 중복 Client 선언을 제거하고 전역 클라이언트(ollama_client) 사용
+        response = ollama_client.chat(
             model=MODEL_NAME,
             messages=[{'role': 'user', 'content': prompt, 'images': [img_bytes]}],
             options={"temperature": 0.2}
@@ -91,11 +88,11 @@ def main():
         images = [os.path.join(HDFS_PATH, f) for f in all_files if f.endswith(img_exts)]
     except Exception as e:
         print(f"❌ HDFS 접속 실패: {e}")
-        sys.exit(1) # 🌟 수정: return 대신 sys.exit(1)을 해야 Airflow가 실패(빨간불)로 인식합니다.
+        sys.exit(1)
 
     if not images:
         print("❌ 분석할 이미지가 없습니다.")
-        sys.exit(1) # 🌟 수정: 여기도 마찬가지로 실패 처리
+        sys.exit(1)
 
     print(f"🚀 Ollama 가동 ({MODEL_NAME}) - 총 {len(images)}장 분석 시작")
     
