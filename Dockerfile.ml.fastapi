@@ -5,6 +5,11 @@ FROM python:3.10-slim
 # Set the working directory in the container
 WORKDIR /app
 
+# Build deps for packages like annoy (via fashion-clip dependency)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
 # Copy the requirements file into the container at /app
 COPY ml-models/api/requirements.txt .
 
@@ -19,6 +24,9 @@ EXPOSE 8914
 
 # Define environment variable
 ENV PORT=8914
+
+# Run module from ML API directory
+WORKDIR /app/ml-models/api
 
 # Run main.py when the container launches using Uvicorn
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8914"]

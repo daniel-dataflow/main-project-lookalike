@@ -210,3 +210,11 @@ miniconda3/
 logs/
 data-pipeline/airflow/simple_auth_manager_passwords.json.generated
 data-pipeline/elasticsearch/data/
+
+ml-models/api/app.py
+
+# arm환경 추가 yml 파일
+/docker-compose.arm64.yml
+/docker-compose.hadoop-arm64.yml
+/hadoop-conf
+/hadoop-scripts
