@@ -107,7 +107,7 @@
         <h5 class="fw-bold m-0">검색 결과</h5>
     </div>
     <p class="text-muted small mb-3">유사도 기준으로 정렬한 검색 결과입니다.</p>
-    <div id="resultsContainer" class="row row-cols-1 row-cols-md-2 g-3"></div>
+    <div id="resultsContainer" class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3"></div>
 </div>
 
 <script>
@@ -346,7 +346,7 @@
                 <a href="/product/${item.product_id}" class="text-decoration-none">
                     <div class="card h-100 product-card position-relative overflow-hidden shadow-sm">
                         <img src="${item.image_url}" class="card-img-top" alt="${item.product_name}"
-                            style="height: 200px; object-fit: cover;" onerror="this.src='https://placehold.co/300x300?text=No+Image'">
+                            style="height: 350px; object-fit: cover; object-position: top;" onerror="this.src='https://placehold.co/300x400?text=No+Image'">
                         <div class="card-body">
                             <small class="text-muted d-block mb-1">${item.brand}</small>
                             <h6 class="card-title text-truncate fw-bold text-dark">${item.product_name}</h6>

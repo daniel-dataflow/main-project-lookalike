@@ -381,14 +381,14 @@
 
             // 검색 결과 상품 목록
             if (data.results && data.results.length > 0) {
-                html += '<div class="row row-cols-1 row-cols-md-2 g-3">';
+                html += '<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">';
                 data.results.forEach(item => {
                     const price = item.price ? item.price.toLocaleString() : '-';
                     html += `
                     <div class="col">
                         <div class="card h-100 border-0 shadow-sm">
                             <img src="${item.image_url}" class="card-img-top" alt="${item.product_name}"
-                                style="height: 150px; object-fit: cover;">
+                                style="height: 350px; object-fit: cover; object-position: top;" onerror="this.src='https://placehold.co/300x400?text=No+Image'">
                             <div class="card-body p-2">
                                 <small class="text-muted">${item.brand}</small>
                                 <div class="fw-bold small text-truncate">${item.product_name}</div>

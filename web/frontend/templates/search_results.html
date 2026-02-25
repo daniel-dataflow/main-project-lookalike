@@ -90,7 +90,7 @@
                 card.innerHTML = `
                 <div class="card h-100 product-card position-relative overflow-hidden">
                     ${badgeHtml}
-                    <img src="${item.image_url}" class="card-img-top" alt="${item.product_name}" onerror="this.src='https://placehold.co/400x400?text=No+Image'">
+                    <img src="${item.image_url}" class="card-img-top" alt="${item.product_name}" onerror="this.src='https://placehold.co/400x400?text=No+Image'" style="height: 350px; object-fit: cover; object-position: top;">
                     <div class="card-body">
                         <small class="text-muted d-block mb-1">${item.brand}</small>
                         <h6 class="card-title text-truncate fw-bold">${item.product_name}</h6>
