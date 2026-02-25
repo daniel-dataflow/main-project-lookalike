@@ -455,8 +455,8 @@ services:
   # ============================================================
   ml-engine:
     build:
-      context: ./ml-models/api
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: Dockerfile.ml.fastapi
     container_name: ml-engine-main
     hostname: ml-engine
     ports:

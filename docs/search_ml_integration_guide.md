@@ -6,7 +6,8 @@
 * 찾아낸 상품 ID를 가지고 DB에서 실시간 네이버 최저가 5개를 붙여주는 기능 (`_hydrate_from_db`)
 
 **[핵심 결론]**
-백엔드에 이렇게 좋은 기능이 이미 다 짜여있으니, ML팀이 수고롭게 이 기능들(DB 조인, 엘라스틱서치 검색)을 또 만들 필요가 **전혀 없습니다.** 공수를 최소화하기 위해 **ML팀은 딱 "벡터(숫자) 뽑기"만** 해주고, 나머지는 전부 완성된 백엔드 코드가 처리하는 것이 가장 완벽합니다!
+백엔드에는 찾아낸 상품 ID를 가지고 DB에서 실시간 네이버 최저가나 상세 가격을 붙여주는 기능(`_hydrate_from_db`)만 남아있도록 합니다.
+공수를 최소화하고 리소스를 분리하기 위해 **ML팀은 벡터 변환 후 Elasticsearch에 직접 검색 쿼리까지 날리고, 가장 매칭되는 상품 ID 6개와 점수를** 뽑아서 백엔드에 다시 돌려주는 새로운 아키텍처로 변경되었습니다.
 
 ---
 
@@ -18,14 +19,13 @@
 * **상황**: 사용자가 웹페이지에서 본인이 찍은 **옷 사진(.jpg)** 과 **"어두운 색"** 이라는 검색어를 올립니다.
 * **백엔드 위치**: `routers/search.py` 의 `search_by_image` 함수가 이 사진과 글자를 덥석 받습니다.
 
-### 🍅 단계 2: "이 사진을 숫자로 번역해줘!" (Backend ↔️ ML팀 아바타 서버)
+### 🍅 단계 2: "가장 비슷한 옷 찾아내기" (ML팀 아바타 서버 ↔️ Elasticsearch)
 * **상황**: 백엔드는 사진을 분석할 능력이 없습니다. 그래서 ML팀이 띄워놓은 작은 **'아바타 서버(단순 번역 API)'** 에 사진을 넘겨주며 번역을 부탁합니다.
-* **ML팀 역할**: 미니 서버 안에서 사진을 `Fashion-CLIP` 모델에 통과시킵니다. 그리고 오프라인에서 사전 준비하실 때 뽑아보셨던 그 `.json` 안의 배열 모양처럼, 딱 **1차원 숫자 배열(Vector)** 과 **카테고리(예: 남자_상의)** 만 뽑아서 백엔드에 다시 돌려줍니다.
+* **ML팀 역할**: 미니 서버 안에서 사진이나 텍스트를 모델에 통과시켜 각자의 벡터 배열을 뽑아냅니다. 그리고 **ML 서버가 직접 Elasticsearch 엔진의 문을 두드려** 방금 찾아낸 숫자 배열과 가장 비슷한 옷 6건을 검색합니다. 검색 결과로 나온 상품 ID 6개와 개별 유사도 점수를 백엔드에 쏙 돌려줍니다.
 
-### 🍅 단계 3: "가장 비슷한 옷 찾아내기" (Backend ➡️ Elasticsearch)
-* **상황**: 백엔드는 이제 ML팀으로부터 번역된 **숫자 배열**을 받았습니다.
-* **백엔드 위치**: 백엔드는 이 숫자를 들고 `search_service.py` 내부의 완성된 함수(`search_products`)로 들어갑니다.
-* **동작**: 백엔드가 알아서 Elasticsearch 검색 엔진의 문을 두드리고, "이 숫자 배열이랑 가장 비슷한 옷 4개 찾아와!" 라고 시킵니다. ES는 빛의 속도로 상품 ID 4개와 유사도 점수(예: 0.95%)를 찾아냅니다.
+### 🍅 단계 3: "결과 합치기 (Hydration)" (Backend ➡️ Database ➡️ Web)
+* **상황**: ML서버가 백엔드에게 넘겨준 건 단순한 ID 숫자(예: `153123`) 6개와 점수일 뿐입니다. 화면에는 이름과 가격을 그려야 합니다.
+* **백엔드 위치**: 백엔드는 이제 이 점수 데이터(`ml_product_scores`)를 들고 `search_service.py` 내부의 로직으로 들어갑니다. 바로 `_hydrate_from_db` 함수가 출동합니다!
 
 ### 🍅 단계 4: "상품 이름과 최저가 이쁘게 포장하기" (Backend ➡️ Database ➡️ Web)
 * **상황**: ES가 찾아준 건 단순한 ID 숫자(예: `153123`)일 뿐입니다. 화면에는 이름과 가격을 그려야 합니다.
@@ -131,21 +131,20 @@ if __name__ == "__main__":
 
 **[기존 코드 (삭제할 부분)]**
 ```python
-# 3. 검색 서비스 (전략 자동 선택: ES kNN -> ES 텍스트 -> DB fallback)
-# query_embedding: 향후 ML 서버로부터 임베딩 벡터를 받으면 자동으로 kNN 검색으로
+# 3. 검색 서비스 (전략 1: ML 검색 결과, 전략 2: 텍스트 검색, 전략 3: DB fallback)
 ml_results = await search_products(
     query_text=search_text,
-    query_embedding=None,   # TODO: ML 서버 연동 후 여기에 벡터 전달
+    ml_product_scores=None,   # TODO: ML 서버 연동 후 통신 로직 추가
     category=category,
-    limit=4,
+    limit=6,
 )
 ```
 
 **[새로운 코드 (위 자리에 붙여넣을 부분)]**
 ```python
-# 3-1. ML 서버로 데이터 보내서 결과(Vector, Gender, Category) 받아오기
+# 3-1. ML 서버로 데이터 보내서 결과(Product IDs) 받아오기
 import httpx
-query_vector = None
+ml_scores = None
 ml_category = None # ML이 추론한 "men_outer" 형태의 문자열
 
 if image:
@@ -163,7 +162,7 @@ if image:
             ml_data = response.json()
             
             # ML팀이 리턴해준 JSON에서 데이터 추출
-            query_vector = ml_data.get("image_vector") 
+            ml_scores = ml_data.get("ml_product_scores") 
             gender = ml_data.get("gender") # 예: "men"
             applied_cat = ml_data.get("applied_category") # 예: "outer"
             
@@ -173,18 +172,18 @@ if image:
                 
     except Exception as e:
         logger.error(f"ML 서버 통신 실패: {e}")
-        # 오류 발생 시 query_vector는 None으로 유지되어 자동 DB fallback 모드 작동!
+        # 오류 발생 시 ml_scores는 None으로 유지되어 자동 DB fallback 모드 작동!
 
-# 3-2. 검색 서비스 (받아온 숫자를 넣어 검색 실행!)
+# 3-2. 검색 서비스 (받아온 결과 점수 dict를 넣어 Hydration 실행!)
 # 사용자가 프론트엔드에서 직접 카테고리를 선택했다면(category) 우선순위를 두고, 
 # 선택하지 않았다면 ML이 추론한 카테고리(ml_category)를 사용합니다.
 final_category = category if category else ml_category
 
 ml_results = await search_products(
     query_text=search_text,
-    query_embedding=query_vector, # <-- 통신 성공 시 ML 숫자가 들어가고, 실패/이미지 없으면 None 유지
-    category=final_category,      # <-- "men_top", "women_outer" 형태 유지!
-    limit=4,
+    ml_product_scores=ml_scores, # <-- 통신 성공 시 ML결과 ID/점수 dict가 들어가고, 실패/이미지 없으면 None 유지
+    category=final_category,     # <-- "men_top", "women_outer" 형태 유지!
+    limit=6,
 )
 ```
 

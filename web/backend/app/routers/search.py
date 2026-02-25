@@ -97,13 +97,12 @@ async def search_by_image(
                 f"hdfs={'✅' if image_info['hdfs_uploaded'] else '❌'}"
             )
 
-        # 3. 검색 서비스 (전략 자동 선택: ES kNN → ES 텍스트 → DB fallback)
-        # query_embedding: 향후 ML 서버로부터 임베딩 벡터를 받으면 자동으로 kNN 검색으로 전환됨
+        # 3. 검색 서비스 (전략 1: ML 검색 결과, 전략 2: 텍스트 검색, 전략 3: DB fallback)
         ml_results = await search_products(
             query_text=search_text,
-            query_embedding=None,   # TODO: ML 서버 연동 후 여기에 벡터 진달
+            ml_product_scores=None,   # TODO: ML 서버 연동 후 통신 로직 추가
             category=category,
-            limit=4,
+            limit=6,
         )
         result_count = len(ml_results)
 

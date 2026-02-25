@@ -3,6 +3,7 @@ from typing import Optional
 import uvicorn
 import logging
 import io
+from elasticsearch import Elasticsearch
 
 # ==========================================
 # [ML팀 전용] 로그 및 서버 기본 설정
@@ -11,6 +12,9 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="Lookalike ML Inference API", version="1.0.0")
+
+# Elasticsearch 연결 설정 (docker-compose 환경 기준)
+es_client = Elasticsearch("http://elasticsearch:9200")
 
 # ==========================================
 # [ML팀 전용] 1. AI 모델 전역 로드 (서버 켜질 때 1번만 실행)
@@ -45,64 +49,118 @@ async def process_search_query(
     사용자 입력 ➡️ Stage 1(YOLO 카테고리) ➡️ Stage 2(CLIP 임베딩) ➡️ 태그 추출 ➡️ 백엔드 반환
     """
     try:
-        # 응답으로 내려줄 기본 뼈대
-        response_data = {
-            "image_vector": None,       # 512차원 배열 (ES 검색용)
-            "text_vector": None,        # 384차원 배열 (ES 검색용)
-            "gender": None,             # "men" 또는 "women" (DB 필터링용)
-            "applied_category": None,   # "top", "bottom", "outer" (DB 필터링용)
-            "tags": []                  # ["검은색", "가죽", "겨울"] 형태 (자연어 태그 매칭용)
-        }
+        # 1. 쿼리 파싱 및 로직 처리 (Image / Text)
+        image_vector = None
+        text_vector = None
+        detected_gender = None
+        detected_category = None
+        extracted_tags = []
 
         # ----------------------------------------------------
-        # 케이스 A: 이미지가 들어온 경우 (이미지 유사도 검색)
+        # 케이스 A: 이미지가 들어온 경우
         # ----------------------------------------------------
         if image:
             image_bytes = await image.read()
             # img = Image.open(io.BytesIO(image_bytes))
             
-            # [Stage 1] YOLO 모델로 이미지에서 부위(BBox) 검출 및 카테고리 분류
-            # detected_gender, detected_category = yolo_detector.predict(img) # 예: "men", "outer"
-            detected_gender = "men" # (임시 더미)
-            detected_category = "outer" # (임시 더미)
+            # [Stage 1] YOLO 분류 (임시 더미)
+            detected_gender = "men" 
+            detected_category = "outer" 
             
-            response_data["gender"] = detected_gender
-            response_data["applied_category"] = detected_category
-            
-            # [Stage 2] Fashion-CLIP으로 이미지 벡터화 (숫자 배열 뽑기)
-            # img_vector = clip_encoder.encode_image(img) 
-            
-            # (임시 더미 512차원 배열 생성)
-            dummy_image_vector = [-0.1437, -0.1772, 0.4444] * 170 + [-0.1437, -0.1772]
-            response_data["image_vector"] = dummy_image_vector
-            
+            # [Stage 2] Fashion-CLIP 이미지 임베딩 (임시 더미 512차원)
+            image_vector = [-0.1437, -0.1772, 0.4444] * 170 + [-0.1437, -0.1772]
             logger.info(f"[ML] 이미지 처리 완료: 성별={detected_gender}, 카테고리={detected_category}")
 
         # ----------------------------------------------------
-        # 케이스 B: 텍스트 검색어가 들어온 경우 (자연어 태그 매칭)
+        # 케이스 B: 텍스트 검색어가 들어온 경우
         # ----------------------------------------------------
         if text:
-            logger.info(f"[ML] 텍스트 입력 확인: '{text}'")
-            
-            # [자연어 처리] VLM / KoNLPy / KeyBERT 등으로 형태소 분석 및 태그 추출
-            # extracted_tags = tag_extractor.extract(text)
-            
-            # (임시 더미 태그 추출) 사용자가 '검은색 가죽 잠바' 라고 쳤다고 가정
+            logger.info(f"[ML] 텍스트 처리: '{text}'")
+            # [태그 추출] (임시 더미)
             extracted_tags = ["검은색", "가죽", "잠바"]
-            response_data["tags"] = extracted_tags
             
-            # [텍스트 임베딩] 텍스트 자체를 공간 벡터로 변환 (백엔드 ES 텍스트 검색용)
-            # txt_vector = clip_encoder.encode_text(text)
+            # [텍스트 임베딩] (임시 더미 384차원)
+            text_vector = [0.0123, -0.0456, 0.0789] * 128
+
+        # ----------------------------------------------------
+        # 2. Elasticsearch 검색 실행 (입력 케이스 3가지 분기)
+        # ----------------------------------------------------
+        es_query = None
+        results = {} # {product_id: score}
+
+        if image_vector and text_vector:
+            # [케이스 3] 이미지 + 텍스트 복합 검색 (하이브리드 검색)
+            es_query = {
+                "knn": [
+                    {
+                        "field": "image_vector", 
+                        "query_vector": image_vector, 
+                        "k": 6, 
+                        "num_candidates": 60, 
+                        "boost": 0.7
+                    },
+                    {
+                        "field": "text_vector", 
+                        "query_vector": text_vector, 
+                        "k": 6, 
+                        "num_candidates": 60, 
+                        "boost": 0.3
+                    }
+                ]
+            }
+        elif image_vector:
+            # [케이스 1] 이미지만 입력된 경우
+            es_query = {
+                "knn": {
+                    "field": "image_vector",
+                    "query_vector": image_vector,
+                    "k": 6,
+                    "num_candidates": 60,
+                }
+            }
+        elif text_vector:
+            # [케이스 2] 텍스트만 입력된 경우
+            es_query = {
+                "knn": {
+                    "field": "text_vector",
+                    "query_vector": text_vector,
+                    "k": 6,
+                    "num_candidates": 60,
+                }
+            }
+
+        if es_query:
+            # 설정된 카테고리가 있다면 kNN 필터로 적용
+            if detected_category:
+                category_str = f"{detected_gender}_{detected_category}"
+                if isinstance(es_query["knn"], list):
+                    for q in es_query["knn"]:
+                        q["filter"] = {"term": {"category": category_str}}
+                else:
+                    es_query["knn"]["filter"] = {"term": {"category": category_str}}
+                
+            response = es_client.search(
+                index="products", 
+                body=es_query, 
+                size=6
+            )
             
-            # (임시 더미 384차원 배열 생성)
-            dummy_text_vector = [0.0123, -0.0456, 0.0789] * 128
-            response_data["text_vector"] = dummy_text_vector
-            
+            hits = response["hits"]["hits"]
+            for hit in hits:
+                src = hit["_source"]
+                key = src.get("product_code") or str(src.get("product_id"))
+                results[key] = hit.get("_score", 0.0)
+                
         # ----------------------------------------------------
         # 3. 백엔드로 결과 리턴
         # ----------------------------------------------------
-        # 백엔드는 이 JSON 데이터를 고스란히 받아서 ES 벡터 검색과 DB 최저가 조인에 사용합니다.
-        return response_data
+        # 백엔드는 이 JSON 데이터를 받아 바로 DB에 ID값을 매칭시킵니다.
+        return {
+            "ml_product_scores": results,  # 검색된 상위 6개 아이템 {"id": score, ...}
+            "gender": detected_gender,
+            "applied_category": detected_category,
+            "tags": extracted_tags
+        }
 
     except Exception as e:
         logger.error(f"[ML] 처리 중 에러 발생: {str(e)}")

@@ -3,12 +3,13 @@
 --------------------------------------
 ML/Elasticsearch 연동을 고려한 검색 전략 선택:
 
-  1. ES kNN 벡터 검색   - ES 가용 + query_embedding 제공 시 (ML 연동 후)
-  2. ES 텍스트 검색     - ES 가용 + query_text만 있을 시
-  3. DB fallback        - ES 연결 불가 또는 위 조건 미충족 시 (현재 기본 동작)
+  1. ML 서버 검색        - ML 서버에서 받아온 {product_id: score} 목록이 있을 때 (ES kNN 포함)
+  2. ES 텍스트 검색      - ES 가용 + query_text만 있을 시 (향후 전환)
+  3. DB fallback         - 상기 조건 미충족 시 (현재 기본 동작)
 
 호출부(search.py)는 이 모듈만 바라보면 되며,
-ML 파이프라인 완성 후 query_embedding을 넘기는 것만으로 자동으로 kNN 검색으로 전환됩니다.
+ML 파이프라인 완성 후 ml_product_scores 딕셔너리를 넘기는 것으로 
+해당 ID들에 대한 실시간 DB 데이터(최저가 등) 조인을 자동 수행합니다.
 """
 import logging
 from typing import Optional
@@ -22,18 +23,18 @@ logger = logging.getLogger(__name__)
 
 async def search_products(
     query_text: Optional[str] = None,
-    query_embedding: Optional[list] = None,
+    ml_product_scores: Optional[dict] = None,
     category: Optional[str] = None,
-    limit: int = 4,
+    limit: int = 6,
 ) -> list:
     """
     유사 상품 검색 (전략 자동 선택)
 
     Args:
-        query_text:      사용자 검색어 (텍스트 검색용)
-        query_embedding: ML 모델이 추출한 쿼리 임베딩 벡터 (향후 ML 서버에서 전달)
-        category:        카테고리 필터 (None 또는 '전체' = 전체 조회)
-        limit:           반환할 결과 수
+        query_text:        사용자 검색어 (텍스트 검색용)
+        ml_product_scores: ML 모델이 ES를 조회하여 반환한 {product_id: score} 딕셔너리
+        category:          카테고리 필터 (None 또는 '전체' = 전체 조회)
+        limit:             반환할 결과 수
 
     Returns:
         list of dict: [
@@ -41,85 +42,27 @@ async def search_products(
                 product_id, product_name, brand, price,
                 image_url, mall_name, mall_url,
                 similarity_score,    # float (0.0~1.0) or None (DB fallback)
-                search_source,       # "elasticsearch_knn" | "db"
+                search_source,       # "ml_api" | "db"
             },
             ...
         ]
     """
-    # 전략 1: ES kNN 벡터 검색 (ML 파이프라인 연동 후 활성화)
-    if query_embedding is not None:
+    # 전략 1: ML API에서 받은 ID 목록을 기반으로 DB 데이터 수화 (Hydration)
+    if ml_product_scores is not None and len(ml_product_scores) > 0:
         try:
-            return await _search_by_knn(query_embedding, category, limit)
+            return _hydrate_from_db(ml_product_scores, source="ml_api")
         except Exception as e:
-            logger.warning(f"ES kNN 검색 실패, fallback to DB: {e}")
+            logger.warning(f"ML 결과 Hydration 실패, fallback to DB: {e}")
 
-    # 전략 2: DB fallback (현재 기본 동작 - ES 벡터 입력이 없거나 실패할 때 항상 작동)
+    # 전략 2: DB fallback (현재 기본 동작 - ML 입력이 없거나 실패할 때 항상 작동)
     return _search_by_db(category, limit)
-
-
-# ──────────────────────────────────────────────────────────────────────
-# 전략 1: ES kNN 벡터 검색 (ML 임베딩 연동 후 활성화됨)
-# ──────────────────────────────────────────────────────────────────────
-
-async def _search_by_knn(
-    query_vector: list,
-    category: Optional[str],
-    limit: int,
-) -> list:
-    """
-    Elasticsearch kNN API를 이용한 벡터 유사도 검색.
-    ML 파이프라인이 임베딩을 ES products 인덱스에 저장한 후 활성화됩니다.
-    """
-    from ..core.elasticsearch_setup import get_es_client
-
-    es = get_es_client()
-    
-    # query_vector 차원에 따라 조회 필드를 동적으로 선택 (image: 512차원, text: 384차원)
-    vec_len = len(query_vector)
-    if vec_len == 512:
-        target_field = "image_vector"
-    elif vec_len == 384:
-        target_field = "text_vector"
-    else:
-        target_field = "embedding"
-        
-    knn_query = {
-        "knn": {
-            "field": target_field,
-            "query_vector": query_vector,
-            "k": limit,
-            "num_candidates": limit * 10,
-        }
-    }
-
-    # 카테고리 필터 적용
-    if category and category != "전체":
-        knn_query["knn"]["filter"] = {"term": {"category": category}}
-
-    response = es.search(index="products", body=knn_query, size=limit)
-    hits = response["hits"]["hits"]
-
-    if not hits:
-        raise ValueError("ES kNN 검색 결과 없음 - fallback 필요")
-
-    logger.info(f"ES kNN 검색 완료: {len(hits)}개 (카테고리: {category or '전체'})")
-
-    # ES 결과에서 product_code 또는 product_id와 매칭 점수 추출
-    product_scores = {}
-    for hit in hits:
-        src = hit["_source"]
-        key = src.get("product_code")
-        if not key:
-            key = str(src.get("product_id"))
-        product_scores[key] = hit.get("_score", 0.0)
-    
-    # DB에서 최신 데이터(가격, 쇼핑몰 정보 등) 덧씌우기
-    return _hydrate_from_db(product_scores, source="elasticsearch_knn")
 
 
 # ──────────────────────────────────────────────────────────────────────
 # DB 수화(Hydration) 헬퍼
 # ──────────────────────────────────────────────────────────────────────
+
+
 
 def _hydrate_from_db(product_scores: dict, source: str) -> list:
     """
