@@ -84,7 +84,7 @@ async def get_recent_views(request: Request, limit: int = 20):
             "success": True,
             "products": [
                 {
-                    "product_id": r["product_id"],
+                    "product_id": str(r["product_id"]),
                     "prod_name": r["prod_name"],
                     "brand_name": r["brand_name"],
                     "base_price": r["base_price"],
@@ -142,7 +142,7 @@ async def get_likes(request: Request, limit: int = 20):
             "success": True,
             "products": [
                 {
-                    "product_id": r["product_id"],
+                    "product_id": str(r["product_id"]),
                     "prod_name": r["prod_name"],
                     "brand_name": r["brand_name"],
                     "base_price": r["base_price"],

@@ -210,9 +210,9 @@ async def register(req: UserRegisterRequest, response: Response):
             # 사용자 등록
             cur.execute(
                 """
-                INSERT INTO users (user_id, password, name, email, provider)
+                INSERT INTO users (user_id, password, user_name, email, provider)
                 VALUES (%s, %s, %s, %s, 'email')
-                RETURNING user_id, name, email, role, provider, profile_image, create_dt
+                RETURNING user_id, user_name as name, email, role, provider, profile_image, create_dt
                 """,
                 (user_id, _hash_password(req.password), req.name, req.email),
             )
@@ -244,7 +244,7 @@ async def login(req: UserLoginRequest, response: Response):
         with get_pg_cursor() as cur:
             cur.execute(
                 """
-                SELECT user_id, name, email, role, provider, profile_image,
+                SELECT user_id, user_name as name, email, role, provider, profile_image,
                        last_login, create_dt, password
                 FROM users WHERE email = %s AND provider = 'email'
                 """,
@@ -503,10 +503,10 @@ async def oauth_callback(
                 # 기존 사용자 → 로그인 시간 갱신
                 cur.execute(
                     """
-                    UPDATE users SET last_login = NOW(), name = COALESCE(%s, name),
+                    UPDATE users SET last_login = NOW(), user_name = COALESCE(%s, user_name),
                            profile_image = COALESCE(%s, profile_image)
                     WHERE provider = %s AND provider_id = %s
-                    RETURNING user_id, name, email, role, provider, profile_image, create_dt
+                    RETURNING user_id, user_name as name, email, role, provider, profile_image, create_dt
                     """,
                     (name, profile_image, provider, provider_id),
                 )
@@ -516,9 +516,9 @@ async def oauth_callback(
                 user_id = f"{provider}_{uuid.uuid4().hex[:8]}"
                 cur.execute(
                     """
-                    INSERT INTO users (user_id, name, email, provider, provider_id, profile_image)
+                    INSERT INTO users (user_id, user_name, email, provider, provider_id, profile_image)
                     VALUES (%s, %s, %s, %s, %s, %s)
-                    RETURNING user_id, name, email, role, provider, profile_image, create_dt
+                    RETURNING user_id, user_name as name, email, role, provider, profile_image, create_dt
                     """,
                     (user_id, name, email, provider, provider_id, profile_image),
                 )
@@ -574,7 +574,7 @@ async def get_user(user_id: str):
         with get_pg_cursor() as cur:
             cur.execute(
                 """
-                SELECT user_id, name, email, role, provider, profile_image,
+                SELECT user_id, user_name as name, email, role, provider, profile_image,
                        last_login, create_dt
                 FROM users WHERE user_id = %s
                 """,
@@ -648,7 +648,7 @@ async def update_user(user_id: str, req: UserUpdateRequest, request: Request, re
                 f"""
                 UPDATE users SET {', '.join(updates)}
                 WHERE user_id = %s
-                RETURNING user_id, name, email, role, provider, profile_image,
+                RETURNING user_id, user_name as name, email, role, provider, profile_image,
                           last_login, create_dt
                 """,
                 values,

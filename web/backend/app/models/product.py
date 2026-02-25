@@ -1,7 +1,7 @@
 """
 상품 관련 Pydantic 모델
 """
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing import Optional, List
 from datetime import datetime
 
@@ -27,7 +27,7 @@ class ProductResponse(BaseModel):
     """상품 정보 응답"""
     model_config = ConfigDict(protected_namespaces=())
 
-    product_id: int
+    product_id: str
     model_code: Optional[str] = None
     prod_name: Optional[str] = None
     base_price: Optional[int] = None
@@ -36,16 +36,26 @@ class ProductResponse(BaseModel):
     create_dt: Optional[datetime] = None
     update_dt: Optional[datetime] = None
 
+    @field_validator('product_id', mode='before')
+    @classmethod
+    def cast_to_string(cls, v):
+        return str(v)
+
 
 class NaverPriceResponse(BaseModel):
     """네이버 가격 정보 응답"""
-    nprice_id: int
-    product_id: int
+    nprice_id: str
+    product_id: str
     rank: Optional[int] = None
     price: Optional[int] = None
     mall_name: Optional[str] = None
     mall_url: Optional[str] = None
     create_dt: Optional[datetime] = None
+
+    @field_validator('nprice_id', 'product_id', mode='before')
+    @classmethod
+    def cast_to_string(cls, v):
+        return str(v)
 
 
 class ProductDetailResponse(BaseModel):

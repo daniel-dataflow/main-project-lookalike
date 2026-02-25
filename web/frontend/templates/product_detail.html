@@ -80,67 +80,67 @@
 </div>
 
 <script>
-document.addEventListener('DOMContentLoaded', async function() {
-    const productId = {{ product.product_id }};
-    const likeBtn = document.getElementById('likeBtn');
-    const likeIcon = document.getElementById('likeIcon');
-    let isLiked = false;
+    document.addEventListener('DOMContentLoaded', async function () {
+        const productId = "{{ product.product_id }}";
+        const likeBtn = document.getElementById('likeBtn');
+        const likeIcon = document.getElementById('likeIcon');
+        let isLiked = false;
 
-    // 1. 페이지 로드 시 자동으로 조회 기록
-    try {
-        await fetch(`/api/products/${productId}/view`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
-        });
-    } catch (error) {
-        console.error('조회 기록 실패:', error);
-    }
-
-    // 2. 좋아요 상태 확인
-    try {
-        const response = await fetch(`/api/products/${productId}/like-status`);
-        const data = await response.json();
-        if (data.success && data.liked) {
-            isLiked = true;
-            likeIcon.classList.remove('far');
-            likeIcon.classList.add('fas');
-        }
-    } catch (error) {
-        console.error('좋아요 상태 확인 실패:', error);
-    }
-
-    // 3. 좋아요 버튼 클릭 이벤트
-    likeBtn.addEventListener('click', async function() {
+        // 1. 페이지 로드 시 자동으로 조회 기록
         try {
-            if (isLiked) {
-                // 좋아요 취소
-                const response = await fetch(`/api/products/${productId}/like`, {
-                    method: 'DELETE'
-                });
-                const data = await response.json();
-                if (data.success) {
-                    isLiked = false;
-                    likeIcon.classList.remove('fas');
-                    likeIcon.classList.add('far');
-                }
-            } else {
-                // 좋아요 추가
-                const response = await fetch(`/api/products/${productId}/like`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-                const data = await response.json();
-                if (data.success) {
-                    isLiked = true;
-                    likeIcon.classList.remove('far');
-                    likeIcon.classList.add('fas');
-                }
+            await fetch(`/api/products/${productId}/view`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+        } catch (error) {
+            console.error('조회 기록 실패:', error);
+        }
+
+        // 2. 좋아요 상태 확인
+        try {
+            const response = await fetch(`/api/products/${productId}/like-status`);
+            const data = await response.json();
+            if (data.success && data.liked) {
+                isLiked = true;
+                likeIcon.classList.remove('far');
+                likeIcon.classList.add('fas');
             }
         } catch (error) {
-            console.error('좋아요 처리 실패:', error);
-            alert('로그인이 필요합니다.');
+            console.error('좋아요 상태 확인 실패:', error);
         }
+
+        // 3. 좋아요 버튼 클릭 이벤트
+        likeBtn.addEventListener('click', async function () {
+            try {
+                if (isLiked) {
+                    // 좋아요 취소
+                    const response = await fetch(`/api/products/${productId}/like`, {
+                        method: 'DELETE'
+                    });
+                    const data = await response.json();
+                    if (data.success) {
+                        isLiked = false;
+                        likeIcon.classList.remove('fas');
+                        likeIcon.classList.add('far');
+                    }
+                } else {
+                    // 좋아요 추가
+                    const response = await fetch(`/api/products/${productId}/like`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    const data = await response.json();
+                    if (data.success) {
+                        isLiked = true;
+                        likeIcon.classList.remove('far');
+                        likeIcon.classList.add('fas');
+                    }
+                }
+            } catch (error) {
+                console.error('좋아요 처리 실패:', error);
+                alert('로그인이 필요합니다.');
+            }
+        });
     });
-});
 </script>
 {% endblock %}

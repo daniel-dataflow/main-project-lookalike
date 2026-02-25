@@ -86,7 +86,7 @@ async def admin_list_inquiries(
             cur.execute(
                 """
                 SELECT ib.inquiry_board_id, ib.title, ib.content, ib.author_id,
-                       u.name as author_name,
+                       u.user_name as author_name,
                        ib.view_count,
                        COALESCE(cc.cnt, 0) as comment_count,
                        ib.create_dt, ib.update_dt
@@ -130,7 +130,7 @@ async def admin_get_inquiry(inquiry_board_id: int, request: Request):
             cur.execute(
                 """
                 SELECT ib.inquiry_board_id, ib.title, ib.content, ib.author_id,
-                       u.name as author_name,
+                       u.user_name as author_name,
                        ib.view_count,
                        ib.create_dt, ib.update_dt
                 FROM inquiry_board ib
@@ -148,7 +148,7 @@ async def admin_get_inquiry(inquiry_board_id: int, request: Request):
             cur.execute(
                 """
                 SELECT c.comment_id, c.inquiry_board_id, c.author_id,
-                       u.name as author_name,
+                       u.user_name as author_name,
                        c.comment_text, c.create_dt
                 FROM comments c
                 LEFT JOIN users u ON c.author_id = u.user_id
@@ -205,7 +205,7 @@ async def admin_answer_inquiry(
 
             # 작성자 이름 조회
             cur.execute(
-                "SELECT name FROM users WHERE user_id = %s", (admin_id,)
+                "SELECT user_name as name FROM users WHERE user_id = %s", (admin_id,)
             )
             user_row = cur.fetchone()
 
@@ -251,7 +251,7 @@ async def list_my_inquiries(
             cur.execute(
                 """
                 SELECT ib.inquiry_board_id, ib.title, ib.content, ib.author_id,
-                       u.name as author_name,
+                       u.user_name as author_name,
                        ib.view_count,
                        COALESCE(cc.cnt, 0) as comment_count,
                        ib.create_dt, ib.update_dt
@@ -347,7 +347,7 @@ async def get_inquiry(inquiry_board_id: int, request: Request):
 
             # 작성자 이름 조회
             cur.execute(
-                "SELECT name FROM users WHERE user_id = %s",
+                "SELECT user_name as name FROM users WHERE user_id = %s",
                 (row["author_id"],),
             )
             author_row = cur.fetchone()
@@ -356,7 +356,7 @@ async def get_inquiry(inquiry_board_id: int, request: Request):
             cur.execute(
                 """
                 SELECT c.comment_id, c.inquiry_board_id, c.author_id,
-                       u.name as author_name,
+                       u.user_name as author_name,
                        c.comment_text, c.create_dt
                 FROM comments c
                 LEFT JOIN users u ON c.author_id = u.user_id

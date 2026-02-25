@@ -41,7 +41,7 @@ echo ""
 
 # 내부 실행 환경 플래그 (init-db 컨테이너 여부 판단)
 IS_INSIDE_DOCKER=0
-if ! command -v docker &> /dev/null; then
+if ! command -v docker > /dev/null 2>&1; then
     IS_INSIDE_DOCKER=1
     echo "ℹ️  Docker 명령어가 없습니다. 컨테이너 내부(init-db)에서 직접 실행 중이라 판단합니다."
 fi
@@ -408,20 +408,114 @@ else
 fi
 
 echo ""
+
+# 11. products 테이블 origine_url 컬럼 추가
+echo "1️⃣1️⃣  products 테이블 origine_url 컬럼 추가..."
+HAS_ORIGINE_URL=$($PG_CMD -U ${POSTGRES_USER} -d ${POSTGRES_DB} -tc \
+    "SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='origine_url';" | tr -d ' ')
+
+if [ "$HAS_ORIGINE_URL" = "1" ]; then
+    echo "   ⏭️  products.origine_url 컬럼 이미 존재 (스킵)"
+else
+    echo "   ⚠️  products.origine_url 컬럼 추가 중..."
+    $PG_CMD -U ${POSTGRES_USER} -d ${POSTGRES_DB} -c "
+        ALTER TABLE products ADD COLUMN origine_url VARCHAR(512);
+        COMMENT ON COLUMN products.origine_url IS '공식몰 구매링크';
+    "
+    echo "   ✅ products.origine_url 컬럼 추가 완료"
+fi
+
+echo ""
+
+# 12. 명세서 누락본 추가 적용 (user_name, brand_sequences 등)
+echo "1️⃣2️⃣  테이블 명세서 기반 누락 필드 및 테이블 추가..."
+
+# users.name -> user_name
+HAS_USER_NAME=$($PG_CMD -U ${POSTGRES_USER} -d ${POSTGRES_DB} -tc \
+    "SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='user_name';" | tr -d ' ')
+if [ "$HAS_USER_NAME" != "1" ]; then
+    echo "   ⚠️  users.name -> user_name 컬럼명 변경 중..."
+    $PG_CMD -U ${POSTGRES_USER} -d ${POSTGRES_DB} -c "ALTER TABLE users RENAME COLUMN name TO user_name;"
+else
+    echo "   ⏭️  users.user_name 이미 존재 (스킵)"
+fi
+
+# brand_sequences 테이블
+HAS_BRAND_SEQ=$($PG_CMD -U ${POSTGRES_USER} -d ${POSTGRES_DB} -tc \
+    "SELECT 1 FROM pg_tables WHERE schemaname='public' AND tablename='brand_sequences';" | tr -d ' ')
+if [ "$HAS_BRAND_SEQ" != "1" ]; then
+    echo "   ⚠️  brand_sequences 테이블 생성 중..."
+    $PG_CMD -U ${POSTGRES_USER} -d ${POSTGRES_DB} -c "
+        CREATE TABLE brand_sequences (
+            brand_name VARCHAR(50) PRIMARY KEY,
+            last_seq INTEGER DEFAULT 0
+        );
+    "
+else
+    echo "   ⏭️  brand_sequences 테이블 이미 존재 (스킵)"
+fi
+
+# products.prod_name length, brand_name type
+echo "   ⚠️  products.prod_name, brand_name 타입 변경 중..."
+$PG_CMD -U ${POSTGRES_USER} -d ${POSTGRES_DB} -c "
+    ALTER TABLE products ALTER COLUMN prod_name TYPE VARCHAR(512);
+    ALTER TABLE products ALTER COLUMN brand_name TYPE VARCHAR(50);
+"
+
+# naver_prices.update_dt & mall_url
+HAS_NP_UPDATE=$($PG_CMD -U ${POSTGRES_USER} -d ${POSTGRES_DB} -tc \
+    "SELECT 1 FROM information_schema.columns WHERE table_name='naver_prices' AND column_name='update_dt';" | tr -d ' ')
+if [ "$HAS_NP_UPDATE" != "1" ]; then
+    echo "   ⚠️  naver_prices update_dt 추가 중..."
+    $PG_CMD -U ${POSTGRES_USER} -d ${POSTGRES_DB} -c "
+        ALTER TABLE naver_prices ADD COLUMN update_dt TIMESTAMP DEFAULT NOW();
+    "
+fi
+$PG_CMD -U ${POSTGRES_USER} -d ${POSTGRES_DB} -c "ALTER TABLE naver_prices ALTER COLUMN mall_url TYPE VARCHAR(512);"
+
+# product_features.crop_path
+HAS_CROP=$($PG_CMD -U ${POSTGRES_USER} -d ${POSTGRES_DB} -tc \
+    "SELECT 1 FROM information_schema.columns WHERE table_name='product_features' AND column_name='crop_path';" | tr -d ' ')
+if [ "$HAS_CROP" != "1" ]; then
+    echo "   ⚠️  product_features crop_path 추가 중..."
+    $PG_CMD -U ${POSTGRES_USER} -d ${POSTGRES_DB} -c "
+        ALTER TABLE product_features ADD COLUMN crop_path VARCHAR(512);
+    "
+else
+    echo "   ⏭️  product_features.crop_path 이미 존재 (스킵)"
+fi
+
+# search_logs.search_result & search_status
+HAS_SEARCH_RESULT=$($PG_CMD -U ${POSTGRES_USER} -d ${POSTGRES_DB} -tc \
+    "SELECT 1 FROM information_schema.columns WHERE table_name='search_logs' AND column_name='search_result';" | tr -d ' ')
+if [ "$HAS_SEARCH_RESULT" != "1" ]; then
+    echo "   ⚠️  search_logs.search_result JSON 타입 추가 및 DEFAULT 변경 중..."
+    $PG_CMD -U ${POSTGRES_USER} -d ${POSTGRES_DB} -c "
+        ALTER TABLE search_logs ADD COLUMN search_result JSON;
+        ALTER TABLE search_logs ALTER COLUMN search_status SET DEFAULT 'pending';
+    "
+else
+    echo "   ⏭️  search_logs.search_result 이미 존재 (스킵)"
+fi
+
+echo ""
 echo "============================================"
 echo "  ✅ 모든 DB 변경사항 적용 완료!"
 echo ""
 echo "  적용된 항목:"
 echo "    ✅ Airflow DB (airflowdb) 분리"
 echo "    ✅ users 소셜 로그인 컬럼 (provider, provider_id, profile_image)"
+echo "    ✅ users 테이블 name -> user_name 변경"
 echo "    ✅ inquiry_board 게시판 테이블 (posts → 마이그레이션)"
 echo "    ✅ comments 댓글 테이블"
-echo "    ✅ search_logs 확장 (thumbnail_path, image_size/width/height, search_status, result_count)"
-echo "    ✅ search_logs gender 컬럼 추가"
-echo "    ✅ search_results 테이블 (비정규화: product_name/brand/price/image_url/mall_name/mall_url/rank)"
-echo "    ✅ products 테이블 brand_name 컬럼 추가"
+echo "    ✅ search_logs 확장 (thumbnail_path, image_size/width/height, search_status, search_result, result_count, gender)"
+echo "    ✅ search_results 테이블 (비정규화 유지)"
+echo "    ✅ products 테이블 brand_name, gender, origine_url 컬럼 추가 및 타입 수정"
 echo "    ✅ products 테이블 origine_prod_id 컬럼 삭제"
+echo "    ✅ naver_prices 테이블 mall_url 확장 및 update_dt 추가"
+echo "    ✅ product_features 테이블 crop_path 컬럼 추가"
 echo "    ✅ social_id → provider_id 컬럼명 변경"
 echo "    ✅ recent_views, likes 테이블 생성"
-echo "    ✅ products 테이블 gender 컬럼 추가"
+echo "    ✅ brand_sequences 테이블 생성"
 echo "============================================"
+
