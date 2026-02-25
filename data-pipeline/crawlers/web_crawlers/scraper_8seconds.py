@@ -17,6 +17,7 @@ HDFS_ROOT_PATH = f"/raw/{BRAND_NAME}/{TODAY_STR}"
 TARGET_MAP = {
     "Men": {
         "Outer": [
+            "https://www.ssfshop.com/8seconds/Coats/list?dspCtgryNo=SFMA42A05A02&brandShopNo=BDMA07A01&brndShopId=8SBSS",
             "https://www.ssfshop.com/8seconds/LeatherJacket/list?dspCtgryNo=SFMA42A05A06&brandShopNo=BDMA07A01&brndShopId=8SBSS"
         ]
     }
@@ -228,28 +229,41 @@ async def run():
                     await crawl_category(gender, category, url, context)
         await browser.close()
 
-# --- HDFS 일괄 업로드 및 로컬 삭제 ---
+    # --- HDFS 일괄 업로드 및 로컬 삭제 ---
     if os.path.exists(LOCAL_TEMP_DIR) and os.listdir(LOCAL_TEMP_DIR):
         print(f"\n📦 수집 완료. HDFS({HDFS_ROOT_PATH}) 업로드 시작...")
         try:
-            from hdfs import InsecureClient
+
+        #     subprocess.run(f"hdfs dfs -mkdir -p {HDFS_ROOT_PATH}", shell=True, check=True)
+        #     subprocess.run(f"hdfs dfs -put -f {LOCAL_TEMP_DIR}/*.json {HDFS_ROOT_PATH}/", shell=True, check=True)
+
+        #     print("✅ HDFS 업로드 성공!")
+        
+        #     shutil.rmtree(LOCAL_TEMP_DIR)
+        #     print(f"🧹 로컬 임시 폴더 삭제 완료")
             
-            # namenode-main과 통신
-            client = InsecureClient('http://namenode-main:9870', user='root')
-            client.makedirs(HDFS_ROOT_PATH)
+        # except subprocess.CalledProcessError as e:
+        #     print(f"❌ HDFS 업로드 에러: {e}")
+        ## 26.2.22
+        # 26.2.22 네임노드 주소 정의
+            HDFS_ADDR = "hdfs://namenode:9000"
+        
             
-            for file_name in os.listdir(LOCAL_TEMP_DIR):
-                local_path = os.path.join(LOCAL_TEMP_DIR, file_name)
-                hdfs_path = f"{HDFS_ROOT_PATH}/{file_name}"
-                client.upload(hdfs_path, local_path, overwrite=True)
-                
-            print("✅ HDFS 업로드 성공!")
+            # 1. mkdir에도 주소를 명시해서 정확한 곳에 폴더 생성
+            subprocess.run(f"hdfs dfs -mkdir -p {HDFS_ADDR}{HDFS_ROOT_PATH}", shell=True, check=True)
             
-            shutil.rmtree(LOCAL_TEMP_DIR)
-            print(f"🧹 로컬 임시 폴더 삭제 완료")
+            # 2. put 명령어 (잘 수정하신 부분)
+            upload_cmd = f"hdfs dfs -put -f {LOCAL_TEMP_DIR}/*.json {HDFS_ADDR}{HDFS_ROOT_PATH}/"
+            subprocess.run(upload_cmd, shell=True, check=True)
             
-        except Exception as e:
+            print(f"✅ HDFS 업로드 성공! -> {HDFS_ADDR}{HDFS_ROOT_PATH}")
+            
+            # 업로드가 확실히 성공하면 그때 로컬 파일을 지우도록 rmtree를 다시 살려도 됩니다. (선택사항)
+            # shutil.rmtree(LOCAL_TEMP_DIR)
+            
+        except subprocess.CalledProcessError as e:
             print(f"❌ HDFS 업로드 에러: {e}")
+        ## 26.2.22
     else:
         print("\n❌ 저장된 데이터가 없습니다.")
 
