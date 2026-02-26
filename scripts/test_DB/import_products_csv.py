@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 # .env 환경변수 로딩
 load_dotenv()
 
-DB_HOST = "127.0.0.1" # 호스트 환경 고정
+DB_HOST = os.getenv("POSTGRES_HOST", "127.0.0.1" # 호스트 환경 고정
 DB_PORT = os.getenv("POSTGRES_PORT", "5432")
 DB_USER = os.getenv("POSTGRES_USER", "datauser")
 DB_PASS = os.getenv("POSTGRES_PASSWORD", "DataPass2026!")
