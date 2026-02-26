@@ -325,6 +325,29 @@ async def likes(request: Request):
     return templates.TemplateResponse("likes.html", {"request": request})
 
 
+@app.get("/terms", response_class=HTMLResponse)
+async def terms_page(request: Request):
+    return templates.TemplateResponse("terms.html", {"request": request})
+
+
+@app.get("/privacy", response_class=HTMLResponse)
+async def privacy_page(request: Request):
+    return templates.TemplateResponse("privacy.html", {"request": request})
+
+
+@app.get("/team", response_class=HTMLResponse)
+async def team_page(request: Request):
+    return templates.TemplateResponse("team.html", {"request": request})
+
+@app.get("/teams", response_class=HTMLResponse)
+async def team_page(request: Request):
+    return templates.TemplateResponse("teams.html", {"request": request})
+
+@app.get("/teams2", response_class=HTMLResponse)
+async def team_page(request: Request):
+    return templates.TemplateResponse("teams2.html", {"request": request})
+
+
 @app.get("/search-history", response_class=HTMLResponse)
 async def search_history(request: Request):
     return templates.TemplateResponse("search_history.html", {"request": request})

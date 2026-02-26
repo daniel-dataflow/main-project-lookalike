@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}팀 Lookalike 소개 - 포트폴리오{% endblock %}
+
+{% block content %}
+<div class="container py-5 my-5 bg-white rounded shadow-sm" style="max-width: 900px;">
+    <div class="text-center mb-5 border-bottom pb-4">
+        <h2 class="fw-bold mb-2">팀 Lookalike 소개</h2>
+        <p class="text-muted">합리적인 소비를 빠르게 연결하는 AI 패션 검색 엔진</p>
+    </div>
+
+    <!-- 팀 소개 -->
+    <div class="mb-5">
+        <h4 class="fw-bold mb-4"><i class="fas fa-users text-primary me-2"></i>우리의 역할</h4>
+        <div class="row g-4">
+            <div class="col-md-6">
+                <div class="card h-100 border-0 bg-light p-4">
+                    <h6 class="fw-bold text-dark mb-2">팀장 한대성: 프로젝트 리드 및 아키텍트</h6>
+                    <p class="text-muted small mb-0">
+                        전반적인 프로젝트 방향성을 설계하고 클라우드(AWS) 기반 도커 환경구성 및 프론트엔드/백엔드 아키텍처를 구축했습니다.
+                        특히 Elasticsearch 기반의 하이브리드 검색, Kafka와 Redis를 활용한 무중단 실시간 로깅 및 트래픽 분산 처리를 기획 및 총괄했습니다.
+                    </p>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card h-100 border-0 bg-light p-4">
+                    <h6 class="fw-bold text-dark mb-2">팀원 박주언: 데이터 파이프라인 및 DE</h6>
+                    <p class="text-muted small mb-0">
+                        크롤링 봇 개발부터 Airflow를 활용한 정기적 데이터 ET/ELT 파이프라인을 구축했습니다.
+                        쇼핑몰의 가격 변동 및 재고 상태를 안정적으로 파싱하여 DB 메타데이터 정합성을 유지하는 워크플로우를 담당했습니다.
+                    </p>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card h-100 border-0 bg-light p-4">
+                    <h6 class="fw-bold text-dark mb-2">팀원 이주형: AI 모델 최적화 및 튜닝</h6>
+                    <p class="text-muted small mb-0">
+                        패션 아이템의 유사도 판별을 위한 딥러닝(Vision/Embedding) 모델 튜닝 및 서빙을 담당했습니다.
+                        FastAPI/Triton 등 ML 서빙 환경 최적화로 추론 응답 레이턴시를 획기적으로 낮췄습니다.
+                    </p>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card h-100 border-0 bg-light p-4">
+                    <h6 class="fw-bold text-dark mb-2">팀원 정수아: 프론트엔드 및 사용자 경험(UX)</h6>
+                    <p class="text-muted small mb-0">
+                        Vanilla JS와 Bootstrap을 활용하여 직관적이고 반응성이 뛰어난 UI/UX를 개발했습니다.
+                        이미지 크롭, 검색 지연 최소화, 애니메이션 최적화 등 실 사용자 만족도 상승을 이끌었습니다.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 기술 스택 및 아키텍처 -->
+    <div class="mb-4">
+        <h4 class="fw-bold mb-4"><i class="fas fa-network-wired text-success me-2"></i>시스템 아키텍처 및 기술 스택</h4>
+        <div class="card border-0 bg-dark text-white p-4 text-center rounded">
+            <h6 class="mb-3 text-secondary">Tech Stack Diagram</h6>
+            <!-- Mermaid JS를 사용한 텍스트 기반 시각화 대비용 CSS 기반 다이어그램 또는 텍스트 -->
+            <div class="d-flex flex-wrap justify-content-center gap-3">
+                <span class="badge bg-secondary px-3 py-2">FastAPI (Backend API)</span>
+                <span class="badge bg-secondary px-3 py-2">PostgreSQL (Meta DB)</span>
+                <span class="badge bg-secondary px-3 py-2">Elasticsearch (Vector/Log Search)</span>
+                <span class="badge bg-secondary px-3 py-2">Redis (Cache/Session)</span>
+                <span class="badge bg-primary px-3 py-2">Kafka (Log/Metric Stream)</span>
+                <span class="badge bg-info text-dark px-3 py-2">Airflow (Data Pipeline)</span>
+                <span class="badge bg-warning text-dark px-3 py-2">Docker Compose</span>
+            </div>
+            <div class="mt-4 text-start font-monospace small"
+                style="color: #a8b2d1; background: #112240; padding: 15px; border-radius: 8px;">
+                [User / Frontend] ---> [Nginx Load Balancer]<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;|<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;+------------------+------------------+<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;| |<br>
+                [FastAPI Backend] [ML FastAPI (Triton/PyTorch)]<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;| |<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;+--- PostgreSQL (Auth/Meta)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;+--- Elasticsearch (Search/Knn)<br>
+                &nbsp;&nbsp;&nbsp;&nbsp;+--- Redis (Cache)<br>
+                <br>
+                [Background Services]<br>
+                &nbsp;-- Apache Kafka (Async Log/Metric Collector)<br>
+                &nbsp;-- Apache Airflow (Crawling & DB Sync Scheduler)
+            </div>
+        </div>
+    </div>
+
+    <div class="text-center mt-5">
+        <a href="/" class="btn btn-outline-dark px-4 rounded-pill">메인으로 돌아가기</a>
+    </div>
+</div>
+{% endblock %}

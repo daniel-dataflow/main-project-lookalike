@@ -47,6 +47,30 @@
         {% block content %}{% endblock %}
     </main>
 
+    <!-- Footer -->
+    <footer class="bg-light py-4 border-top mt-auto" style="margin-bottom: 70px;">
+        <div class="container text-center text-muted small">
+            <div class="d-flex justify-content-center gap-3 mb-3">
+                <a href="/terms" class="text-decoration-none text-muted fw-medium">이용약관</a>
+                <span class="text-secondary">|</span>
+                <a href="/privacy" class="text-decoration-none text-muted fw-bold">개인정보처리방침</a>
+            </div>
+            <div class="mb-2" style="font-size: 0.85rem; line-height: 1.6;">
+                <a href="/team"
+                    class="text-decoration-none text-dark fw-bold border border-secondary rounded px-3 py-1 bg-white hover-shadow"
+                    style="display: inline-block;">
+                    <i class="fas fa-users me-1"></i> 팀 Lookalike 소개
+                </a>
+            </div>
+
+            <div class="mt-3">
+                ©
+                <script>document.write(new Date().getFullYear())</script> <a href="/admin/infra"
+                    class="text-decoration-none" style="color: inherit;">Lookalike</a>. All rights reserved.
+            </div>
+        </div>
+    </footer>
+
     <!-- Bottom Navigation -->
     <nav class="navbar navbar-light bg-white border-top fixed-bottom navbar-bottom">
         <div class="container d-flex justify-content-around">

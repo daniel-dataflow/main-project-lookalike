@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}개인정보처리방침 - Lookalike{% endblock %}
+
+{% block content %}
+<div class="container py-5 my-5 bg-white rounded shadow-sm" style="max-width: 800px;">
+    <h2 class="fw-bold mb-4 border-bottom pb-3">개인정보처리방침</h2>
+
+    <div class="text-muted" style="line-height: 1.8; font-size: 0.95rem;">
+        <h5 class="fw-bold text-dark mt-4">1. 개인정보의 수집 및 이용 목적</h5>
+        <p>Lookalike(이하 "회사")는 다음의 목적을 위해 최소한의 개인정보를 수집 및 이용합니다.</p>
+        <ul style="list-style-type: disc; margin-left: 20px;">
+            <li>회원 가입 의사 확인, 회원 본인 식별·인증, 회원자격 유지·관리</li>
+            <li>서비스 제공에 관한 계약 이행 및 요금 정산, 맞춤형 서비스 제공</li>
+            <li>고충처리, 불만처리 등 고객 상담 및 민원업무 지원</li>
+        </ul>
+        <p class="mt-2 text-danger fw-bold" style="font-size: 0.9rem;">
+            ※ [데이터 보안 특별 조항] 본 서비스는 유사 상품 분석의 정확도를 높이기 위해 이용자가 업로드한 이미지를 활용합니다.
+            단, 사용자 프라이버시 보호를 최우선으로 하여, 분석 파이프라인 처리에 사용된 이미지 원본 및 임시 데이터는
+            서버 메모리에서 분석이 완료되는 <span class="bg-warning text-dark px-1">즉시 영구 파기(메모리 반환)되며</span>,
+            별도의 저장소에 데이터 셋으로 무단 보관하거나 2차 가공하지 않습니다.
+        </p>
+
+        <h5 class="fw-bold text-dark mt-4">2. 수집하는 개인정보의 항목</h5>
+        <p>회사는 회원가입, 상담, 서비스 신청 등을 위해 아래와 같은 개인정보를 수집하고 있습니다.</p>
+        <ul style="list-style-type: disc; margin-left: 20px;">
+            <li>필수 항목: 이메일 주소, 이름, 비밀번호 (이메일 회원가입 시) 혹은 소셜 연동 정보(카카오, 네이버, 구글 등 제공 식별자)</li>
+            <li>수집 방법: 웹사이트 회원가입, 서면 양식, 전화/팩스, 이벤트 응모, 배송 요청 등</li>
+        </ul>
+
+        <h5 class="fw-bold text-dark mt-4">3. 개인정보의 보유 및 이용기간</h5>
+        <p>원칙적으로 이용자의 개인정보는 개인정보의 수집 및 이용 목적이 달성되면 지체 없이 파기합니다. 단, 다음의 정보에 대해서는 아래의 이유로 명시한 기간 동안 보존합니다.</p>
+        <ul style="list-style-type: disc; margin-left: 20px;">
+            <li>회원 탈퇴 시 보존 개인정보: 부정이용방지를 위해 탈퇴 후 30일 간 보관</li>
+            <li>전자상거래 등에서의 소비자보호에 관한 법률 등 관계법령에 의한 정보 보존 (5년~1년 등 범위 내)</li>
+        </ul>
+
+        <h5 class="fw-bold text-dark mt-4">4. 개인정보의 파기절차 및 방법</h5>
+        <p>이용자의 개인정보는 원칙적으로 보유기간의 경과, 처리목적 달성 등 그 개인정보가 불필요하게 되었을 때에는 지체 없이 파기합니다.</p>
+
+        <h5 class="fw-bold text-dark mt-4">5. 이용자 및 법정대리인의 권리와 그 행사방법</h5>
+        <p>
+            이용자 및 법정 대리인은 언제든지 등록되어 있는 자신 혹은 당해 만 14세 미만 아동의 개인정보를 조회하거나 수정할 수 있으며, 회사의 개인정보의 처리에 동의하지 않는 경우 동의를 거부하거나
+            가입해지(회원탈퇴)를 요청하실 수 있습니다.
+        </p>
+
+        <h5 class="fw-bold text-dark mt-4">6. 개인정보 보호책임자</h5>
+        <p>
+            회사는 고객의 개인정보를 보호하고 개인정보와 관련한 불만을 처리하기 위하여 아래와 같이 관련 부서 및 개인정보 보호책임자를 지정하고 있습니다.<br>
+            - 이메일: daniel.dataflow@gmail.com<br>
+            기타 개인정보 침해에 대한 신고나 상담이 필요하신 경우에는 개인정보침해신고센터 등으로 문의하실 수 있습니다.
+        </p>
+    </div>
+
+    <div class="mt-5 text-end text-muted small">
+        <p>시행일자: 2026년 2월 25일</p>
+    </div>
+</div>
+{% endblock %}

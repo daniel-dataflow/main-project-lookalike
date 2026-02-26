@@ -1,0 +1,656 @@
+{% extends "base.html" %}
+
+{% block title %}팀 Lookalike 소개{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="/static/css/teams.css">
+
+<div class="teams-wrapper">
+
+<div class="lk-particles" id="lkParticles"></div>
+
+<!-- ══ SECTION 1: OVERVIEW ══ -->
+<div id="lk-overview">
+  <div class="lk-section">
+    <div class="ov-top">
+
+      <div class="rvl">
+        <div class="ov-badge">AI 패션 검색 엔진 · 2026</div>
+        <h1 class="lk-h2">패션 이미지 하나로<br><em>최저가</em>를 찾다</h1>
+        <p class="lk-lead">
+          옷 한 장의 사진을 올리면 AI가 스타일을 분석하고, 유니클로·ZARA·탑텐 등
+          SPA 브랜드에서 가장 유사한 상품의 <strong>최저가 5곳</strong>을 실시간 비교합니다.<br><br>
+          '극실용주의(Extreme Pragmatism)'와 '듀프(Dupe) 소비'가 급성장하는 2026년,
+          텍스트 검색으로 표현하기 어려운 <em>비주얼 느낌(Vibe)</em>을
+          AI 이미지 임베딩으로 정확하게 탐색합니다.
+        </p>
+        <div class="flow-row rv">
+          <div class="flow-step">
+            <div class="flow-icon fi1">📸</div>
+            <h4>이미지 업로드</h4>
+            <p>착용 사진 또는<br>상품 이미지</p>
+          </div>
+          <div class="flow-step">
+            <div class="flow-icon fi2">🤖</div>
+            <h4>AI 분석</h4>
+            <p>YOLO 객체탐지<br>+ CLIP 임베딩</p>
+          </div>
+          <div class="flow-step">
+            <div class="flow-icon fi3">🔍</div>
+            <h4>벡터 검색</h4>
+            <p>Elasticsearch<br>KNN 유사도</p>
+          </div>
+          <div class="flow-step">
+            <div class="flow-icon fi4">💰</div>
+            <h4>최저가 결과</h4>
+            <p>5개 쇼핑몰<br>가격 비교</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="rvr">
+        <div class="insight-card">
+          <h4>📌 기획 배경 — 탐색 비용 문제</h4>
+          <p>기존 네이버 렌즈는 패션 특화가 아니라 유사도 정확도가 낮고 가격 비교 기능도 없습니다. '그 느낌(Vibe)'을 텍스트로 표현하기 어렵다는 소비자 Pain Point를 AI 이미지 검색으로 해결합니다.</p>
+        </div>
+        <div class="insight-card" style="border-left-color:var(--blue);">
+          <h4 style="color:var(--blue);">📊 시장 근거 — 듀프 소비 급성장</h4>
+          <p>트렌드 분석(노준영, 2026)에 따르면 현대 소비자는 브랜드 로고보다 실질적 가치를 중시합니다. 에이블리 '듀프족' 등장으로 SPA 시장이 전년 대비 2배 이상 성장했습니다.</p>
+        </div>
+        <div class="insight-card" style="border-left-color:var(--green);">
+          <h4 style="color:var(--green);">🎯 차별점 — 기존 서비스 대비</h4>
+          <p>① 패션 카테고리 특화 정확도 ② 이미지·자연어 복합 검색 ③ 실시간 최저가 5개 쇼핑몰 비교를 동시에 제공하는 서비스입니다.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="stat-strip rv">
+      <div class="stat-cell"><div class="stat-num">5+</div><div class="stat-label">타겟 SPA 브랜드</div></div>
+      <div class="stat-cell"><div class="stat-num">6종</div><div class="stat-label">의류 카테고리</div></div>
+      <div class="stat-cell"><div class="stat-num">5개</div><div class="stat-label">최저가 쇼핑몰 비교</div></div>
+      <div class="stat-cell"><div class="stat-num">AWS</div><div class="stat-label">g4dn.xlarge GPU 서버</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SECTION 2: TECH STACK ══ -->
+<div id="lk-techstack">
+  <div class="lk-section">
+    <div class="lk-eyebrow rv">Technology</div>
+    <h2 class="lk-h2 rv">시스템 아키텍처 <em>&amp; 기술 스택</em></h2>
+    <div class="lk-rule rv"></div>
+
+    <div class="arch-wrap rv">
+      <div class="arch-label">▸ System Architecture Overview</div>
+      <div class="arch-diagram">
+        <div class="arch-row">
+          <div class="arch-node an-user">👤 사용자 / 프론트엔드<small>HTML5 · Bootstrap 5 · JavaScript</small></div>
+        </div>
+        <div class="arch-row"><div class="arch-arr">↓</div></div>
+        <div class="arch-row">
+          <div class="arch-node an-api">🔌 FastAPI Backend<small>인증 · 상품검색 · 게시판 · 마이페이지</small></div>
+          <div class="arch-arr">⟷</div>
+          <div class="arch-node an-ml">🤖 ML FastAPI<small>YOLO-Seg · Fashion-CLIP · 임베딩 추론</small></div>
+        </div>
+        <div class="arch-row"><div class="arch-arr">↓</div><div style="width:50px"></div><div class="arch-arr">↓</div></div>
+        <div class="arch-row">
+          <div class="arch-node an-db">🗃 PostgreSQL / MySQL<small>상품 Meta · 사용자 인증 · 가격 이력</small></div>
+          <div class="arch-node an-cache">⚡ Elasticsearch + Redis<small>벡터검색 · 캐시 · 세션 · Rate Limit</small></div>
+          <div class="arch-node an-db">🍃 MongoDB<small>크롤링 원본 · 로그 · AI 분석 결과</small></div>
+        </div>
+        <div class="arch-row"><div class="arch-arr">↕</div></div>
+        <div class="arch-row">
+          <div class="arch-node an-pipe">⚙️ Apache Airflow<small>매일 새벽 2시 DAG 자동 실행</small></div>
+          <div class="arch-arr">→</div>
+          <div class="arch-node an-pipe">🔀 Apache Spark<small>전처리 · Hadoop HDFS ETL</small></div>
+          <div class="arch-arr">→</div>
+          <div class="arch-node an-pipe">📡 Kafka<small>실시간 로그 · 메트릭 스트리밍</small></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tech-grid rv">
+      <div class="tech-group tg-db">
+        <div class="tg-pill">Database</div>
+        <div class="tech-tags">
+          <span class="tech-tag">PostgreSQL</span><span class="tech-tag">MySQL</span>
+          <span class="tech-tag">MongoDB</span><span class="tech-tag">Redis</span>
+          <span class="tech-tag">Elasticsearch</span>
+        </div>
+      </div>
+      <div class="tech-group tg-dl">
+        <div class="tg-pill">AI / Deep Learning</div>
+        <div class="tech-tags">
+          <span class="tech-tag">YOLOv11-Seg</span><span class="tech-tag">Fashion-CLIP</span>
+          <span class="tech-tag">KeyBERT</span><span class="tech-tag">KoNLPy</span>
+          <span class="tech-tag">PyTorch</span><span class="tech-tag">D-FINE</span>
+        </div>
+      </div>
+      <div class="tech-group tg-inf">
+        <div class="tg-pill">Infrastructure</div>
+        <div class="tech-tags">
+          <span class="tech-tag">AWS EC2</span><span class="tech-tag">Docker</span>
+          <span class="tech-tag">Kafka</span><span class="tech-tag">Hadoop HDFS</span>
+          <span class="tech-tag">GitHub CI/CD</span>
+        </div>
+      </div>
+      <div class="tech-group tg-web">
+        <div class="tg-pill">Web / Backend</div>
+        <div class="tech-tags">
+          <span class="tech-tag">FastAPI</span><span class="tech-tag">HTML5</span>
+          <span class="tech-tag">Bootstrap 5</span><span class="tech-tag">JavaScript</span>
+          <span class="tech-tag">Naver Shopping API</span>
+        </div>
+      </div>
+      <div class="tech-group tg-pipe">
+        <div class="tg-pill">Data Pipeline</div>
+        <div class="tech-tags">
+          <span class="tech-tag">Apache Airflow</span><span class="tech-tag">Apache Spark</span>
+          <span class="tech-tag">Hadoop HDFS</span><span class="tech-tag">Selenium</span>
+          <span class="tech-tag">BeautifulSoup</span>
+        </div>
+      </div>
+      <div class="tech-group tg-env">
+        <div class="tg-pill">Server Env</div>
+        <div class="tech-tags">
+          <span class="tech-tag">g4dn.xlarge</span><span class="tech-tag">Ubuntu 22.04</span>
+          <span class="tech-tag">NVIDIA T4 GPU</span><span class="tech-tag">PyTorch 2.9</span>
+          <span class="tech-tag">Jupyter</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SECTION 3: TEAM ══ -->
+<div id="lk-team">
+  <div class="lk-section">
+    <div class="lk-eyebrow rv">Team Members</div>
+    <h2 class="lk-h2 rv">팀원 소개</h2>
+    <p class="lk-lead rv">카드에 마우스를 올리면 각 팀원의 세부 역할과 주요 성과를 확인할 수 있습니다.</p>
+    <div class="lk-rule rv"></div>
+
+    <div class="team-grid">
+
+      <!-- 한대성 -->
+      <div class="team-card rv d1">
+        <div class="card-bar bar-lead"></div>
+        <div class="card-header">
+          <div class="card-avatar av-lead">대</div>
+          <div class="card-meta">
+            <div class="card-badge">Team Lead · Architect · Full-Stack</div>
+            <div class="card-name">한대성</div>
+            <div class="card-name-en">Han Dae-Seong</div>
+          </div>
+        </div>
+        <div class="card-summary">
+          프로젝트 전반의 방향과 계획을 수립하고 AWS 인프라를 설계·운영했습니다.
+          Elasticsearch·Kafka·Redis 기반 실시간 모니터링 구축부터
+          CI/CD 배포, 프론트엔드·백엔드 개발, 산출물 총괄까지 전 영역을 담당했습니다.
+        </div>
+        <div class="card-tags">
+          <span class="ctag">AWS / Docker</span><span class="ctag">Elasticsearch</span>
+          <span class="ctag">Kafka · Redis</span><span class="ctag">CI/CD</span>
+          <span class="ctag">FastAPI</span><span class="ctag">Frontend</span><span class="ctag">Monitoring</span>
+        </div>
+        <div class="card-hint">✦ 마우스를 올려 세부 역할 확인</div>
+        <div class="card-detail">
+          <div class="card-detail-inner">
+            <div class="det-sec">
+              <div class="det-label">🏗️ 인프라 & 아키텍처 설계</div>
+              <ul class="det-list">
+                <li>전체 프로젝트 방향성 설계 및 마일스톤·역할 분담 관리</li>
+                <li>AWS EC2 g4dn.xlarge 서버 직접 운영 및 관리</li>
+                <li>Docker Compose 기반 멀티 컨테이너 환경 설계·최적화</li>
+                <li>GitHub Actions CI/CD 자동 배포 시스템 구축</li>
+                <li>개발 환경 가이드 작성 및 팀원 온보딩 지원</li>
+                <li>포트 구성 재설계 및 Airflow 버전 전환 대응</li>
+              </ul>
+            </div>
+            <div class="det-sec">
+              <div class="det-label">📊 실시간 모니터링 & 알람</div>
+              <ul class="det-list">
+                <li>Elasticsearch 기반 실시간 로그 모니터링 시스템 구현</li>
+                <li>Kafka · Redis 활용 인프라 컨테이너 상태 실시간 표시</li>
+                <li>Slack 에러 알람 자동화 (임계값 초과 즉시 알림)</li>
+                <li>어드민 대시보드 — 로그 조회·복사 다운로드·삭제 기능</li>
+              </ul>
+            </div>
+            <div class="det-sec">
+              <div class="det-label">🖥️ 프론트엔드 & 백엔드 구현</div>
+              <ul class="det-list">
+                <li>FastAPI 백엔드 API 설계 및 구현</li>
+                <li>로그인 · 게시판 · 어드민 · 마이페이지 · 상품검색 페이지 구현</li>
+                <li>사용자 좋아요 · 최근 본 상품 · 검색 히스토리 기능</li>
+                <li>목업 데이터로 전체 서비스 E2E 구현 및 도메인 연동</li>
+                <li>페이지 전환 딜레이 이슈 해결</li>
+              </ul>
+            </div>
+            <div class="det-sec">
+              <div class="det-label">📄 산출물 & 문서 총괄</div>
+              <ul class="det-list">
+                <li>역할 분담 계획서 · 주간보고서 · 기능정의서 · 업무 분해도 작성</li>
+                <li>코딩 컨벤션 · GitHub 가이드 · 분석설계서 · 워크플로우 문서화</li>
+                <li>각종 산출물 최종 검토 및 결과보고 총괄</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 박주언 -->
+      <div class="team-card rv d2">
+        <div class="card-bar bar-de"></div>
+        <div class="card-header">
+          <div class="card-avatar av-de">주</div>
+          <div class="card-meta">
+            <div class="card-badge">Data Engineer · ETL Pipeline</div>
+            <div class="card-name">박주언</div>
+            <div class="card-name-en">Park Ju-Eon</div>
+          </div>
+        </div>
+        <div class="card-summary">
+          Airflow 스케줄링, Apache Spark 전처리, 쇼핑몰 크롤러 개발을 담당해
+          안정적인 데이터 수집·정제 파이프라인을 구축했습니다. DB 설계와 발표 자료 제작도 함께 담당했습니다.
+        </div>
+        <div class="card-tags">
+          <span class="ctag">Apache Airflow</span><span class="ctag">Apache Spark</span>
+          <span class="ctag">Web Crawling</span><span class="ctag">ETL Pipeline</span>
+          <span class="ctag">ERD 설계</span><span class="ctag">Naver API</span>
+        </div>
+        <div class="card-hint">✦ 마우스를 올려 세부 역할 확인</div>
+        <div class="card-detail">
+          <div class="card-detail-inner">
+            <div class="det-sec">
+              <div class="det-label">🕷️ 크롤링 & 데이터 수집</div>
+              <ul class="det-list">
+                <li>TOPTEN · ZARA 공식몰 크롤러 개발 및 유지보수</li>
+                <li>Naver 쇼핑 API 연동으로 키워드별 최저가 수집 자동화</li>
+                <li>쇼핑몰 카테고리 정리 및 상품 메타데이터 필드 표준화</li>
+              </ul>
+            </div>
+            <div class="det-sec">
+              <div class="det-label">⚙️ Airflow & Spark 파이프라인</div>
+              <ul class="det-list">
+                <li>Airflow DAG 설계·스케줄링 (매일 새벽 2시 자동 실행)</li>
+                <li>Apache Spark 전처리 프로그램 개발 (병렬 정제·필터링)</li>
+                <li>Hadoop Parquet 포맷 데이터 적재 및 관리</li>
+                <li>Docker 환경 구성 테스트 및 팀원 환경 세팅 서포트</li>
+              </ul>
+            </div>
+            <div class="det-sec">
+              <div class="det-label">🗄️ DB 설계 & 산출물</div>
+              <ul class="det-list">
+                <li>테이블 정의서 · ERD · DDL Script 작성</li>
+                <li>Architecture 정의서 작성</li>
+                <li>프로젝트 기획서 등 산출물 작성 및 발표 자료 제작</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 이주형 -->
+      <div class="team-card rv d3">
+        <div class="card-bar bar-ml"></div>
+        <div class="card-header">
+          <div class="card-avatar av-ml">주</div>
+          <div class="card-meta">
+            <div class="card-badge">ML Engineer · Crawler Architect</div>
+            <div class="card-name">이주형</div>
+            <div class="card-name-en">Lee Ju-Hyeong</div>
+          </div>
+        </div>
+        <div class="card-summary">
+          패션 유사도 판별을 위한 딥러닝 모델을 조사·구축하고 멀티 쇼핑몰 크롤러를 설계했습니다.
+          VLM 프롬프트 설계와 Airflow-ML 파이프라인 연결로 End-to-End 자동화를 완성했습니다.
+        </div>
+        <div class="card-tags">
+          <span class="ctag">YOLO / Seg</span><span class="ctag">VLM · LLaVA</span>
+          <span class="ctag">Embedding</span><span class="ctag">Crawler 설계</span>
+          <span class="ctag">ML Pipeline</span><span class="ctag">Hadoop</span>
+        </div>
+        <div class="card-hint">✦ 마우스를 올려 세부 역할 확인</div>
+        <div class="card-detail">
+          <div class="card-detail-inner">
+            <div class="det-sec">
+              <div class="det-label">🤖 모델 리서치 & 구축</div>
+              <ul class="det-list">
+                <li>객체 탐지 · 임베딩 · 고속 검색 모델 조사 및 비교 선정</li>
+                <li>YOLOv11-Seg 분류 모델 파인튜닝 실험</li>
+                <li>임베딩 모델 비교 실험 (Fashion-CLIP vs 기타)</li>
+                <li>LLaVA 기반 VLM 프롬프트 초안 설계 및 비교 실행</li>
+              </ul>
+            </div>
+            <div class="det-sec">
+              <div class="det-label">🕷️ 크롤러 설계 & 데이터 수집</div>
+              <ul class="det-list">
+                <li>무신사 · ZARA 크롤러 설계 및 개발</li>
+                <li>MongoDB 저장 · 이미지 다운로드 로직 구현</li>
+                <li>Scraping 방식 전환으로 용량 이슈 해결</li>
+                <li>Spark 연동 Hadoop 저장 파이프라인 구축</li>
+              </ul>
+            </div>
+            <div class="det-sec">
+              <div class="det-label">🔗 ML Pipeline 자동화</div>
+              <ul class="det-list">
+                <li>데이터 수집 → 전처리 → 임베딩 → DB 적재 통합 파이프라인</li>
+                <li>Airflow DAG와 머신러닝 파이프라인 최종 연결</li>
+                <li>라이브러리 가이드 · 데이터 명세서 작성</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 정수아 -->
+      <div class="team-card rv d4">
+        <div class="card-bar bar-ai"></div>
+        <div class="card-header">
+          <div class="card-avatar av-ai">수</div>
+          <div class="card-meta">
+            <div class="card-badge">AI Researcher · Backend · UX</div>
+            <div class="card-name">정수아</div>
+            <div class="card-name-en">Jung Su-A</div>
+          </div>
+        </div>
+        <div class="card-summary">
+          화면 설계부터 YOLO-Seg 파인튜닝, Fashion-CLIP 임베딩,
+          Elasticsearch 벡터 DB 구현까지 이미지 유사도 검색의 핵심 AI 로직을 담당했습니다.
+          Airflow 기반 모델 파이프라인 자동화도 주도했습니다.
+        </div>
+        <div class="card-tags">
+          <span class="ctag">YOLO-Seg 파인튜닝</span><span class="ctag">Fashion-CLIP</span>
+          <span class="ctag">Vector Search</span><span class="ctag">Model Pipeline</span>
+          <span class="ctag">UX 설계</span>
+        </div>
+        <div class="card-hint">✦ 마우스를 올려 세부 역할 확인</div>
+        <div class="card-detail">
+          <div class="card-detail-inner">
+            <div class="det-sec">
+              <div class="det-label">🎨 UX & 화면 설계</div>
+              <ul class="det-list">
+                <li>서비스 전체 화면 설계서 및 UX 흐름 정의</li>
+                <li>서비스 흐름도 및 유스케이스 명세서 작성</li>
+              </ul>
+            </div>
+            <div class="det-sec">
+              <div class="det-label">🧠 모델 학습 & 성능 최적화</div>
+              <ul class="det-list">
+                <li>YOLO-Seg 파인튜닝 (하이퍼파라미터 튜닝 · 성능 비교)</li>
+                <li>이미지 전처리 · 객체 탐지 후처리 파이프라인 구현</li>
+                <li>Fashion-CLIP 임베딩 모델 코드 작성 및 수정</li>
+                <li>VLM 파인튜닝 방법 연구 및 환경 구성·테스트</li>
+              </ul>
+            </div>
+            <div class="det-sec">
+              <div class="det-label">🔍 벡터 검색 & 백엔드</div>
+              <ul class="det-list">
+                <li>Elasticsearch 벡터 DB 적재 코드 작성 및 완성</li>
+                <li>이미지 유사도 검색 로직 설계 및 구현</li>
+                <li>Airflow 모델 파이프라인 자동화 개발</li>
+                <li>모델 전용 FastAPI 백엔드 서버 구축</li>
+                <li>ARM 리눅스 환경 구성 및 모델 실행 최적화</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ══ SECTION 4: PIPELINE ══ -->
+<div id="lk-pipeline">
+  <div class="lk-section">
+    <div class="lk-eyebrow rv">Pipeline</div>
+    <h2 class="lk-h2 rv">시스템 <em>파이프라인</em></h2>
+    <div class="lk-rule rv"></div>
+
+    <!-- 탭 버튼 -->
+    <div class="pipe-tabs rv">
+      <button class="pipe-tab active" data-tab="data">
+        <span class="tab-icon">🗄️</span>
+        <span class="tab-text">데이터 수집 파이프라인<small>Airflow · Spark · Crawling</small></span>
+      </button>
+      <button class="pipe-tab" data-tab="service">
+        <span class="tab-icon">⚡</span>
+        <span class="tab-text">서비스 파이프라인<small>사용자 요청 → 검색 결과</small></span>
+      </button>
+    </div>
+
+    <!-- 데이터 수집 파이프라인 -->
+    <div class="pipe-panel" id="tab-data">
+      <div class="pipe-list">
+        <div class="pipe-step">
+          <div class="pipe-dot" style="--dc:#d4522a">1</div>
+          <div class="pipe-body">
+            <h4>Airflow DAG 실행 — 매일 새벽 2시 자동 트리거</h4>
+            <p>스케줄러가 DAG를 자동 실행해 크롤링 → 전처리 → 임베딩 전 과정을 무인 자동화로 처리합니다.</p>
+          </div>
+        </div>
+        <div class="pipe-step">
+          <div class="pipe-dot" style="--dc:#d4522a">2</div>
+          <div class="pipe-body">
+            <h4>크롤링 — 유니클로 · ZARA · 탑텐 · 무신사 스탠다드 · 8-seconds</h4>
+            <p>상품명·이미지·가격·상세 정보를 수집해 Hadoop에 원본 저장합니다. 탑텐은 상세 정보가 이미지이므로 OCR로 텍스트를 추출합니다.</p>
+          </div>
+        </div>
+        <div class="pipe-step">
+          <div class="pipe-dot" style="--dc:#d4522a">3</div>
+          <div class="pipe-body">
+            <h4>Spark 전처리 — Hadoop Parquet 변환</h4>
+            <p>병렬 처리로 데이터 정제·중복 제거·이미지 다운로드 후 Parquet 포맷으로 변환해 분석 효율을 높입니다.</p>
+          </div>
+        </div>
+        <div class="pipe-step">
+          <div class="pipe-dot" style="--dc:#d4522a">4</div>
+          <div class="pipe-body">
+            <h4>PostgreSQL · MongoDB 분리 적재</h4>
+            <p>정형 상품 데이터는 PostgreSQL(JSONB · 시계열 파티셔닝), 크롤링 원본·로그·AI 분석 결과는 MongoDB에 저장합니다.</p>
+          </div>
+        </div>
+        <div class="pipe-step">
+          <div class="pipe-dot" style="--dc:#d4522a">5</div>
+          <div class="pipe-body">
+            <h4>Naver 쇼핑 API — 최저가 5개 수집</h4>
+            <p>상품명으로 Naver API를 조회해 오름차순 최저가 5개 판매처를 수집합니다. MongoDB 캐시로 중복 API 호출을 방지합니다.</p>
+          </div>
+        </div>
+        <div class="pipe-step">
+          <div class="pipe-dot" style="--dc:#d4522a">6</div>
+          <div class="pipe-body">
+            <h4>임베딩 생성 → Elasticsearch 벡터 DB 이중 적재</h4>
+            <p>크롤링으로 수집된 상품 이미지를 두 경로로 병렬 처리합니다.</p>
+            <div class="pipe-branch-wrap">
+              <div class="pipe-branch branch-a">
+                <div class="branch-label">📷 이미지 임베딩 경로</div>
+                <div class="branch-flow">
+                  <div class="branch-node">YOLOv11<small>객체 탐지 · 카테고리 분류</small></div>
+                  <div class="branch-arrow">↓</div>
+                  <div class="branch-node">Fashion-CLIP<small>이미지 → 벡터 변환</small></div>
+                  <div class="branch-arrow">↓</div>
+                  <div class="branch-node es-node">Elasticsearch<small>이미지 벡터 인덱스 저장</small></div>
+                </div>
+              </div>
+              <div class="pipe-branch branch-b">
+                <div class="branch-label">📝 텍스트 임베딩 경로</div>
+                <div class="branch-flow">
+                  <div class="branch-node">VLM<small>이미지 → 상품 설명 텍스트 생성</small></div>
+                  <div class="branch-arrow">↓</div>
+                  <div class="branch-node">SBERT<small>텍스트 → 벡터 변환</small></div>
+                  <div class="branch-arrow">↓</div>
+                  <div class="branch-node es-node">Elasticsearch<small>텍스트 벡터 인덱스 저장</small></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 서비스 파이프라인 -->
+    <div class="pipe-panel hidden" id="tab-service">
+      <div class="pipe-list">
+        <div class="pipe-step">
+          <div class="pipe-dot" style="--dc:#2563a8">1</div>
+          <div class="pipe-body">
+            <h4>사용자 입력 — 이미지 / 텍스트 / 이미지+텍스트</h4>
+            <p>메인 페이지에서 착용 사진·상품 이미지를 업로드하거나, 텍스트 키워드를 입력하거나, 두 가지를 함께 입력할 수 있습니다. 입력 유형에 따라 아래 세 가지 검색 경로 중 하나로 분기됩니다.</p>
+          </div>
+        </div>
+
+        <div class="pipe-step">
+          <div class="pipe-dot" style="--dc:#2563a8">2</div>
+          <div class="pipe-body">
+            <h4>유사도 검색 — 입력 유형에 따른 3가지 분기</h4>
+            <div class="pipe-branch-wrap">
+
+              <div class="pipe-branch branch-img">
+                <div class="branch-label">📷 이미지만 입력</div>
+                <div class="branch-flow">
+                  <div class="branch-node">Fashion-CLIP<small>이미지 → 벡터 임베딩</small></div>
+                  <div class="branch-arrow">↓</div>
+                  <div class="branch-node es-node">Elasticsearch<small>이미지 벡터 유사도 계산 → 상위 6개 반환</small></div>
+                </div>
+              </div>
+
+              <div class="pipe-branch branch-txt">
+                <div class="branch-label">📝 텍스트만 입력</div>
+                <div class="branch-flow">
+                  <div class="branch-node">SBERT<small>텍스트 → 벡터 임베딩</small></div>
+                  <div class="branch-arrow">↓</div>
+                  <div class="branch-node es-node">Elasticsearch<small>텍스트 벡터 유사도 계산 → 상위 6개 반환</small></div>
+                </div>
+              </div>
+
+              <div class="pipe-branch branch-both">
+                <div class="branch-label">🔀 이미지 + 텍스트 입력</div>
+                <div class="branch-flow">
+                  <div class="branch-node">Fashion-CLIP + SBERT<small>이미지 벡터 · 텍스트 벡터 각각 생성</small></div>
+                  <div class="branch-arrow">↓</div>
+                  <div class="branch-node fusion-node">Late Fusion<small>이미지 70% · 텍스트 30% 가중 결합</small></div>
+                  <div class="branch-arrow">↓</div>
+                  <div class="branch-node es-node">Elasticsearch<small>결합 벡터 유사도 계산 → 상위 6개 반환</small></div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <div class="pipe-step">
+          <div class="pipe-dot" style="--dc:#2563a8">3</div>
+          <div class="pipe-body">
+            <h4>상품 상세 정보 및 최저가 조회 → 결과 반환</h4>
+            <p>유사 상품 6개가 확정되면 PostgreSQL에서 상품 상세 정보(상품명·브랜드·공식가)를 가져오고, Naver 쇼핑 API로 외부 쇼핑몰 최저가 5개를 조회합니다. 최종 결과를 검색 결과 페이지에 표시하며, 사용자는 마이페이지에 저장하거나 검색 히스토리로 관리할 수 있습니다.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══ SECTION 5: PHASES ══ -->
+<div id="lk-phases">
+  <div class="lk-section">
+    <div class="lk-eyebrow rv">Development Journey</div>
+    <h2 class="lk-h2 rv">개발 여정</h2>
+    <div class="lk-rule rv"></div>
+    <div class="phases-grid rv">
+      <div class="phase-card">
+        <div class="phase-num">01</div>
+        <div class="phase-title">기획 &amp; 설계</div>
+        <ul class="phase-items">
+          <li>주제 선정 및 타겟 소비자 조사</li>
+          <li>관련 논문 및 모델 리서치</li>
+          <li>기능 정의서 · 아키텍처 설계</li>
+          <li>화면 설계서 · 유스케이스 명세서</li>
+          <li>테이블 정의서 · ERD 설계</li>
+        </ul>
+      </div>
+      <div class="phase-card">
+        <div class="phase-num">02</div>
+        <div class="phase-title">환경 구축 &amp; 데이터</div>
+        <ul class="phase-items">
+          <li>AWS · Docker 인프라 환경 구성</li>
+          <li>크롤러 개발 (무신사·ZARA·탑텐)</li>
+          <li>Airflow DAG · Spark 파이프라인</li>
+          <li>Hadoop · PostgreSQL · MongoDB</li>
+          <li>Naver API 연동 최저가 수집</li>
+        </ul>
+      </div>
+      <div class="phase-card">
+        <div class="phase-num">03</div>
+        <div class="phase-title">AI 모델 개발</div>
+        <ul class="phase-items">
+          <li>YOLO-Seg 객체 탐지 파인튜닝</li>
+          <li>Fashion-CLIP 임베딩 구축</li>
+          <li>VLM (LLaVA) 프롬프트 설계</li>
+          <li>Elasticsearch 벡터 DB 적재</li>
+          <li>ML Pipeline 자동화 연결</li>
+        </ul>
+      </div>
+      <div class="phase-card">
+        <div class="phase-num">04</div>
+        <div class="phase-title">서비스 완성 &amp; 운영</div>
+        <ul class="phase-items">
+          <li>프론트엔드 전 페이지 완성</li>
+          <li>실시간 인프라·로그 모니터링</li>
+          <li>Slack 에러 알람 자동화</li>
+          <li>CI/CD 자동 배포 시스템</li>
+          <li>통합 테스트 · 최종 발표</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* particles */
+(function(){
+  const colors=['#d4522a','#2563a8','#2d8a5e','#b07d2c','#e8824a'];
+  const wrap=document.getElementById('lkParticles');
+  for(let i=0;i<18;i++){
+    const el=document.createElement('div');
+    el.className='lk-particle';
+    const s=Math.random()*8+3;
+    el.style.cssText=`width:${s}px;height:${s}px;left:${Math.random()*100}%;background:${colors[i%colors.length]};--d:${Math.random()*13+9}s;--dl:${Math.random()*9}s;`;
+    wrap.appendChild(el);
+  }
+})();
+
+/* scroll reveal */
+const io=new IntersectionObserver(en=>{en.forEach(e=>{if(e.isIntersecting)e.target.classList.add('on');});},{threshold:.08});
+document.querySelectorAll('.rv,.rvl,.rvr').forEach(el=>io.observe(el));
+
+/* tab switching */
+document.querySelectorAll('.pipe-tab').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('.pipe-tab').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.pipe-panel').forEach(p=>p.classList.add('hidden'));
+    btn.classList.add('active');
+    document.getElementById('tab-'+btn.dataset.tab).classList.remove('hidden');
+  });
+});
+
+const so=new IntersectionObserver(en=>{
+  en.forEach(e=>{
+    if(e.isIntersecting){
+      e.target.querySelectorAll('.stat-num').forEach((n,i)=>{
+        setTimeout(()=>{
+          n.style.transition='transform .38s cubic-bezier(.34,1.56,.64,1)';
+          n.style.transform='scale(1.16)';
+          setTimeout(()=>{n.style.transform='scale(1)';},380);
+        },i*90);
+      });
+      so.unobserve(e.target);
+    }
+  });
+},{threshold:.5});
+document.querySelectorAll('.stat-strip').forEach(el=>so.observe(el));
+</script>
+</div>
+{% endblock %}
