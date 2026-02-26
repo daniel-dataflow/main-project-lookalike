@@ -35,13 +35,14 @@ class LogCollector:
         
         # 컨테이너 이름에 따른 서비스 매핑
         self.service_map = {
-            "airflow": ["airflow-webserver-main", "airflow-scheduler-main"],
-            "spark": ["spark-master-main", "spark-worker-1-main"],
-            "hadoop": ["namenode-main", "datanode-main"],
-            "kafka": ["kafka-main", "zookeeper-main"],
-            "database": ["postgres-main", "mongo-main", "redis-main"],
-            "search": ["elasticsearch-main"],
-            "api": ["fastapi-main"]
+            "Airflow": ["airflow-webserver-main", "airflow-scheduler-main"],
+            "Spark": ["spark-master-main", "spark-worker-1-main"],
+            "Hadoop": ["namenode-main", "datanode-main"],
+            "Kafka": ["kafka-main", "zookeeper-main"],
+            "DB": ["postgres-main", "mongo-main", "redis-main"],
+            "Elastic": ["elasticsearch-main"],
+            "API_BE": ["fastapi-main"],
+            "API_ML": ["ml-engine-main"]
         }
         
         # Slack 알림 서비스

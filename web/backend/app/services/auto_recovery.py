@@ -47,7 +47,7 @@ class AutoRecovery:
 
         # ─── 자동 재시작 대상 컨테이너 (안전한 서비스만) ───
         self.restartable_containers = {
-            "api": "fastapi-main",
+            "API_BE": "fastapi-main",
             # 필요 시 추가:
             # "airflow": "airflow-webserver-main",
         }
