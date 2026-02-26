@@ -50,7 +50,11 @@ async def search_products(
     # 전략 1: ML API에서 받은 ID 목록을 기반으로 DB 데이터 수화 (Hydration)
     if ml_product_scores is not None and len(ml_product_scores) > 0:
         try:
-            return _hydrate_from_db(ml_product_scores, source="ml_api")
+            hydrated = _hydrate_from_db(ml_product_scores, source="ml_api", limit=limit)
+            if hydrated:
+                return hydrated
+            # ML 결과는 왔지만 DB 매핑이 0건인 경우 빈 배열을 반환하지 않고 fallback 사용.
+            logger.warning("ML 결과 Hydration 0건, fallback to DB")
         except Exception as e:
             logger.warning(f"ML 결과 Hydration 실패, fallback to DB: {e}")
 
@@ -64,7 +68,7 @@ async def search_products(
 
 
 
-def _hydrate_from_db(product_scores: dict, source: str) -> list:
+def _hydrate_from_db(product_scores: dict, source: str, limit: int = 6) -> list:
     """
     ES에서 반환된 {product_code: score} 목록을 사용하여
     PostgreSQL에서 표시용 부가 데이터(최저가, 쇼핑몰 이름, URL 등)를 채워 넣고,
@@ -98,9 +102,19 @@ def _hydrate_from_db(product_scores: dict, source: str) -> list:
             rows = cur.fetchall()
 
         # 결과를 list of dict로 변환하고 유사도 점수 삽입
+        # 동일 model_code가 여러 product_id로 들어온 경우가 있어
+        # 가격/ID 기준으로 안정적인 대표 1건만 선택한다.
+        sorted_rows = sorted(
+            rows,
+            key=lambda r: (
+                r["lowest_price"] if r["lowest_price"] is not None else float("inf"),
+                str(r["product_id"]),
+            ),
+        )
+
         products = []
-        seen = set()
-        for row in rows:
+        seen_score_keys = set()
+        for row in sorted_rows:
             model_code = row["model_code"]
             pid = str(row["product_id"])
             
@@ -108,9 +122,10 @@ def _hydrate_from_db(product_scores: dict, source: str) -> list:
             if score_key not in product_scores:
                 continue
                 
-            if score_key in seen:
+            # ML 키(=model_code 또는 product_id) 기준으로 1건만 유지
+            if score_key in seen_score_keys:
                 continue
-            seen.add(score_key)
+            seen_score_keys.add(score_key)
 
             products.append({
                 "product_id": pid,
@@ -125,8 +140,24 @@ def _hydrate_from_db(product_scores: dict, source: str) -> list:
             })
 
         # 원래 ES에서 반환된 스코어 순서대로 내림차순 정렬 (Hydration 후 순서 유지)
-        products.sort(key=lambda x: x["similarity_score"] or 0.0, reverse=True)
-        return products
+        # 점수가 같을 때 product_id를 2차 키로 사용해 순서 흔들림 최소화
+        products.sort(
+            key=lambda x: (x["similarity_score"] or 0.0, str(x["product_id"])),
+            reverse=True,
+        )
+
+        # 동일 상품명이 반복 노출되지 않도록 2차 dedupe
+        # (동일명 다중 상품코드가 존재하는 현재 데이터셋 보정)
+        deduped: list = []
+        seen_names = set()
+        for item in products:
+            name_key = (item["brand"], item["product_name"])
+            if name_key in seen_names:
+                continue
+            seen_names.add(name_key)
+            deduped.append(item)
+
+        return deduped[:limit]
 
     except Exception as e:
         logger.error(f"DB Hydration 실패: {e}", exc_info=True)
@@ -212,5 +243,3 @@ def _search_by_db(category: Optional[str], limit: int) -> list:
     except Exception as e:
         logger.error(f"DB fallback 검색 실패: {e}", exc_info=True)
         return []
-
-

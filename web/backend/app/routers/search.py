@@ -6,6 +6,8 @@ from fastapi.responses import Response
 from typing import Optional
 import logging
 import json
+import os
+import httpx
 
 from ..database import get_pg_cursor, get_redis
 from ..models.search import (
@@ -27,6 +29,7 @@ from ..services.search_service import search_products
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/search", tags=["검색"])
+ML_ENGINE_URL = os.getenv("ML_ENGINE_URL", "http://ml-engine:8914/predict_vector")
 
 
 # ──────────────────────────────────────
@@ -97,16 +100,52 @@ async def search_by_image(
                 f"hdfs={'✅' if image_info['hdfs_uploaded'] else '❌'}"
             )
 
-        # 3. 검색 서비스 (전략 1: ML 검색 결과, 전략 2: 텍스트 검색, 전략 3: DB fallback)
+        # 3. ML 엔진 호출: 벡터 검색 Top-K(product_id -> score) 확보
+        ml_scores = None
+        try:
+            data = {}
+            files = {}
+
+            if search_text:
+                data["text"] = search_text
+            if category:
+                data["category"] = category
+
+            if image:
+                # 업로드 파일은 앞단 처리에서 이미 한 번 읽혔을 수 있으므로 포인터를 되감는다.
+                await image.seek(0)
+                files["image"] = (
+                    image.filename or "query.jpg",
+                    await image.read(),
+                    image.content_type or "application/octet-stream",
+                )
+
+            # ML 경로는 임베딩 + ES 검색까지 포함되므로 read timeout을 넉넉히 둔다.
+            async with httpx.AsyncClient(
+                timeout=httpx.Timeout(timeout=60.0, connect=5.0, read=60.0)
+            ) as client:
+                ml_resp = await client.post(ML_ENGINE_URL, data=data, files=files)
+                ml_resp.raise_for_status()
+                ml_data = ml_resp.json()
+                ml_scores = ml_data.get("ml_product_scores")
+        except Exception as ml_err:
+            # ML 경로 실패 시 DB fallback으로 자동 전환되도록 None 유지
+            logger.warning(
+                "ML 엔진 호출 실패, DB fallback 사용: %s: %r",
+                type(ml_err).__name__,
+                ml_err,
+            )
+
+        # 4. 검색 서비스 (전략 1: ML 검색 결과, 전략 2: 텍스트 검색, 전략 3: DB fallback)
         ml_results = await search_products(
             query_text=search_text,
-            ml_product_scores=None,   # TODO: ML 서버 연동 후 통신 로직 추가
+            ml_product_scores=ml_scores,
             category=category,
             limit=6,
         )
         result_count = len(ml_results)
 
-        # 4. DB에 검색 로그 기록
+        # 5. DB에 검색 로그 기록
         # category 형식: "남자_상의" → gender='남자', applied_category='상의'
         gender_filter = None
         category_filter = category
@@ -147,7 +186,7 @@ async def search_by_image(
             raise HTTPException(status_code=500, detail="검색 로그 저장 실패")
 
 
-        # 5. 검색 결과 DB 저장
+        # 6. 검색 결과 DB 저장
         try:
             with get_pg_cursor() as cur:
                 for rank, item in enumerate(ml_results, 1):
@@ -172,7 +211,7 @@ async def search_by_image(
         except Exception as res_err:
             logger.warning(f"검색 결과 저장 실패 (검색은 계속): {res_err}")
 
-        # 6. 응답
+        # 7. 응답
         # search_source: 실제 사용된 검색 전략 (프론트엔드 디버깅, 향후 UI에서 활용 가능)
         used_source = ml_results[0]["search_source"] if ml_results else "db"
         return ImageSearchResponse(

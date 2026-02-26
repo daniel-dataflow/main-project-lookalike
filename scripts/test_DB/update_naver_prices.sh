@@ -3,8 +3,9 @@
 # 네이버 API를 통해 naver_prices 정보를 최신화하는 파이썬 배치 스크립트 래퍼
 # ==============================================================================
 
-PROJECT_ROOT="/home/ubuntu/main-project-lookalike"
-SCRIPT_PATH="/home/ubuntu/main-project-lookalike/scripts/test_DB/update_naver_prices.py"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
+SCRIPT_PATH="$SCRIPT_DIR/update_naver_prices.py"
 
 cd "$PROJECT_ROOT" || exit 1
 
@@ -19,10 +20,10 @@ export POSTGRES_HOST=127.0.0.1
 export POSTGRES_PORT=5432
 
 echo "[INFO] 필요 패키지(psycopg2-binary, requests, python-dotenv) 설치 여부 확인 및 설치 중..."
-pip install -q requests psycopg2-binary python-dotenv
+python -m pip install -q requests psycopg2-binary python-dotenv
 
 echo "[INFO] 로컬 호스트 환경에서 127.0.0.1:5432 DB에 직접 연결하여 스크립트를 시작합니다..."
-python3 "$SCRIPT_PATH"
+python "$SCRIPT_PATH"
 
 echo "======================================================"
 echo "[INFO] 배치 스크립트 실행 종료"
