@@ -13,14 +13,69 @@ LOCAL_OUTPUT_PATH = f"crawlers/data/{BRAND_NAME}_json_files"
 TODAY_STR = datetime.now().strftime('%Y%m%d') # 20260215 형태
 ##
 TARGET_MAP = {
-    'MEN': {
-        'TOPS': ['https://www.musinsa.com/categories/item/001'],
-        'OUTER': ['https://www.musinsa.com/categories/item/002'],
-        'PANTS': ['https://www.musinsa.com/categories/item/003']
+    "Men": {
+        "Outer": [
+            "https://www.musinsa.com/brand/musinsastandard/products?categoryCode=002003&gf=A",
+            "https://www.musinsa.com/brand/musinsastandard/products?categoryCode=002002&gf=A",
+            "https://www.musinsa.com/brand/musinsastandard/products?categoryCode=002017&gf=A", 
+            "https://www.musinsa.com/brand/musinsastandard/products?categoryCode=002006&gf=A",
+            "https://www.musinsa.com/brand/musinsastandard/products?categoryCode=002007&gf=A",
+            "https://www.musinsa.com/brand/musinsastandard/products?categoryCode=002009&gf=A",
+            "https://www.musinsa.com/brand/musinsastandard/products?categoryCode=002024&gf=A",
+            "https://www.musinsa.com/brand/musinsastandard/products?categoryCode=002008&gf=A",
+            "https://www.musinsa.com/brand/musinsastandard/products?categoryCode=002020&gf=A"
+        ],
+        "Top": [
+            "https://www.musinsa.com/brand/musinsastandard/products?categoryCode=001006&gf=A",
+            "https://www.musinsa.com/brand/musinsastandard/products?categoryCode=001004&gf=A",
+            "https://www.musinsa.com/brand/musinsastandard/products?categoryCode=001005&gf=A",
+            "https://www.musinsa.com/brand/musinsastandard/products?categoryCode=001010&gf=A",
+            "https://www.musinsa.com/brand/musinsastandard/products?categoryCode=001001&gf=A",
+            "https://www.musinsa.com/brand/musinsastandard/products?categoryCode=001002&gf=A",
+            "https://www.musinsa.com/brand/musinsastandard/products?categoryCode=001011&gf=A",
+            "https://www.musinsa.com/brand/musinsastandard/products?categoryCode=001003&gf=A"
+        ],
+        "Bottom": [
+            "https://www.musinsa.com/brand/musinsastandard/products?categoryCode=003002&gf=A",
+            "https://www.musinsa.com/brand/musinsastandard/products?categoryCode=003004&gf=A",
+            "https://www.musinsa.com/brand/musinsastandard/products?categoryCode=003008&gf=A",
+            "https://www.musinsa.com/brand/musinsastandard/products?categoryCode=003007&gf=A",
+            "https://www.musinsa.com/brand/musinsastandard/products?categoryCode=003009&gf=A",
+            "https://www.musinsa.com/brand/musinsastandard/products?categoryCode=003006&gf=A"
+        ]
     },
-    'WOMEN': {
-        'TOPS': ['https://www.musinsa.com/categories/item/001?d_cat_cd=001'],
-        'PANTS': ['https://www.musinsa.com/categories/item/003?d_cat_cd=003']
+    "Women": {
+        "Outer": [
+            "https://www.musinsa.com/brand/musinsastandardwoman/products?categoryCode=002003&gf=A",
+            "https://www.musinsa.com/brand/musinsastandardwoman/products?categoryCode=002002&gf=A",
+            "https://www.musinsa.com/brand/musinsastandardwoman/products?categoryCode=002017&gf=A",
+            "https://www.musinsa.com/brand/musinsastandardwoman/products?categoryCode=002014&gf=A",
+            "https://www.musinsa.com/brand/musinsastandardwoman/products?categoryCode=002007&gf=A",
+            "https://www.musinsa.com/brand/musinsastandardwoman/products?categoryCode=002009&gf=A",
+            "https://www.musinsa.com/brand/musinsastandardwoman/products?categoryCode=002024&gf=A",
+            "https://www.musinsa.com/brand/musinsastandardwoman/products?categoryCode=002008&gf=A",
+            "https://www.musinsa.com/brand/musinsastandardwoman/products?categoryCode=002020&gf=A"
+        ],
+        "Top": [
+            "https://www.musinsa.com/brand/musinsastandardwoman/products?categoryCode=001006&gf=A",
+            "https://www.musinsa.com/brand/musinsastandardwoman/products?categoryCode=001004&gf=A",
+            "https://www.musinsa.com/brand/musinsastandardwoman/products?categoryCode=001005&gf=A",
+            "https://www.musinsa.com/brand/musinsastandardwoman/products?categoryCode=001010&gf=A",
+            "https://www.musinsa.com/brand/musinsastandardwoman/products?categoryCode=001001&gf=A",
+            "https://www.musinsa.com/brand/musinsastandardwoman/products?categoryCode=001002&gf=A",
+            "https://www.musinsa.com/brand/musinsastandardwoman/products?categoryCode=001011&gf=A",
+            "https://www.musinsa.com/brand/musinsastandardwoman/products?categoryCode=001008&gf=A",
+            "https://www.musinsa.com/brand/musinsastandardwoman/products?categoryCode=001003&gf=A"
+        ],
+        "Bottom": [
+            "https://www.musinsa.com/brand/musinsastandardwoman/products?categoryCode=003002&gf=A",
+            "https://www.musinsa.com/brand/musinsastandardwoman/products?categoryCode=003004&gf=A",
+            "https://www.musinsa.com/brand/musinsastandardwoman/products?categoryCode=003008&gf=A",
+            "https://www.musinsa.com/brand/musinsastandardwoman/products?categoryCode=003007&gf=A",
+            "https://www.musinsa.com/brand/musinsastandardwoman/products?categoryCode=003005&gf=A",
+            "https://www.musinsa.com/brand/musinsastandardwoman/products?categoryCode=003009&gf=A",
+            "https://www.musinsa.com/brand/musinsastandardwoman/products?categoryCode=003006&gf=A"
+        ]
     }
 }
 ## 26.2.15 
@@ -181,6 +236,11 @@ async def process_product(product_id, gender, category, context):
         # 리소스 최적화
         await p_page.route("**/*review*", lambda route: route.abort())
         await p_page.route("**/*recommend*", lambda route: route.abort())
+
+        ## 26.2.25 ->
+        await p_page.route("**/*.{png,jpg,jpeg,gif}", lambda route: route.abort()) # 상세 페이지 이미지 로딩 생략 (속도 업)
+        await p_page.route("**/api/style/*", lambda route: route.abort()) # 스타일 정보 차단
+        ## <- 26.2.25
         
         try:
             print(f"   🔎 {product_id} 분석 중...")
@@ -225,10 +285,22 @@ async def crawl_category(gender, category, url, context):
     page = await context.new_page()
     product_ids = set()
     try:
-        await page.goto(url, timeout=60000)
-        for _ in range(3): 
-            await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-            await asyncio.sleep(1.0)
+
+        ## 26.2.25 ->
+        #await page.goto(url, timeout=60000)
+        try:
+            # wait_until을 "commit"이나 "domcontentloaded"로 낮추어 핵심 데이터만 뜨면 바로 작업 시작
+            await page.goto(url, timeout=90000, wait_until="domcontentloaded") 
+        except Exception as e:
+            print(f"⚠️ {url} 접속 지연 발생, 하지만 계속 진행 시도: {e}")
+        
+        for _ in range(5): 
+            await page.mouse.wheel(0, 2000) # 자연스러운 휠 스크롤
+            await asyncio.sleep(1.5)        # 로딩 대기 시간 확보
+            #await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+            #await asyncio.sleep(1.0)
+        #### <-26.2.25
+
         hrefs = await page.evaluate("""() => Array.from(document.querySelectorAll('a')).map(a => a.href)""")
         for h in hrefs:
             m = re.search(r'(?:goods|products)\/(\d+)', h)
@@ -243,7 +315,17 @@ async def run():
     print("--- [START] 무신사 핏/계절감 집중 크롤러 ---")
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
-        context = await browser.new_context(viewport={"width": 1920, "height": 1080})
+
+        ## 26.2.25 ->
+        #context = await browser.new_context(viewport={"width": 1920, "height": 1080})
+        context = await browser.new_context(
+            viewport={"width": 1920, "height": 1080},
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+        )
+        # 추가: 웹드라이버 감지 방지 스크립트 (스텔스 모드)
+        await context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+        ## <- 26.2.25
+
         for gender, categories in TARGET_MAP.items():
             for category, urls in categories.items():
                 for url in urls: await crawl_category(gender, category, url, context)

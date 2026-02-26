@@ -34,7 +34,7 @@ with DAG(
     brands = {
         #'topten': 'TT',
         #'8seconds': '8S',
-        #'zara': 'ZR',
+        'zara': 'ZR',
         'uniqlo': 'UQ',
         #'musinsa': 'MS'
     }

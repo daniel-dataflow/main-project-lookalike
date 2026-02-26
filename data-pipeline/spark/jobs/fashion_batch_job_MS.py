@@ -87,28 +87,50 @@ print(f"🚀 Starting {BRAND_NAME} job from sequence: {start_seq}")
 input_path = f"{HDFS_BASE}{RAW_PATH}/*.json"
 raw_df = spark.read.option("multiLine", "true").json(input_path)
 windowSpec = Window.partitionBy(lit(BRAND_NAME)).orderBy(col("product_id"))
-
+## 26.2.26 -->
+# processed_df = raw_df.withColumn("idx", row_number().over(windowSpec)) \
+#     .withColumn("internal_id", format_string(f"{BRAND_PREFIX}%04d", col("idx").cast("int") + start_seq - 1)) \
+#     .withColumn("img_hdfs_path", concat(lit(IMAGE_DIR), lit("/"), col("product_id"), lit(".jpg"))) \
+#     .withColumn("category_code", concat(lower(col("gender")), lit("_"), lower(col("category")))) \
+#     .withColumn("detail_desc", lit("{}")) 
 processed_df = raw_df.withColumn("idx", row_number().over(windowSpec)) \
     .withColumn("internal_id", format_string(f"{BRAND_PREFIX}%04d", col("idx").cast("int") + start_seq - 1)) \
     .withColumn("img_hdfs_path", concat(lit(IMAGE_DIR), lit("/"), col("product_id"), lit(".jpg"))) \
+    .withColumn("gender", coalesce(col("gender"), lit("unisex"))) \
+    .withColumn("origine_url", concat(lit("https://www.musinsa.com/products/"), col("product_id"))) \
     .withColumn("category_code", concat(lower(col("gender")), lit("_"), lower(col("category")))) \
-    .withColumn("detail_desc", lit("{}")) 
-
+    .withColumn("detail_desc", lit("{}"))
+## --> 26.2.26
 processed_df.cache()
 total_count = processed_df.count()
 
 # --- [4. PostgreSQL 적재] ---
+# pg_data = processed_df.select(
+#     col("internal_id").alias("product_id"),
+#     col("product_id").alias("model_code"),
+#     lit(BRAND_NAME.upper()).alias("brand_name"),
+#     col("product_name").alias("prod_name"),
+#     col("category_code"),
+#     coalesce(col("price").cast("int"), lit(0)).alias("base_price"),
+#     col("img_hdfs_path"),
+#     current_timestamp().alias("create_dt"),
+#     current_timestamp().alias("update_dt")
+# )
 pg_data = processed_df.select(
     col("internal_id").alias("product_id"),
     col("product_id").alias("model_code"),
     lit(BRAND_NAME.upper()).alias("brand_name"),
-    col("product_name").alias("prod_name"),
+    col("product_name").alias("prod_name"), 
     col("category_code"),
+    col("gender"),
+    col("origine_url"),
     coalesce(col("price").cast("int"), lit(0)).alias("base_price"),
     col("img_hdfs_path"),
     current_timestamp().alias("create_dt"),
     current_timestamp().alias("update_dt")
 )
+## --> 26.2.26
+
 
 pg_data.write.format("jdbc") \
     .option("url", f"jdbc:postgresql://{PG_HOST}:5432/{PG_DB}") \
@@ -154,11 +176,36 @@ print("✅ MongoDB 적재 완료")
 try:
     hdfs_client = InsecureClient(HDFS_WEB_URL, user="root")
     hdfs_client.makedirs(IMAGE_DIR)
+
+    ## 26.2.25-->
+    # [수정 포인트] 컬럼이 실제 데이터프레임 스키마에 있는지 확인 후 안전하게 병합
+    available_columns = processed_df.columns
     
-    image_list = processed_df.select(element_at(col("goodsImages"), 1).alias("main_img"), col("product_id")).collect()
+    if "goodsImages" in available_columns and "images" in available_columns:
+        # 둘 다 있다면 coalesce로 우선순위 결정
+        target_col = coalesce(col("goodsImages"), col("images"))
+    elif "goodsImages" in available_columns:
+        target_col = col("goodsImages")
+    elif "images" in available_columns:
+        target_col = col("images")
+    else:
+        # 둘 다 없다면 빈 리스트나 Null 처리 (에러 방지)
+        target_col = lit(None)
+
+    processed_df = processed_df.withColumn("target_col", target_col)
+    
+    # 수정된 target_col에서 첫 번째 이미지를 추출
+    image_list = processed_df.select(
+        element_at(col("target_col"), 1).alias("main_img"), 
+        col("product_id")
+    ).filter(col("main_img").isNotNull()).collect() # Null인 경우 제외하고 수집
     
     print(f"📸 이미지 다운로드 및 HDFS 직접 전송 시작 (총 {len(image_list)}건)...")
     success_img = 0
+    ## <-- 26.2.25
+
+
+
     for r in image_list:
         if r.main_img:
             hdfs_target_path = f"{IMAGE_DIR}/{r.product_id}.jpg"

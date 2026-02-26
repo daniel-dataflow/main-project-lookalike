@@ -1,244 +1,177 @@
+import os
 import asyncio
 import re
+import hashlib
 import json
 from datetime import datetime
 from playwright.async_api import async_playwright
 from hdfs import InsecureClient
 
-# --- 설정 ---
-BRAND_NAME = "zara"
-## 26.2.15
-TODAY_STR = datetime.now().strftime('%Y%m%d') # 20260215 형태
-# namenode는 docker-compose의 서비스 이름이고, 9000은 설정하신 포트입니다.
-#HDFS_ROOT_PATH = f"hdfs://namenode:9000/user/airflow/data/{BRAND_NAME}/{TODAY_STR}"
-HDFS_ROOT_PATH = f"/raw/{BRAND_NAME}/{TODAY_STR}" # 'hdfs://' 빼고 깔끔하게 경로만
-# HDFS 설정
-## 26.2.15
-HDFS_NAMENODE_URL = "http://namenode:9870"
-#HDFS_NAMENODE_URL = "http://localhost:9870"  # WebHDFS 포트 (9870 or 50070)
-HDFS_USER = "hadoop"  # HDFS 유저명
+# --- [1. 설정 정보] ---
+BRAND_NAME = "zara" 
+LOCAL_ROOT_DIR = f"./{BRAND_NAME}_raw_data"
+os.makedirs(LOCAL_ROOT_DIR, exist_ok=True)
 
-# 수집 대상 URL
+# 하둡 설정
+HDFS_URL = "http://namenode-main:9870" 
+HDFS_USER = "root"
+hdfs_client = InsecureClient(HDFS_URL, user=HDFS_USER)
+
 TARGET_MAP = {
     "Men": {
         "Outer": [
-            "https://www.zara.com/kr/ko/man-blazers-l608.html?v1=2436311"
+            "https://www.zara.com/kr/ko/man-outerwear-l715.html?v1=2606109",
+            "https://www.zara.com/kr/ko/man-jackets-l640.html?v1=2536906"
         ]
     }
 }
 
-
-
-visited_products = set()
-sem = asyncio.Semaphore(3) # 3
-
-async def extract_product_data_from_dom(page):
-    """DOM 데이터 추출 로직 (이전과 동일)"""
+# --- [2. HDFS 저장 함수] ---
+async def save_to_hdfs_library(local_path, today_date, filename):
+    """Spark 배치가 읽을 수 있도록 지정된 경로에 JSON 업로드"""
+    hdfs_full_path = f"/raw/{BRAND_NAME}/{today_date}/{filename}"
     try:
-        await page.mouse.wheel(0, 500)
-        await asyncio.sleep(1.0)
-        
-        try:
-            await page.evaluate("""() => {
-                const addBtns = document.querySelectorAll('button[data-qa-action="add-to-cart"], button.product-detail-cart-buttons__button');
-                for (const btn of addBtns) {
-                    if (btn.innerText.includes('추가') || btn.innerText.includes('Add')) {
-                        btn.click(); break;
-                    }
-                }
-                const infoBtns = document.querySelectorAll('button');
-                for (const btn of infoBtns) {
-                    if (btn.innerText.includes('소재') || btn.innerText.includes('혼용률')) {
-                        btn.click();
-                    }
-                }
-            }""")
-            await asyncio.sleep(1.5)
-        except:
-            pass
+        hdfs_client.upload(hdfs_full_path, local_path, overwrite=True)
+        return True
+    except Exception as e:
+        print(f"❌ [HDFS] 업로드 실패: {e}")
+        return False
 
-        data = await page.evaluate("""() => {
-            const result = {};
-            const urlMatch = location.href.match(/-p([0-9]+)\.html/);
-            result.goodsNo = urlMatch ? urlMatch[1] : location.href.split('?')[0].split('-').pop(); 
-            result.goodsNm = document.querySelector('h1')?.innerText.trim() || document.title;
-            result.brandName = "ZARA";
-            result.thumbnailImageUrl = document.querySelector('meta[property="og:image"]')?.content || "";
-
-            const colorEl = document.querySelector('.product-detail-info__color');
-            result.color_name = colorEl ? (colorEl.innerText.includes('|') ? colorEl.innerText.split('|')[0].trim() : colorEl.innerText.trim()) : "";
-            result.colors = []; 
-
-            const priceEl = document.querySelector('.price__amount, .money-amount');
-            result.price = priceEl ? parseInt(priceEl.innerText.replace(/[^0-9]/g, '')) : 0;
-
-            const sizeStockInfo = [];
-            document.querySelectorAll('li.product-detail-size-selector__size-list-item').forEach(li => {
-                const nameEl = li.querySelector('[data-qa-qualifier="product-detail-size-selector-size-list-item-name"]');
-                const name = nameEl ? nameEl.innerText.trim() : li.innerText.split('\\n')[0].trim();
-                if (name) {
-                    let isItemSoldOut = li.getAttribute('aria-disabled') === 'true' || li.classList.contains('disabled') || li.innerText.includes('Coming soon') || li.innerText.includes('품절');
-                    sizeStockInfo.push({ size: name, is_sold_out: isItemSoldOut, stock_qty: isItemSoldOut ? 0 : 999 });
-                }
-            });
-            result.size_stock = sizeStockInfo;
-            
-            let isSoldOut = sizeStockInfo.length > 0 ? sizeStockInfo.every(s => s.is_sold_out) : false;
-            if (!isSoldOut && sizeStockInfo.length === 0) {
-                const addBtn = document.querySelector('button[data-qa-action="add-to-cart"]');
-                if (addBtn && (addBtn.disabled || addBtn.innerText.includes('품절'))) isSoldOut = true;
-            }
-            result.is_sold_out = isSoldOut;
-
-            const images = [];
-            document.querySelectorAll('img.media-image__image, .media-wrap__image').forEach(img => {
-                let src = img.src;
-                if (src && src.includes('static.zara.net')) images.push(src.split('?')[0]);
-            });
-            result.goodsImages = [...new Set(images)];
-
-            const specInfo = {};
-            const descEl = document.querySelector('.product-detail-description div.expandable-text__inner-content');
-            if (descEl) specInfo['description'] = descEl.innerText.replace(/\\n+/g, ' ').trim();
-
-            const compContainer = document.querySelector('.product-detail-composition');
-            if (compContainer) {
-                compContainer.querySelectorAll('.product-detail-composition__item').forEach(item => {
-                    const partName = item.querySelector('.product-detail-composition__part-name')?.innerText.trim() || "소재";
-                    const ingredients = [];
-                    item.querySelectorAll('li').forEach(li => ingredients.push(li.innerText.trim()));
-                    if (ingredients.length > 0) specInfo[partName] = ingredients.join(', ');
-                });
-            }
-            result.goodsMaterial = specInfo;
-            return result;
-        }""")
-        
-        if not data or not data.get('goodsNm'): return None
-        data['url'] = page.url
-        data['scraped_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        return data
-
-    except Exception:
-        return None
-
-async def process_product(product_id, gender, category, context, collected_data, product_url):
-    if product_id in visited_products: return
-    visited_products.add(product_id)
-
+# --- [3. 상세 페이지 수집 함수] ---
+async def process_product(url, gender, category_name, context, sem):
     async with sem:
         p_page = await context.new_page()
         try:
-            print(f"   🔎 접속 중... {product_id}")
-            await p_page.set_extra_http_headers({"Referer": "https://www.google.com/", "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"})
-            await p_page.goto(product_url, timeout=60000, wait_until="domcontentloaded")
+            # 자라 보안 회피를 위한 랜덤 대기
+            await asyncio.sleep(2) 
             
-            product_dict = None
-            for _ in range(2):
-                product_dict = await extract_product_data_from_dom(p_page)
-                if product_dict and product_dict.get('price', 0) > 0: break
-                await asyncio.sleep(2)
+            # 페이지 이동 (타임아웃 60초, 네트워크 유휴 상태까지 대기)
+            await p_page.goto(url, timeout=60000, wait_until="commit") 
+            await asyncio.sleep(3) # 페이지 로딩 완료를 위한 추가 대기
+            
+            # 상품 ID 추출
+            product_id = url.split("-p")[-1].split(".html")[0]
+            product_id = re.sub(r'[^0-9]', '', product_id)
+            
+            # 상품 정보 추출
+            try:
+                product_name = await p_page.inner_text('h1.product-detail-info__header-name', timeout=5000)
+            except:
+                product_name = "Unknown Product"
+                
+            try:
+                price_text = await p_page.inner_text('.money-amount__main', timeout=5000)
+                price = re.sub(r'[^0-9]', '', price_text)
+            except:
+                price = "0"
+            
+            # 이미지 추출 (첫 번째 메인 이미지 위주)
+            img_elements = await p_page.query_selector_all('picture img')
+            images = []
+            for img in img_elements:
+                src = await img.get_attribute('src')
+                if src and "https" in src:
+                    images.append(src)
 
-            if product_dict:
-                collected_data.append({
-                    "gender": gender, "category": category, "product_id": product_id, "data": product_dict 
-                })
-                print(f"   ✅ {product_id} 수집됨")
-            else:
-                print(f"   ⚠️ {product_id} 실패")
+            # JSON 데이터 구성
+            product_data = {
+                "goodsNo": product_id,
+                "goodsNm": product_name.strip(),
+                "price": price,
+                "gender": gender,
+                "category": category_name,
+                "goodsImages": images,
+                "url": url,
+                "brand": BRAND_NAME.upper()
+            }
+
+            today_date = datetime.now().strftime('%Y%m%d')
+            time_now = datetime.now().strftime('%H%M%S')
+            
+            # 로컬 저장
+            save_dir = os.path.join(LOCAL_ROOT_DIR, today_date)
+            os.makedirs(save_dir, exist_ok=True)
+            
+            filename = f"{BRAND_NAME}_{gender}_{category_name}_{product_id}_{time_now}.json"
+            local_path = os.path.join(save_dir, filename)
+
+            with open(local_path, "w", encoding="utf-8") as f:
+                json.dump(product_data, f, ensure_ascii=False, indent=4)
+
+            # HDFS 업로드 호출 (이제 상단에 정의되어 에러가 나지 않음)
+            if await save_to_hdfs_library(local_path, today_date, filename):
+                if os.path.exists(local_path):
+                    os.remove(local_path)
+                    
         except Exception as e:
-            print(f"   ❌ {product_id} 에러: {str(e)[:50]}")
+            print(f"⚠️ 상세페이지 실패 ({url}): {e}")
         finally:
             await p_page.close()
 
-async def crawl_category(gender, category_name, target_url, context, collected_data):
-    print(f"\n>>> 🎯 [{gender}-{category_name}] 목록 수집 시작")
+# --- [4. 카테고리 순회 함수] ---
+async def crawl_category(gender, category_name, target_url, context):
+    print(f"\n>>> 🎯 [{gender}-{category_name}] 목록 수집: {target_url}")
     page = await context.new_page()
-    product_map = {} 
+    product_links = set()
+
     try:
         await page.goto(target_url, timeout=90000, wait_until="domcontentloaded")
-        for _ in range(5):
+        
+        # 무한 스크롤 처리
+        for _ in range(5): 
             await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
             await asyncio.sleep(2)
         
-        links = await page.evaluate("() => Array.from(document.querySelectorAll('a[href*=\"-p\"][href*=\".html\"]')).map(a => a.href)")
-        for link in links:
-            match = re.search(r'-p([0-9]+)\.html', link)
-            if match:
-                pid = match.group(1)
-                if pid not in product_map: product_map[pid] = link.split('?')[0]
+        # 상품 링크 추출 및 필터링
+        hrefs = await page.evaluate("""() => 
+            Array.from(document.querySelectorAll('a[href*="-p"][href*=".html"]'))
+            .map(a => a.href)
+            .filter(href => {
+                // 수집 제외 키워드 (Blacklist)
+                const blackList = ['perfumes', 'beauty', 'living-room', 'pets', 'kids', 'help', 'polos', 'special-prices'];
+                return !blackList.some(word => href.toLowerCase().includes(word));
+            })
+        """)
         
-        print(f"   🔗 총 발견된 상품 수: {len(product_map)}개")
+        for h in hrefs: 
+            product_links.add(h.split('?')[0])
+        
+        print(f"🔗 필터링 후 유효 상품 수: {len(product_links)}개")
         await page.close()
-        tasks = [process_product(pid, gender, category_name, context, collected_data, url) for pid, url in product_map.items()]
-        await asyncio.gather(*tasks)
     except Exception as e:
-        print(f"   ❌ 목록 수집 실패: {e}")
+        print(f"❌ 목록 수집 오류: {e}")
         await page.close()
+        return
 
-async def run():
-    print(f"--- [START] ZARA HDFS 수집기 ---")
-    collected_data = [] 
+    # 동시 실행 제한 (자라는 2개가 가장 안정적임)
+    sem = asyncio.Semaphore(2) 
+    if product_links:
+        print(f">>> 상세 수집 시작 (진행 중...)")
+        tasks = [process_product(u, gender, category_name, context, sem) for u in list(product_links)]
+        await asyncio.gather(*tasks)
     
-    async with async_playwright() as p:
-        # 26.2.15
-        browser = await p.chromium.launch(headless=True, args=["--start-maximized", "--disable-blink-features=AutomationControlled"]) 
-        #browser = await p.chromium.launch(headless=False, args=["--start-maximized", "--disable-blink-features=AutomationControlled"]) 
-        context = await browser.new_context(viewport={"width": 1920, "height": 1080}, locale="ko-KR")
-        await context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+    print(f">>> [{gender}-{category_name}] 카테고리 완료.")
 
+# --- [5. 실행 메인 함수] ---
+async def run():
+    print("--- [START] ZARA 크롤러 (안정화 버전) ---")
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-dev-shm-usage"])
+        context = await browser.new_context(
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            viewport={"width": 1920, "height": 1080},
+            locale="ko-KR"
+        )
+        # 웹드라이버 감지 방지
+        await context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+        
         for gender, categories in TARGET_MAP.items():
             for category, urls in categories.items():
-                if isinstance(urls, str): urls = [urls]
                 for url in urls:
-                    await crawl_category(gender, category, url, context, collected_data)
-        await browser.close()
-
-    # --- HDFS 저장 로직 (경로 수정됨) ---
-    if collected_data:
-        print(f"\n📦 {len(collected_data)}건 수집 완료. HDFS 업로드 시작...")
+                    await crawl_category(gender, category, url, context)
         
-        try:
-            client = InsecureClient(HDFS_NAMENODE_URL, user=HDFS_USER)
-            
-            # [수정됨] 날짜 기반 동적 경로 생성
-            # 예: /raw/zara/2024-05-21
-            # 26.2.15
-            today_date = datetime.now().strftime('%Y-%m-%d')
-            #today_date = datetime.now().strftime('%Y-%m-%d')
-            target_dir = f"/raw/{BRAND_NAME}/{today_date}"
-            
-            # 디렉토리 생성 (있으면 무시, 없으면 생성)
-            try:
-                client.makedirs(target_dir)
-                print(f"   📁 타겟 디렉토리 확인: {target_dir}")
-            except Exception as e:
-                # 이미 존재하거나 권한 문제일 수 있음
-                print(f"   ℹ️ 디렉토리 생성 메시지: {e}")
-
-            saved_count = 0
-            for item in collected_data:
-                try:
-                    filename = f"{BRAND_NAME}_{item['gender'].lower()}_{item['category'].lower()}_{item['product_id']}.json"
-                    hdfs_file_path = f"{target_dir}/{filename}"
-                    
-                    final_data = item['data']
-                    
-                    # HDFS 쓰기
-                    with client.write(hdfs_file_path, encoding='utf-8', overwrite=True) as writer:
-                        json.dump(final_data, writer, ensure_ascii=False, indent=4)
-                    
-                    saved_count += 1
-                except Exception as e:
-                    print(f"   ❌ 업로드 실패 ({item.get('product_id')}): {e}")
-
-            print(f"\n✨ 총 {saved_count}개 파일 업로드 완료")
-            print(f"   👉 경로: {target_dir}")
-
-        except Exception as e:
-            print(f"\n🚨 HDFS 오류: {e}")
-    else:
-        print("\n❌ 수집된 데이터가 없습니다.")
+        await browser.close()
+    print("--- [END] ZARA 수집 종료 ---")
 
 if __name__ == "__main__":
     asyncio.run(run())

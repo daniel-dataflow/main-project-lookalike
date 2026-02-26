@@ -80,29 +80,45 @@ windowSpec = Window.partitionBy(lit(BRAND_NAME)).orderBy(col("goodsNo"))
 
 # ZARA 파일명 예시: zara_men_outer_01564106.json
 # 정규식으로 gender와 sub_category 추출
+
+## --> 26.2.26
 processed_df = raw_df.withColumn("idx", row_number().over(windowSpec)) \
     .withColumn("product_id", format_string(f"{BRAND_PREFIX}%04d", col("idx").cast("int") + start_seq - 1)) \
     .withColumn("img_hdfs_path", concat(lit(IMAGE_DIR), lit("/"), col("goodsNo"), lit(".jpg"))) \
     .withColumn("gender", lower(regexp_extract(col("file_path"), r"zara_([^_]+)_", 1))) \
     .withColumn("sub_category", lower(regexp_extract(col("file_path"), r"zara_[^_]+_([^_]+)_", 1))) \
-    .withColumn("category_code", concat(col("gender"), lit("_"), col("sub_category")))
+    .withColumn("category_code", concat(col("gender"), lit("_"), col("sub_category"))) \
+    .withColumn("origine_url", concat(lit("https://www.zara.com/kr/ko/share/-p"), col("goodsNo"), lit(".html")))
 
 processed_df.cache()
 total_count = processed_df.count()
 
 # --- [4. PostgreSQL 적재] ---
+# pg_data = processed_df.select(
+#     col("product_id"),
+#     col("goodsNo").alias("model_code"),
+#     lit(BRAND_NAME.upper()).alias("brand_name"),
+#     col("goodsNm").alias("prod_name"),
+#     col("category_code"),
+#     coalesce(col("price").cast("int"), lit(0)).alias("base_price"),
+#     col("img_hdfs_path"),
+#     current_timestamp().alias("create_dt"),
+#     current_timestamp().alias("update_dt")
+# )
 pg_data = processed_df.select(
     col("product_id"),
     col("goodsNo").alias("model_code"),
     lit(BRAND_NAME.upper()).alias("brand_name"),
     col("goodsNm").alias("prod_name"),
     col("category_code"),
+    col("gender"),        # 추가
+    col("origine_url"),    # 추가
     coalesce(col("price").cast("int"), lit(0)).alias("base_price"),
     col("img_hdfs_path"),
     current_timestamp().alias("create_dt"),
     current_timestamp().alias("update_dt")
 )
-
+## --> 26.2.26
 pg_data.write.format("jdbc") \
     .option("url", f"jdbc:postgresql://{PG_HOST}:5432/{PG_DB}") \
     .option("dbtable", "products") \

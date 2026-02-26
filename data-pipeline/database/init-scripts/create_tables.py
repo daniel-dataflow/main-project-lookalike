@@ -97,8 +97,10 @@ def init_postgresql():
                 brand_name VARCHAR(100),
                 prod_name VARCHAR(50),
                 base_price INTEGER,
+                gender VARCHAR(10),
                 category_code VARCHAR(50),
                 img_hdfs_path VARCHAR(512),
+                origine_url VARCHAR(512),
                 create_dt TIMESTAMP DEFAULT NOW(),
                 update_dt TIMESTAMP DEFAULT NOW()
             );
