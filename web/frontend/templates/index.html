@@ -143,13 +143,21 @@
         const genderBtns = document.querySelectorAll('.gender-btn');
         genderBtns.forEach(btn => {
             btn.addEventListener('click', function () {
-                genderBtns.forEach(b => {
-                    b.classList.remove('active', 'btn-primary');
-                    b.classList.add('btn-outline-secondary');
-                });
-                this.classList.add('active', 'btn-primary');
-                this.classList.remove('btn-outline-secondary');
-                selectedGender = this.dataset.gender;
+                if (selectedGender === this.dataset.gender) {
+                    // 이미 선택된 버튼 클릭 시 해제
+                    this.classList.remove('active', 'btn-primary');
+                    this.classList.add('btn-outline-secondary');
+                    selectedGender = null;
+                } else {
+                    // 다른 버튼 선택 시
+                    genderBtns.forEach(b => {
+                        b.classList.remove('active', 'btn-primary');
+                        b.classList.add('btn-outline-secondary');
+                    });
+                    this.classList.add('active', 'btn-primary');
+                    this.classList.remove('btn-outline-secondary');
+                    selectedGender = this.dataset.gender;
+                }
                 document.getElementById('categoryError').classList.add('d-none');
             });
         });
@@ -158,13 +166,21 @@
         const categoryBtns = document.querySelectorAll('.category-btn');
         categoryBtns.forEach(btn => {
             btn.addEventListener('click', function () {
-                categoryBtns.forEach(b => {
-                    b.classList.remove('active', 'btn-primary');
-                    b.classList.add('btn-outline-secondary');
-                });
-                this.classList.add('active', 'btn-primary');
-                this.classList.remove('btn-outline-secondary');
-                selectedClothes = this.dataset.category;
+                if (selectedClothes === this.dataset.category) {
+                    // 이미 선택된 버튼 클릭 시 해제
+                    this.classList.remove('active', 'btn-primary');
+                    this.classList.add('btn-outline-secondary');
+                    selectedClothes = null;
+                } else {
+                    // 다른 버튼 선택 시
+                    categoryBtns.forEach(b => {
+                        b.classList.remove('active', 'btn-primary');
+                        b.classList.add('btn-outline-secondary');
+                    });
+                    this.classList.add('active', 'btn-primary');
+                    this.classList.remove('btn-outline-secondary');
+                    selectedClothes = this.dataset.category;
+                }
                 document.getElementById('categoryError').classList.add('d-none');
             });
         });
@@ -291,9 +307,13 @@
                     formData.append('search_text', searchText);
                 }
 
-                // 성별 + 옷종류 조합하여 카테고리로 전달 (둘 다 선택된 경우에만)
+                // 성별, 옷종류 정보를 각각 전달하거나 조합해서 전달
                 if (selectedGender && selectedClothes) {
                     formData.append('category', `${selectedGender}_${selectedClothes}`);
+                } else if (selectedGender) {
+                    formData.append('category', selectedGender);
+                } else if (selectedClothes) {
+                    formData.append('category', selectedClothes);
                 }
 
                 const response = await fetch('/api/search/by-image', {
