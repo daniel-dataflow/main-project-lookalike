@@ -109,7 +109,6 @@ def _run_yolo_detect(
         if not p.exists():
             continue
 
-        # batch가 아닌 1장씩 추론 (메모리 안정성 때문에)
         results = model.predict(
             source=str(p),
             imgsz=imgsz,
@@ -187,13 +186,13 @@ def yolo_reorganize_dedup_upsert(
     """
     수행하는 일:
     1) YOLO detect + crop (임시 디렉토리)
-    2) 파일명에서 brand/gender/product_code 파싱
+    2) 모든 원본 데이터를 추적하여 누락(Drop) 방지
     3) product_id 기준 중복 제거 (confidence 최고 1장만 유지)
-    4) brand/gender/category 폴더 구조로 재배치
-    5) 최종 메타데이터 반환 (+ DB upsert 가능)
+    4) YOLO 실패 시 원본 이미지 사용 (Fallback 로직)
+    5) 최종 메타데이터 반환
     """
 
-    # YOLO detect
+    # 1. YOLO detect
     detections = _run_yolo_detect(
         records=records,
         brand=brand,
@@ -204,75 +203,105 @@ def yolo_reorganize_dedup_upsert(
         iou=iou,
     )
 
-    # local_path -> hdfs_path 매핑
-    hdfs_by_local = {r["local_path"]: r.get("hdfs_path") for r in records}
-    
-    # product_id별 최고 confidence detection만 유지
-    best_by_product_id: dict[str, dict[str, Any]] = {}
+    # 2. 들어온 모든 '원본 194개'의 명부를 작성하여 아무도 버려지지 않게 함
+    all_incoming_products = {}
+    for r in records:
+        input_name = Path(r["local_path"]).name
+        match = NAME_RE.match(Path(input_name).stem)
 
+        if match:
+            brand_name = match.group("brand")
+            gender = match.group("gender")
+            category_orig = match.group("category")
+            product_code = match.group("product_code")
+        else:
+            brand_name = brand
+            gender = "unknown"
+            category_orig = "unknown"
+            product_code = Path(input_name).stem.split('_')[-1]
+
+        pid = f"{brand_name}_{product_code}"
+        all_incoming_products[pid] = {
+            "local_path": r["local_path"],
+            "hdfs_path": r.get("hdfs_path"),
+            "brand": brand_name,
+            "gender": gender,
+            "category": category_orig,
+            "product_code": product_code
+        }
+
+    # 3. product_id별 최고 confidence detection만 유지
+    best_by_product_id: dict[str, dict[str, Any]] = {}
     for det in detections:
         input_name = Path(det["input_path"]).name
         match = NAME_RE.match(Path(input_name).stem)
         if not match:
             continue
 
-        brand_name = match.group("brand")
-        gender = match.group("gender")
-        product_code = match.group("product_code")
-        product_id = f"{brand_name}_{product_code}"
-
+        pid = f"{match.group('brand')}_{match.group('product_code')}"
         category = _to_category(det.get("class_name", ""))
+
+        # YOLO가 이상한 카테고리로 분류했다면 무시 (나중에 원본 데이터로 대체됨)
         if category is None:
             continue
 
         cand = {
-            "product_id": product_id,
-            "brand": brand_name,
-            "gender": gender,
             "category": category,
-            "product_code": product_code,
-            "origin_hdfs_path": hdfs_by_local.get(det["input_path"]),
             "crop_path": det["crop_path"],
             "confidence": float(det.get("confidence", 0.0)),
         }
 
-        prev = best_by_product_id.get(product_id)
+        prev = best_by_product_id.get(pid)
         if prev is None or cand["confidence"] > prev["confidence"]:
-            best_by_product_id[product_id] = cand
+            best_by_product_id[pid] = cand
 
-    # 최종 디렉토리 구조로 이동
+    # 4. 최종 디렉토리 구조로 이동 (YOLO 성공본 + 실패 원본 모두 포함)
     out_rows: list[dict[str, Any]] = []
     final_root = Path(crop_final_dir)
 
-    for row in best_by_product_id.values():
-        dst_dir = (
-            final_root / row["brand"] / row["gender"].lower() / row["category"].lower()
-        )
+    for pid, orig_info in all_incoming_products.items():
+        det = best_by_product_id.get(pid)
+
+        safe_brand = str(orig_info["brand"] or "unknown")
+        safe_gender = str(orig_info["gender"] or "unknown")
+        safe_code = str(orig_info["product_code"] or "unknown")
+
+        if det:
+            # ✅ [성공] YOLO가 잘 크롭한 경우
+            image_source = det["crop_path"]
+            safe_category = str(det["category"] or "unknown")
+            is_cropped = True
+        else:
+            # 🚨 [실패/보완] YOLO가 못 찾은 경우 -> 원본 이미지 그대로 사용!
+            image_source = orig_info["local_path"]
+            safe_category = str(orig_info["category"] or "unknown")
+            is_cropped = False
+
+        dst_dir = final_root / safe_brand / safe_gender.lower() / safe_category.lower()
         dst_dir.mkdir(parents=True, exist_ok=True)
 
-        image_filename = (
-            f'{row["brand"]}_{row["gender"]}_{row["category"]}_{row["product_code"]}.jpg'
-        )
+        image_filename = f'{safe_brand}_{safe_gender}_{safe_category}_{safe_code}.jpg'
         final_path = dst_dir / image_filename
 
         if final_path.exists():
             final_path.unlink()
-        shutil.move(row["crop_path"], final_path)
+
+        if is_cropped:
+            shutil.move(image_source, final_path)
+        else:
+            shutil.copy(image_source, final_path)
 
         out_rows.append(
             {
-                "product_id": row["product_id"],
-                "brand": row["brand"],
-                "gender": row["gender"],
-                "category": row["category"],
-                "product_code": row["product_code"],
-                "origin_hdfs_path": row["origin_hdfs_path"],
+                "product_id": pid,
+                "brand": safe_brand,
+                "gender": safe_gender,
+                "category": safe_category,
+                "product_code": safe_code,
+                "origin_hdfs_path": orig_info["hdfs_path"],
                 "crop_local_path": str(final_path),
                 "image_filename": image_filename,
             }
         )
 
-    # Products 테이블이 없으니 생기면 활성화
-    # _upsert_postgres(out_rows)
-    
     return out_rows

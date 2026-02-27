@@ -51,11 +51,11 @@ RUN python -m pip install --no-cache-dir \
     hdfs \
     pytz \
     pymongo \
-    # ollama \
-    # deep_translator \
+    ollama \
+    deep_translator \
     tqdm \
-    #sentence-transformers \
-    #elasticsearch \
+    sentence-transformers \
+    elasticsearch \
     appdirs \
     validators \
     datasets \
@@ -86,4 +86,4 @@ RUN python -m pip install --no-cache-dir --force-reinstall \
 # 2-4. 의존성 자동 업그레이드 방지 패키지
 RUN python -m pip install --no-cache-dir --no-deps \
     ultralytics==8.3.0 \
-    # fashion-clip==0.2.2
+    fashion-clip==0.2.2

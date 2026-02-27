@@ -1,11 +1,10 @@
 import os
 import asyncio
-import re
 import json
 import shutil
-import subprocess
 from datetime import datetime
 from playwright.async_api import async_playwright
+from hdfs import InsecureClient # 🌟 Python 전용 HDFS 라이브러리 추가
 
 # --- [설정] ---
 BRAND_NAME = "8seconds"
@@ -14,11 +13,30 @@ TODAY_STR = datetime.now().strftime('%Y%m%d')
 LOCAL_TEMP_DIR = f"data/{BRAND_NAME}/{TODAY_STR}"
 HDFS_ROOT_PATH = f"/raw/{BRAND_NAME}/{TODAY_STR}"
 
+# WebHDFS 주소 (VLM 코드에서 쓰셨던 포트 9870 사용)
+HDFS_URL = "http://namenode:9870" 
+
 TARGET_MAP = {
     "Men": {
         "Outer": [
-            "https://www.ssfshop.com/8seconds/Coats/list?dspCtgryNo=SFMA42A05A02&brandShopNo=BDMA07A01&brndShopId=8SBSS",
             "https://www.ssfshop.com/8seconds/LeatherJacket/list?dspCtgryNo=SFMA42A05A06&brandShopNo=BDMA07A01&brndShopId=8SBSS"
+        ],
+        "Top": [
+            "https://www.ssfshop.com/8seconds/Short-Sleeve/list?dspCtgryNo=SFMA42A02A01&brandShopNo=BDMA07A01&brndShopId=8SBSS"
+        ],
+        "Bottom": [
+            "https://www.ssfshop.com/8seconds/Jogger/list?dspCtgryNo=SFMA42A04A06&brandShopNo=BDMA07A01&brndShopId=8SBSS"
+        ]
+    },
+    "Women": {
+        "Outer": [
+            "https://www.ssfshop.com/8seconds/Coats/list?dspCtgryNo=SFMA41A07A02&brandShopNo=BDMA07A01&brndShopId=8SBSS"
+        ],
+        "Top": [
+            "https://www.ssfshop.com/8seconds/Long-Sleeve/list?dspCtgryNo=SFMA41A02A02A03&brandShopNo=BDMA07A01&brndShopId=8SBSS"
+        ],
+        "Bottom": [
+            "https://www.ssfshop.com/8seconds/Slim/list?dspCtgryNo=SFMA41A04A11&brandShopNo=BDMA07A01&brndShopId=8SBSS"
         ]
     }
 }
@@ -94,7 +112,6 @@ async def extract_product_data_from_dom(page):
                     if (src.startsWith('//')) src = 'https:' + src;
                     images.push(src);
                     
-                    // SSF 샵 고해상도 이미지 변환 추가
                     if(src.includes('THNAIL')) {
                         const highRes = src.replace('https://img.ssfshop.com/', 'https://img.ssfshop.com/cmd/RB_750x/src/https://img.ssfshop.com/');
                         images.push(highRes);
@@ -112,7 +129,6 @@ async def extract_product_data_from_dom(page):
                     material[th.innerText.trim()] = td.innerText.trim().replace(/\\n/g, ' ');
                 }
             });
-            // 배송, 환불 등 부가 정보 (dl/dt/dd 구조)
             document.querySelectorAll('dl').forEach(dl => {
                 const dt = dl.querySelector('dt');
                 const dd = dl.querySelector('dd');
@@ -128,14 +144,11 @@ async def extract_product_data_from_dom(page):
             const targetTable = Array.from(tables).find(t => t.innerText.includes('가슴둘레') || t.innerText.includes('신체사이즈') || t.innerText.includes('총장'));
             
             if (targetTable) {
-                // 첫 번째 행이나 thead를 헤더로 인식
                 const headers = Array.from(targetTable.querySelectorAll('thead th, tr:first-child th, tr:first-child td')).map(el => el.innerText.trim());
                 const dataRows = Array.from(targetTable.querySelectorAll('tbody tr'));
                 
                 dataRows.forEach((tr, index) => {
-                    // tbody의 첫 행이 헤더인 경우 건너뛰기
                     if (index === 0 && tr.querySelector('th') && !tr.querySelector('td')) return;
-                    
                     const cells = Array.from(tr.querySelectorAll('td, th'));
                     if (cells.length > 0 && !tr.querySelector('td[colspan]')) {
                         const rowObj = {};
@@ -156,18 +169,21 @@ async def extract_product_data_from_dom(page):
         data['scraped_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         return data
     except Exception as e:
-        print(f"데이터 추출 중 에러: {e}")
+        print(f"        ⚠️ 데이터 추출 중 에러: {str(e).splitlines()[0][:50]}")
         return None
 
 async def process_product(product_id, gender, category, context):
-    if product_id in visited_products: return
+    if product_id in visited_products: return []
     visited_products.add(product_id)
 
+    new_found_ids = []
     async with sem:
         url = f"https://www.ssfshop.com/8-seconds/{product_id}/good?brandShopNo=BDMA07A01&brndShopId=8SBSS"
         p_page = await context.new_page()
         try:
-            await p_page.goto(url, timeout=60000, wait_until="load")
+            print(f"    🔍 [접속 시도 중...] {product_id}")
+            # 🌟 30초 룰 & 로딩 최적화
+            await p_page.goto(url, timeout=30000, wait_until="domcontentloaded")
             product_dict = await extract_product_data_from_dom(p_page)
             
             if product_dict:
@@ -180,22 +196,23 @@ async def process_product(product_id, gender, category, context):
                 with open(filepath, 'w', encoding='utf-8') as f:
                     json.dump(product_dict, f, ensure_ascii=False, indent=4)
                     
-                print(f"   ✅ [수집/로컬저장 완료] {filename}")
+                print(f"    ✅ [수집/로컬저장 완료] {filename}")
                 
-                other_ids = product_dict.get('other_color_ids', [])
-                if other_ids:
-                    tasks = [process_product(oid, gender, category, context) for oid in other_ids]
-                    await asyncio.gather(*tasks)
+                # 🌟 데드락 방지: 모아서 한 번에 리턴
+                new_found_ids = product_dict.get('other_color_ids', [])
+                    
         except Exception as e:
-            print(f"   ❌ {product_id} 에러: {str(e)[:50]}")
+            print(f"    ⚠️ [수집 실패/스킵] {product_id} - 사유: {str(e).splitlines()[0][:50]}")
         finally:
             if not p_page.is_closed(): await p_page.close()
+            
+    return new_found_ids
 
 async def crawl_category(gender, category_name, target_url, context):
     print(f"\n>>> 🎯 [{gender}-{category_name}] 시작")
     page = await context.new_page()
     try:
-        await page.goto(target_url, timeout=60000)
+        await page.goto(target_url, timeout=30000, wait_until="domcontentloaded")
         for _ in range(3):
             await page.evaluate("window.scrollBy(0, 3000)")
             await asyncio.sleep(1)
@@ -205,13 +222,20 @@ async def crawl_category(gender, category_name, target_url, context):
         """)
         await page.close()
         
-        unique_codes = list(set(codes))
-        if unique_codes:
-            tasks = [process_product(code, gender, category_name, context) for code in unique_codes]
-            await asyncio.gather(*tasks)
+        # 🌟 꼬리물기 크롤링 (데드락 완벽 방어)
+        pending_codes = list(set(codes))
+        while pending_codes:
+            tasks = [process_product(code, gender, category_name, context) for code in pending_codes]
+            results = await asyncio.gather(*tasks)
+            
+            new_codes = []
+            for res in results:
+                if res: new_codes.extend(res)
+            
+            pending_codes = [c for c in set(new_codes) if c not in visited_products]
             
     except Exception as e:
-        print(f"   ❌ 목록 수집 실패: {e}")
+        print(f"    ❌ 목록 수집 실패: {str(e).splitlines()[0][:50]}")
         if not page.is_closed(): await page.close()
 
 async def run():
@@ -229,41 +253,28 @@ async def run():
                     await crawl_category(gender, category, url, context)
         await browser.close()
 
-    # --- HDFS 일괄 업로드 및 로컬 삭제 ---
+    # --- 🌟 파이썬 HDFS 라이브러리를 통한 일괄 업로드 ---
     if os.path.exists(LOCAL_TEMP_DIR) and os.listdir(LOCAL_TEMP_DIR):
         print(f"\n📦 수집 완료. HDFS({HDFS_ROOT_PATH}) 업로드 시작...")
         try:
-
-        #     subprocess.run(f"hdfs dfs -mkdir -p {HDFS_ROOT_PATH}", shell=True, check=True)
-        #     subprocess.run(f"hdfs dfs -put -f {LOCAL_TEMP_DIR}/*.json {HDFS_ROOT_PATH}/", shell=True, check=True)
-
-        #     print("✅ HDFS 업로드 성공!")
-        
-        #     shutil.rmtree(LOCAL_TEMP_DIR)
-        #     print(f"🧹 로컬 임시 폴더 삭제 완료")
+            hdfs_client = InsecureClient(HDFS_URL, user='root')
             
-        # except subprocess.CalledProcessError as e:
-        #     print(f"❌ HDFS 업로드 에러: {e}")
-        ## 26.2.22
-        # 26.2.22 네임노드 주소 정의
-            HDFS_ADDR = "hdfs://namenode:9000"
-        
+            # 폴더 생성
+            hdfs_client.makedirs(HDFS_ROOT_PATH)
             
-            # 1. mkdir에도 주소를 명시해서 정확한 곳에 폴더 생성
-            subprocess.run(f"hdfs dfs -mkdir -p {HDFS_ADDR}{HDFS_ROOT_PATH}", shell=True, check=True)
+            # JSON 파일 하나씩 업로드
+            upload_count = 0
+            for filename in os.listdir(LOCAL_TEMP_DIR):
+                if filename.endswith(".json"):
+                    local_file = os.path.join(LOCAL_TEMP_DIR, filename)
+                    hdfs_file = f"{HDFS_ROOT_PATH}/{filename}"
+                    hdfs_client.upload(hdfs_file, local_file, overwrite=True)
+                    upload_count += 1
+                    
+            print(f"✅ HDFS 업로드 성공! (총 {upload_count}개 파일) -> {HDFS_ROOT_PATH}")
             
-            # 2. put 명령어 (잘 수정하신 부분)
-            upload_cmd = f"hdfs dfs -put -f {LOCAL_TEMP_DIR}/*.json {HDFS_ADDR}{HDFS_ROOT_PATH}/"
-            subprocess.run(upload_cmd, shell=True, check=True)
-            
-            print(f"✅ HDFS 업로드 성공! -> {HDFS_ADDR}{HDFS_ROOT_PATH}")
-            
-            # 업로드가 확실히 성공하면 그때 로컬 파일을 지우도록 rmtree를 다시 살려도 됩니다. (선택사항)
-            # shutil.rmtree(LOCAL_TEMP_DIR)
-            
-        except subprocess.CalledProcessError as e:
+        except Exception as e:
             print(f"❌ HDFS 업로드 에러: {e}")
-        ## 26.2.22
     else:
         print("\n❌ 저장된 데이터가 없습니다.")
 

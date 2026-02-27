@@ -24,10 +24,7 @@ PG_USER = "datauser"
 PG_PASS = "DataPass2026!"
 
 MONGO_URI = "mongodb://datauser:DataPass2026!@mongo-main:27017"
-#MONGO_URI = "mongodb://datauser:DataPass2026!@mongo-main:27017/admin?authSource=admin"
 HDFS_BASE = "hdfs://namenode-main:9000"
-# [수정] 26.2.21 WebHDFS 접속용 URL 추가 (포트 9870)
-#HDFS_WEB_URL = "http://namenode:9870"
 HDFS_WEB_URL = "http://namenode-main:9870"
 RAW_PATH = f"/raw/{BRAND_NAME}/{TARGET_DATE}"
 IMAGE_DIR = f"/raw/{BRAND_NAME}/image"
@@ -55,7 +52,7 @@ if not row:
     new_seq_data = [(BRAND_NAME.upper(), 0)]
     new_seq_df = spark.createDataFrame(new_seq_data, ["brand_name", "last_seq"])
     
-    # 2. DB에 실제 INSERT 수행 (이게 빠져있었습니다!)
+    # 2. DB에 실제 INSERT 수행
     new_seq_df.write.format("jdbc") \
         .option("url", f"jdbc:postgresql://{PG_HOST}:5432/{PG_DB}") \
         .option("dbtable", "brand_sequences") \
@@ -68,9 +65,7 @@ if not row:
     start_seq = 1
 else:
     start_seq = row[0]['last_seq'] + 1
-##
 
-start_seq = row[0]['last_seq'] + 1 if row else 1
 print(f"🚀 Starting {BRAND_NAME.upper()} job from sequence: {start_seq}")
 
 # --- [3. ETL 로직] ---
@@ -80,12 +75,31 @@ raw_df = spark.read.option("multiLine", "true").json(input_path) \
 
 windowSpec = Window.partitionBy(lit(BRAND_NAME)).orderBy(col("goodsNo"))
 
+# [수정 포인트 1]: 파일명 파싱을 명확히 하고, 정규식 패턴에 맞게 조합
+# JSON 파일명 구조(예상): uniqlo_men_outer_..._...json
 processed_df = raw_df.withColumn("idx", row_number().over(windowSpec)) \
     .withColumn("product_id", format_string(f"{BRAND_PREFIX}%04d", col("idx").cast("int") + start_seq - 1)) \
-    .withColumn("img_hdfs_path", concat(lit(IMAGE_DIR), lit("/"), col("goodsNo"), lit(".jpg"))) \
-    .withColumn("gender", lower(regexp_extract(col("file_path"), r"uniqlo_([^_]+)_", 1))) \
-    .withColumn("sub_category", lower(regexp_extract(col("file_path"), r"uniqlo_[^_]+_([^_]+)_", 1))) \
-    .withColumn("category_code", concat(col("gender"), lit("_"), col("sub_category")))
+    .withColumn("gender", regexp_extract(col("file_path"), r"uniqlo_([^_]+)_", 1)) \
+    .withColumn("sub_category", regexp_extract(col("file_path"), r"uniqlo_[^_]+_([^_]+)_", 1)) \
+    .withColumn("category_code", concat(lower(col("gender")), lit("_"), lower(col("sub_category"))))
+
+# ✅ 정규식에 맞는 이미지 파일명 조합: 브랜드(uniqlo)_성별_카테고리_상품코드.jpg
+# YOLO 정규식: r"^(?P<brand>[^_]+)_(?P<gender>Men|Women)_(?P<category>Top|Bottom|Outer)_(?P<product_code>[^_]+)(?:_.*)?$"
+processed_df = processed_df.withColumn(
+    "image_filename", 
+    concat(
+        lit(BRAND_NAME), lit("_"), 
+        col("gender"), lit("_"), 
+        col("sub_category"), lit("_"), 
+        col("goodsNo"), lit(".jpg")
+    )
+)
+
+# HDFS 경로 업데이트
+processed_df = processed_df.withColumn(
+    "img_hdfs_path", 
+    concat(lit(IMAGE_DIR), lit("/"), col("image_filename"))
+)
 
 processed_df.cache()
 total_count = processed_df.count()
@@ -99,6 +113,8 @@ pg_data = processed_df.select(
     col("category_code"),
     coalesce(col("price").cast("int"), lit(0)).alias("base_price"),
     col("img_hdfs_path"),
+    col("image_filename"),
+    col("url").alias("product_url"),
     current_timestamp().alias("create_dt"),
     current_timestamp().alias("update_dt")
 )
@@ -119,7 +135,7 @@ mongo_data = processed_df.select(
     col("goodsNo").alias("model_code"),
     lit(BRAND_NAME.upper()).alias("brand_name"),
     col("goodsNm").alias("prod_name"),
-    to_json(col("goodsMaterial")).alias("detail_desc"), # Uniqlo의 복잡한 소재 객체를 JSON 문자열로 저장
+    to_json(col("goodsMaterial")).alias("detail_desc"), 
     coalesce(col("price").cast("int"), lit(0)).alias("base_price"),
     col("img_hdfs_path"),
     current_timestamp().alias("create_dt")
@@ -134,23 +150,26 @@ mongo_data.write.format("mongodb") \
     .save()
 print("✅ MongoDB 적재 완료")
 
-# --- [6. 이미지 처리 (colors 내 모든 icon_url 수집)] ---
-
+# --- [6. 이미지 처리] ---
 try:
     hdfs_client = InsecureClient(HDFS_WEB_URL, user="root")
     hdfs_client.makedirs(IMAGE_DIR)
     
-    image_list = processed_df.select(element_at(col("goodsImages"), 1).alias("main_img"), col("product_id")).collect()
+    # [수정 포인트 2]: 파일 다운로드 시 image_filename 사용
+    image_list = processed_df.select(
+        element_at(col("goodsImages"), 1).alias("main_img"), 
+        col("image_filename"), 
+        col("product_id")
+    ).collect()
     
     print(f"📸 이미지 다운로드 및 HDFS 직접 전송 시작 (총 {len(image_list)}건)...")
     success_img = 0
     for r in image_list:
         if r.main_img:
-            hdfs_target_path = f"{IMAGE_DIR}/{r.product_id}.jpg"
+            # 새로 생성한 image_filename으로 HDFS 경로 설정
+            hdfs_target_path = f"{IMAGE_DIR}/{r.image_filename}"
             try:
-                # requests로 웹 이미지 다운로드
                 img_content = requests.get(r.main_img, timeout=10).content
-                # hdfs_client로 하둡에 직접 쓰기
                 hdfs_client.write(hdfs_target_path, data=img_content, overwrite=True)
                 success_img += 1
             except Exception as e:
@@ -159,8 +178,6 @@ try:
 
 except Exception as e:
     print(f"🚨 하둡 클라이언트 연결 실패: {e}")
-
-
 
 # --- [7. 시퀀스 업데이트] ---
 try:

@@ -445,7 +445,7 @@ services:
       dockerfile: Dockerfile
     container_name: airflow-webserver-main
     hostname: airflow-webserver
-    user: "0:0"  # 패키지 설치를 위해 root 권한 사용
+    user: "0:0"
     depends_on:
       init-db: { condition: service_completed_successfully }
     environment:
@@ -458,6 +458,7 @@ services:
       - AIRFLOW__WEBSERVER__EXPOSE_CONFIG=True
       - AIRFLOW__CONN__SPARK_DEFAULT=spark://spark-master:7077
       - ELASTICSEARCH_URL=http://elasticsearch:9200
+      - AIRFLOW_VAR_MONGO_URI="mongodb://datauser:DataPass2026!@mongodb:27017"
       - PLAYWRIGHT_BROWSERS_PATH=/home/airflow/.cache/ms-playwright
       - DOCKER_API_VERSION=1.44
       - TZ=${TZ}
@@ -478,13 +479,11 @@ services:
         reservations: { memory: 2G }
     command: >
       bash -c "
-        echo '패키지 설치 중...' &&
-        pip install --no-cache-dir apache-airflow-providers-apache-spark==4.10.0 apache-airflow-providers-postgres==5.12.0 psycopg2-binary pyspark==3.5.3 &&
-        echo 'DB 마이그레이션 중...' &&
+        echo '1. DB 마이그레이션(초기화) 시작...' &&
         airflow db migrate &&
-        echo 'Admin 계정 생성 중...' &&
+        echo '2. Admin 계정 생성...' &&
         airflow users create --username admin --firstname Admin --lastname User --role Admin --email admin@example.com --password '${AIRFLOW_ADMIN_PASSWORD}' || true &&
-        echo '웹서버 시작!' &&
+        echo '3. 웹서버 시작!' &&
         exec airflow webserver
       "
     healthcheck:
@@ -515,6 +514,7 @@ services:
       - AIRFLOW__CORE__FERNET_KEY=${AIRFLOW_FERNET_KEY}
       - AIRFLOW__WEBSERVER__SECRET_KEY=${AIRFLOW_WEBSERVER_SECRET_KEY}
       - AIRFLOW__CONN__SPARK_DEFAULT=spark://spark-master:7077
+      - AIRFLOW_VAR_MONGO_URI="mongodb://datauser:DataPass2026!@mongodb:27017"
       - PLAYWRIGHT_BROWSERS_PATH=/home/airflow/.cache/ms-playwright
       - ELASTICSEARCH_URL=http://elasticsearch:9200
       - DOCKER_API_VERSION=1.44

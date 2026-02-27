@@ -15,9 +15,9 @@ LOCAL_TEMP_DIR = f"data/{BRAND_NAME}/{TODAY_STR}"
 HDFS_ROOT_PATH = f"/raw/{BRAND_NAME}/{TODAY_STR}"
 
 TARGET_MAP = {
-    "Men": {
+    "women": {
         "Outer": [
-            "https://www.uniqlo.com/kr/ko/men/outerwear"
+            "https://www.uniqlo.com/kr/ko/women/outerwear"
         ]
     }
 }
@@ -267,39 +267,34 @@ async def run():
                     await crawl_category(gender, category, url, context)
         
         await browser.close()
-
     if os.path.exists(LOCAL_TEMP_DIR) and os.listdir(LOCAL_TEMP_DIR):
         print(f"\n📦 크롤링 완료! HDFS({HDFS_ROOT_PATH})에 업로드 시작...")
+        
         try:
-        #     subprocess.run(f"hdfs dfs -mkdir -p {HDFS_ROOT_PATH}", shell=True, check=True)
-        #     subprocess.run(f"hdfs dfs -put -f {LOCAL_TEMP_DIR}/*.json {HDFS_ROOT_PATH}/", shell=True, check=True)
-        #     print("✅ HDFS 업로드 성공!")
-            
-        #     shutil.rmtree(LOCAL_TEMP_DIR)
-        #     print(f"🧹 로컬 임시 폴더 삭제 완료")
-        # except subprocess.CalledProcessError as e:
-        #     print(f"❌ HDFS 업로드 실패: {e}")
-        ##
-                # 26.2.22 네임노드 주소 정의
-            HDFS_ADDR = "hdfs://namenode:9000"
-            
-            # 1. mkdir에도 주소를 명시해서 정확한 곳에 폴더 생성
-            subprocess.run(f"hdfs dfs -mkdir -p {HDFS_ADDR}{HDFS_ROOT_PATH}", shell=True, check=True)
-            
-            # 2. put 명령어 (잘 수정하신 부분)
-            upload_cmd = f"hdfs dfs -put -f {LOCAL_TEMP_DIR}/*.json {HDFS_ADDR}{HDFS_ROOT_PATH}/"
-            subprocess.run(upload_cmd, shell=True, check=True)
-            
-            print(f"✅ HDFS 업로드 성공! -> {HDFS_ADDR}{HDFS_ROOT_PATH}")
-            
-            # 업로드가 확실히 성공하면 그때 로컬 파일을 지우도록 rmtree를 다시 살려도 됩니다. (선택사항)
-            # shutil.rmtree(LOCAL_TEMP_DIR)
-            
-        except subprocess.CalledProcessError as e:
-            print(f"❌ HDFS 업로드 에러: {e}")
-        ## 26.2.22
+            # 1. 파이썬 HDFS 클라이언트 불러오기
+            from hdfs import InsecureClient
+            import glob
 
-        ##
+            # 2. 하둡 네임노드 주소 설정 (WebHDFS 포트 9870 사용)
+            client = InsecureClient('http://namenode-main:9870', user='root')
+
+            # 3. HDFS 폴더 생성
+            client.makedirs(HDFS_ROOT_PATH)
+
+            # 4. 로컬의 모든 JSON 파일을 하나씩 업로드
+            json_files = glob.glob(f"{LOCAL_TEMP_DIR}/*.json")
+            for file_path in json_files:
+                file_name = os.path.basename(file_path)
+                hdfs_dest = f"{HDFS_ROOT_PATH}/{file_name}"
+                client.upload(hdfs_dest, file_path, overwrite=True)
+            
+            print(f"✅ HDFS 업로드 성공! -> {HDFS_ROOT_PATH} (총 {len(json_files)}건)")
+            
+            # (선택사항) 업로드 성공 후 로컬 임시 파일 삭제
+            # shutil.rmtree(LOCAL_TEMP_DIR)
+
+        except Exception as e:
+            print(f"❌ HDFS 파이썬 업로드 에러: {e}")
 
     else:
         print("\n❌ 저장된 데이터가 없습니다.")

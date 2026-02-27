@@ -40,9 +40,12 @@ def upsert_mongo(
     # 입력 없으면 종료
     if not json_paths:
         return 0
-    
+
+    print(f"🚀 [DEBUG] 현재 들어온 몽고 URI 값은?: -->{mongo_uri}<--")
+
     # MongoDB 연결
-    client = MongoClient(mongo_uri)
+    clean_uri = mongo_uri.strip('"\' ')
+    client = MongoClient(clean_uri)
     col = client[db_name][collection]
 
     # bulk_write를 위한 update operations 리스트

@@ -34,7 +34,7 @@ default_args = {
 }
 
 with DAG(
-    dag_id='fashion_total_pipeline_integrated',
+    dag_id='fashion_total_pipeline',
     default_args=default_args,
     description='Crawl -> Spark -> Naver API -> YOLO -> VLM -> Text Embed -> ES 통합 파이프라인',
     schedule_interval=None,
@@ -46,9 +46,9 @@ with DAG(
     # 테스트를 위해 uniqlo와 8seconds를 열어두었습니다. 필요에 따라 주석 해제하세요.
     brands = {
         # 'topten': 'TT',
-        # '8seconds': '8S',
+         '8seconds': '8S',
         # 'zara': 'ZR',
-        'uniqlo': 'UQ',
+        # 'uniqlo': 'UQ',
         # 'musinsa': 'MS'
     }
 
@@ -70,6 +70,13 @@ with DAG(
         # 2. Spark 처리 (DB 적재 및 HDFS 이미지 저장)
         spark_task = BashOperator(
             task_id=f"spark_process_{crawler_key}",
+            env={
+                'POSTGRES_HOST': 'postgresql',
+                'POSTGRES_DB': 'datadb',
+                'POSTGRES_USER': 'datauser',
+                'POSTGRES_PASSWORD': 'DataPass2026!'
+            },
+            append_env=True,
             bash_command=(
                 "export SPARK_HOME=/home/airflow/.local/lib/python3.11/site-packages/pyspark && "
                 "export PATH=$SPARK_HOME/bin:$PATH && "
@@ -120,8 +127,8 @@ with DAG(
         mongo_done = upsert_mongo.override(task_id=f"upsert_mongo_{crawler_key}")(
             json_paths=json_paths,
             mongo_uri="{{ var.value.MONGO_URI }}", 
-            db_name="fashion",
-            collection="products",
+            db_name="datadb",
+            collection="analyzed_metadata",
         )
 
         es_done = upsert_es.override(task_id=f"upsert_es_{crawler_key}")(
@@ -136,7 +143,7 @@ with DAG(
         
         vlm_analyze_task = BashOperator(
             task_id=f'vlm_analyze_images_{crawler_key}',
-            bash_command=f'python /opt/airflow/dags/scripts/vlm.py' 
+            bash_command=f'python /opt/airflow/dags/scripts/vlm.py {crawler_key}'
         )
 
         text_embed_task = BashOperator(
@@ -158,7 +165,7 @@ with DAG(
         # (fetched -> final_rows -> json_paths -> mongo_done/es_done 는 TaskFlow API가 자동 연결함)
 
         # 2. Mongo와 ES 적재가 모두 끝나면 VLM 분석 시작
-        [mongo_done, es_done] >> vlm_analyze_task
+        mongo_done >> vlm_analyze_task
 
         # 3. VLM 텍스트 추출 -> 텍스트 임베딩 -> ES에 최종 업데이트
         vlm_analyze_task >> text_embed_task >> sync_es_task
