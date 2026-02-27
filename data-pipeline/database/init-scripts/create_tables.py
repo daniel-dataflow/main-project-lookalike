@@ -96,7 +96,7 @@ def init_postgresql():
             CREATE INDEX idx_comments_inquiry_board_id ON comments(inquiry_board_id);
             """,
 
-            # Products (brand_name 추가, origine_prod_id 제거)
+            # Products (brand_name, gender, origin_url 추가, origine_prod_id 제거)
             """
             CREATE TABLE products (
                 product_id BIGSERIAL PRIMARY KEY,
@@ -106,6 +106,8 @@ def init_postgresql():
                 category_code VARCHAR(50),
                 img_hdfs_path VARCHAR(512),
                 brand_name VARCHAR(100),
+                gender VARCHAR(10),
+                origin_url VARCHAR(512),
                 create_dt TIMESTAMP DEFAULT NOW(),
                 update_dt TIMESTAMP DEFAULT NOW()
             );

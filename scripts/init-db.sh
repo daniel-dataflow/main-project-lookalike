@@ -77,7 +77,7 @@ psql -h postgresql -U "$POSTGRES_USER" -d "$POSTGRES_DB" <<-EOSQL
         gender VARCHAR(10),
         category_code VARCHAR(50),
         img_hdfs_path VARCHAR(512),
-        origine_url VARCHAR(512),
+        origin_url VARCHAR(512),
         create_dt TIMESTAMP DEFAULT NOW(),
         update_dt TIMESTAMP DEFAULT NOW()
     );
