@@ -12,78 +12,141 @@
 <div class="card bg-white border-0 shadow-sm mb-4">
     <div class="card-body p-4">
         <h6 class="fw-bold mb-3">상품 이미지 업로드</h6>
-        <div class="upload-area rounded d-flex flex-column align-items-center justify-content-center p-5 text-center"
-            id="uploadArea"
-            style="border: 2px dashed #dee2e6; background-color: #f8f9fa; cursor: pointer; min-height: 300px; transition: all 0.3s ease;">
-            <!-- 기본 상태 -->
-            <div id="uploadPlaceholder">
-                <i class="fas fa-file-upload text-secondary mb-3" style="font-size: 2rem;"></i>
-                <p class="text-secondary mb-1 fw-medium">이미지를 드래그하거나 클릭하여 업로드</p>
-                <p class="text-muted small">JPG, PNG 지원 (최대 10MB)</p>
-            </div>
-            <!-- 이미지 미리보기 (업로드 후) -->
-            <div id="uploadPreview" class="d-none text-center">
-                <div class="position-relative d-inline-block">
-                    <img id="previewImage" src="" alt="Preview" class="img-fluid rounded shadow-sm mb-2"
-                        style="max-height: 200px;">
-                    <button type="button" id="removeImageBtn"
-                        class="btn btn-danger btn-sm position-absolute top-0 end-0 m-2 rounded-circle"
-                        style="width: 32px; height: 32px; padding: 0;">
-                        <i class="fas fa-times"></i>
-                    </button>
+        <!-- 래퍼로 감싸 정사각형 유지 및 크기 제어 -->
+        <div class="mx-auto" style="width: 100%; max-width: 700px;">
+            <div class="upload-area rounded d-flex flex-column align-items-center justify-content-center p-3 text-center position-relative"
+                id="uploadArea"
+                style="border: 2px dashed #dee2e6; background-color: #f8f9fa; cursor: pointer; width: 100%; aspect-ratio: 1 / 1; transition: all 0.3s ease; overflow: hidden;">
+                <!-- 기본 상태 -->
+                <div id="uploadPlaceholder" class="position-absolute top-50 start-50 translate-middle w-100">
+                    <i class="fas fa-file-upload text-secondary mb-3" style="font-size: 2.5rem;"></i>
+                    <p class="text-secondary mb-1 fw-medium">이미지를 드래그하거나 클릭하여 업로드</p>
+                    <p class="text-muted small">JPG, PNG 지원 (최대 10MB)</p>
                 </div>
-                <p id="previewFileName" class="text-muted small mb-0"></p>
+                <!-- 이미지 미리보기 (업로드 후) -->
+                <div id="uploadPreview" class="d-none text-center w-100 h-100 d-flex flex-column">
+                    <div class="mb-3 d-flex justify-content-center gap-3" style="z-index: 5;">
+                        <div class="form-check form-check-inline mx-0">
+                            <input class="form-check-input" type="radio" name="cropMode" id="modeAuto" value="auto"
+                                checked>
+                            <label class="form-check-label text-primary fw-bold small" for="modeAuto">
+                                <i class="fas fa-magic me-1"></i>YOLO 탐지
+                            </label>
+                        </div>
+                        <div class="form-check form-check-inline mx-0">
+                            <input class="form-check-input" type="radio" name="cropMode" id="modeManual" value="manual">
+                            <label class="form-check-label text-danger fw-bold small" for="modeManual">
+                                <i class="fas fa-crop-alt me-1"></i>수동 지정
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="position-relative d-inline-block mx-auto flex-grow-1 d-flex align-items-center justify-content-center"
+                        id="imageWrapper" style="width: 100%; height: 0; min-height: 0;">
+                        <img id="previewImage" src="" alt="Preview" class="img-fluid rounded shadow-sm"
+                            style="max-width: 100%; max-height: 100%; object-fit: contain;" draggable="false">
+
+                        <!-- 바운딩 박스 컨테이너 (자동) -->
+                        <div id="bboxContainer" class="position-absolute top-0 start-0 w-100 h-100"
+                            style="pointer-events: none;"></div>
+
+                        <!-- 수동 박스 그리기 컨테이너 (드래그) -->
+                        <div id="manualBboxContainer" class="position-absolute top-0 start-0 w-100 h-100 d-none"
+                            style="pointer-events: auto; cursor: crosshair;">
+                            <div id="manualBox" class="position-absolute d-none"
+                                style="border: 2px dashed #dc3545; background-color: rgba(220, 53, 69, 0.2);"></div>
+                        </div>
+
+                        <!-- 로딩 오버레이 -->
+                        <div id="detectLoading"
+                            class="position-absolute top-50 start-50 translate-middle d-none bg-dark text-white p-2 rounded bg-opacity-75">
+                            <span class="spinner-border spinner-border-sm me-1"></span> 의류 자동 인식 중...
+                        </div>
+
+                        <button type="button" id="removeImageBtn"
+                            class="btn btn-danger btn-sm position-absolute top-0 end-0 m-2 rounded-circle"
+                            style="width: 32px; height: 32px; padding: 0; z-index: 10;">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+
+                    <canvas id="cropCanvas" class="d-none"></canvas>
+                    <div class="mt-auto pt-2" style="z-index: 5;">
+                        <p id="previewFileName" class="text-muted small mb-0 text-truncate px-2"></p>
+                        <p id="bboxInstruction" class="text-primary small mb-0 d-none mt-1 fw-bold">
+                            <i class="fas fa-hand-pointer"></i> 네모를 클릭하여 검색 부위 지정!
+                        </p>
+                    </div>
+                </div>
+                <input type="file" id="imageUpload" class="d-none" accept="image/jpeg,image/png,image/jpg">
             </div>
-            <input type="file" id="imageUpload" class="d-none" accept="image/jpeg,image/png,image/jpg">
         </div>
     </div>
 </div>
 
-<!-- Search Input -->
+<!-- Main Search Action -->
+<div class="text-center mb-4 mt-2">
+    <button class="btn btn-dark btn-lg shadow-sm w-100 py-3 rounded-pill fw-bold" id="searchBtn"
+        style="max-width: 600px; font-size: 1.15rem;">
+        <i class="fas fa-search me-2"></i>검색 시작하기
+    </button>
+</div>
+
+<!-- Search Options (Category & Text) -->
 <div class="card bg-white border-0 shadow-sm mb-4">
-    <div class="card-body">
-        <label class="form-label fw-bold">검색어 입력 (선택)</label>
-        <div class="input-group mb-3">
-            <input type="text" class="form-control border-end-0" placeholder="예: 린넨 셔츠, 트렌치 코트..." id="searchInput">
-            <button class="btn btn-dark border-start-0 ps-3 pe-3" id="searchBtn">
-                <i class="fas fa-search"></i> 검색
-            </button>
-        </div>
+    <div class="card-body p-4">
+        <h6 class="fw-bold mb-3 border-bottom pb-2">추가 검색 옵션 <span class="text-muted fw-normal small">(선택)</span></h6>
 
-        <label class="form-label fw-bold small">카테고리 선택</label>
+        <div class="row gx-4 gy-3">
+            <!-- 우측: 카테고리 선택 -->
+            <div class="col-md-6">
+                <label class="form-label fw-bold small text-secondary mb-2">카테고리 선택</label>
 
-        <!-- 성별 선택 -->
-        <div class="mb-2">
-            <span class="text-muted small me-2">성별</span>
-            <div class="d-flex gap-2 flex-wrap" id="genderBtns">
-                <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 gender-btn"
-                    data-gender="men">남자</button>
-                <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 gender-btn"
-                    data-gender="women">여자</button>
+                <!-- 성별 선택 -->
+                <div class="d-flex align-items-center mb-2">
+                    <span class="text-muted small me-3 fw-medium" style="min-width: 35px;">성별</span>
+                    <div class="d-flex gap-2 flex-wrap" id="genderBtns">
+                        <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 gender-btn"
+                            data-gender="men">남자</button>
+                        <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 gender-btn"
+                            data-gender="women">여자</button>
+                    </div>
+                </div>
+
+                <!-- 옷 카테고리 선택 -->
+                <div class="d-flex align-items-center mb-1">
+                    <span class="text-muted small me-3 fw-medium" style="min-width: 35px;">종류</span>
+                    <div class="d-flex gap-2 flex-wrap" id="categoryBtns">
+                        <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 category-btn"
+                            data-category="outer">아우터</button>
+                        <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 category-btn"
+                            data-category="top">상의</button>
+                        <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 category-btn"
+                            data-category="bottom">하의</button>
+
+                    </div>
+                </div>
+
+                <!-- 미선택 경고 (안 숨김 처리됨, 원래 코드 호환) -->
+                <div id="categoryError" class="d-none mt-1" style="color: #dc3545; font-size: 0.82rem;">
+                    <i class="fas fa-exclamation-circle me-1"></i>성별과 옷 종류를 모두 선택해주세요.
+                </div>
+            </div>
+            <!-- 좌측: 검색어 입력 -->
+            <div class="col-md-6 border-end-md">
+                <label class="form-label fw-bold small text-secondary">원하는 검색을 추가 해보세요.</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light border-end-0"><i
+                            class="fas fa-keyboard text-muted"></i></span>
+                    <input type="text" class="form-control border-start-0 ps-0"
+                        placeholder="예: 면접 복장, 하객룩으로 입기 좋은 자켓..." id="searchInput">
+                </div>
             </div>
         </div>
 
-        <!-- 옷 카테고리 선택 -->
-        <div class="mb-1">
-            <span class="text-muted small me-2">종류</span>
-            <div class="d-flex gap-2 flex-wrap" id="categoryBtns">
-                <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 category-btn"
-                    data-category="top">상의</button>
-                <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 category-btn"
-                    data-category="bottom">하의</button>
-                <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 category-btn"
-                    data-category="outer">아우터</button>
-            </div>
-        </div>
-
-        <!-- 미선택 경고 -->
-        <div id="categoryError" class="d-none mt-1" style="color: #dc3545; font-size: 0.82rem;">
-            <i class="fas fa-exclamation-circle me-1"></i>성별과 옷 종류를 모두 선택해주세요.
-        </div>
-
-        <div class="mt-3 text-muted" style="font-size: 0.75rem;">
+        <div class="mt-3 text-muted text-center bg-light p-2 rounded" style="font-size: 1rem;">
             <i class="far fa-lightbulb text-warning me-1"></i>
-            이미지만으로도 검색 가능하며, 텍스트와 카테고리를 추가하면 더 정확한 결과를 얻을 수 있습니다.
+            이미지만으로도 검색 가능하며, 카테고리와 텍스트 검색을 추가하면 더 정확한 결과를 얻을 수 있습니다.
         </div>
     </div>
 </div>
@@ -138,6 +201,11 @@
         let selectedFile = null;
         let selectedGender = null;
         let selectedClothes = null;
+        let selectedBbox = null;    // 현재 선택된 박스 좌표
+        let hasBboxes = false;      // 자동 탐지에서 박스가 나왔는지
+        let currentMode = 'auto';   // 'auto' or 'manual'
+        let originalImageSize = { w: 0, h: 0 };
+        let originalImageObj = null;
 
         // 성별 선택
         const genderBtns = document.querySelectorAll('.gender-btn');
@@ -193,8 +261,19 @@
             }
         });
 
-        // 업로드 영역 클릭
-        uploadArea.addEventListener('click', function () {
+        // 업로드 영역 클릭 (이미지가 없을 때만 파일 선택기 표시)
+        uploadArea.addEventListener('click', function (e) {
+            // 수동 모드로 드래그 중이거나 드래그가 끝난 직후면 무시
+            if (currentMode === 'manual' && e.target.closest('#manualBboxContainer')) {
+                return;
+            }
+
+            // 이미지가 이미 있고 (미리보기 화면 활성화), 클릭한 대상이 박스 지정/삭제 요소가 아니더라도 
+            // 이미지 자체나 내부를 누른 거면 무시하게 만들기
+            if (selectedFile && !e.target.closest('#uploadPlaceholder')) {
+                return;
+            }
+
             fileInput.click();
         });
 
@@ -224,18 +303,166 @@
             }
         });
 
+        const bboxContainer = document.getElementById('bboxContainer');
+        const manualBboxContainer = document.getElementById('manualBboxContainer');
+        const instruction = document.getElementById('bboxInstruction');
+
+        // 탐지 모드 전환 토글
+        document.querySelectorAll('input[name="cropMode"]').forEach(radio => {
+            radio.addEventListener('change', function () {
+                currentMode = this.value;
+                selectedBbox = null; // 모드 변경 시 박스 선택 초기화
+
+                if (currentMode === 'auto') {
+                    bboxContainer.classList.remove('d-none');
+                    manualBboxContainer.classList.add('d-none');
+
+                    // 기존 박스들 스타일 리셋
+                    document.querySelectorAll('.bbox-overlay').forEach(el => {
+                        el.style.border = '2px solid #0d6efd';
+                        el.style.backgroundColor = 'rgba(13, 110, 253, 0.1)';
+                        const l = el.querySelector('span');
+                        if (l) l.classList.replace('bg-success', 'bg-primary');
+                        if (l) l.innerText = l.dataset.originalText;
+                    });
+
+                    if (hasBboxes) {
+                        instruction.classList.remove('d-none');
+                        instruction.innerHTML = '<i class="fas fa-hand-pointer"></i> 네모 부분(옷)을 클릭하여 검색 부위를 지정하세요!';
+                    } else {
+                        instruction.classList.add('d-none');
+                    }
+                } else {
+                    bboxContainer.classList.add('d-none');
+                    manualBboxContainer.classList.remove('d-none');
+                    document.getElementById('manualBox').classList.add('d-none');
+
+                    instruction.classList.remove('d-none');
+                    instruction.innerHTML = '<i class="fas fa-mouse-pointer"></i> 이미지 위를 드래그하여 원하는 부위를 직접 상자로 지정하세요.';
+                }
+            });
+        });
+
+        // 수동 박스 드래그 영역 이벤트
+        let isDraggingBox = false;
+        let startX, startY;
+        const manualBox = document.getElementById('manualBox');
+
+        manualBboxContainer.addEventListener('mousedown', function (e) {
+            if (currentMode !== 'manual') return;
+            const rect = manualBboxContainer.getBoundingClientRect();
+            startX = e.clientX - rect.left;
+            startY = e.clientY - rect.top;
+
+            isDraggingBox = true;
+            manualBox.classList.remove('d-none');
+            manualBox.style.left = startX + 'px';
+            manualBox.style.top = startY + 'px';
+            manualBox.style.width = '0px';
+            manualBox.style.height = '0px';
+            selectedBbox = null;
+        });
+
+        manualBboxContainer.addEventListener('mousemove', function (e) {
+            if (!isDraggingBox || currentMode !== 'manual') return;
+            const rect = manualBboxContainer.getBoundingClientRect();
+            let currentX = e.clientX - rect.left;
+            let currentY = e.clientY - rect.top;
+
+            // clamp
+            currentX = Math.max(0, Math.min(currentX, rect.width));
+            currentY = Math.max(0, Math.min(currentY, rect.height));
+
+            const width = Math.abs(currentX - startX);
+            const height = Math.abs(currentY - startY);
+            const left = Math.min(currentX, startX);
+            const top = Math.min(currentY, startY);
+
+            manualBox.style.left = left + 'px';
+            manualBox.style.top = top + 'px';
+            manualBox.style.width = width + 'px';
+            manualBox.style.height = height + 'px';
+        });
+
+        manualBboxContainer.addEventListener('mouseup', function (e) {
+            if (!isDraggingBox || currentMode !== 'manual') return;
+            isDraggingBox = false;
+
+            const rect = manualBboxContainer.getBoundingClientRect();
+            let endX = e.clientX - rect.left;
+            let endY = e.clientY - rect.top;
+
+            // clamp
+            endX = Math.max(0, Math.min(endX, rect.width));
+            endY = Math.max(0, Math.min(endY, rect.height));
+
+            const left = Math.min(endX, startX);
+            const top = Math.min(endY, startY);
+            const width = Math.abs(endX - startX);
+            const height = Math.abs(endY - startY);
+
+            // 박스가 너무 작으면 무시
+            if (width < 20 || height < 20) {
+                manualBox.classList.add('d-none');
+                selectedBbox = null;
+                return;
+            }
+
+            // 원본 이미지 대비 비율 계산하여 저장
+            const wRatio = originalImageSize.w / rect.width;
+            const hRatio = originalImageSize.h / rect.height;
+
+            selectedBbox = {
+                x1: Math.floor(left * wRatio),
+                y1: Math.floor(top * hRatio),
+                w: Math.floor(width * wRatio),
+                h: Math.floor(height * hRatio)
+            };
+        });
+
+        // 박스 밖으로 드래그가 나갈 경우 취소 처리
+        manualBboxContainer.addEventListener('mouseleave', function (e) {
+            if (isDraggingBox) {
+                isDraggingBox = false;
+                // 마우스가 떠날때 아주 작으면 취소, 아니면 당시 크기로 저장
+                const w = parseFloat(manualBox.style.width);
+                const h = parseFloat(manualBox.style.height);
+                if (w < 20 || h < 20) {
+                    manualBox.classList.add('d-none');
+                    selectedBbox = null;
+                } else {
+                    const rect = manualBboxContainer.getBoundingClientRect();
+                    const left = parseFloat(manualBox.style.left);
+                    const top = parseFloat(manualBox.style.top);
+                    const wRatio = originalImageSize.w / rect.width;
+                    const hRatio = originalImageSize.h / rect.height;
+                    selectedBbox = {
+                        x1: Math.floor(left * wRatio),
+                        y1: Math.floor(top * hRatio),
+                        w: Math.floor(w * wRatio),
+                        h: Math.floor(h * hRatio)
+                    };
+                }
+            }
+        });
+
         // 이미지 삭제 버튼
         removeImageBtn.addEventListener('click', function (e) {
             e.stopPropagation();
             selectedFile = null;
+            selectedBbox = null;
+            hasBboxes = false;
+            originalImageObj = null;
             fileInput.value = '';
+
             preview.classList.add('d-none');
             placeholder.classList.remove('d-none');
             uploadArea.style.borderColor = '#dee2e6';
             uploadArea.style.borderStyle = 'dashed';
             previewImage.src = '';
             previewFileName.textContent = '';
-            // 검색 버튼은 활성화 유지 (텍스트 검색 가능)
+            document.getElementById('bboxContainer').innerHTML = '';
+            document.getElementById('bboxInstruction').classList.add('d-none');
         });
 
         function handleFileSelect(file) {
@@ -253,21 +480,140 @@
             }
 
             selectedFile = file;
+            selectedBbox = null;
+            hasBboxes = false;
 
             // 미리보기 표시
             const reader = new FileReader();
             reader.onload = function (e) {
-                previewImage.src = e.target.result;
-                previewFileName.textContent = file.name + ' (' + formatFileSize(file.size) + ')';
-                placeholder.classList.add('d-none');
-                preview.classList.remove('d-none');
-                uploadArea.style.borderColor = '#198754';
-                uploadArea.style.borderStyle = 'solid';
+                const img = new Image();
+                img.onload = function () {
+                    originalImageSize.w = img.naturalWidth;
+                    originalImageSize.h = img.naturalHeight;
+                    originalImageObj = img;
+
+                    previewImage.src = e.target.result;
+                    previewFileName.textContent = file.name + ' (' + formatFileSize(file.size) + ')';
+                    placeholder.classList.add('d-none');
+                    preview.classList.remove('d-none');
+                    uploadArea.style.borderColor = '#198754';
+                    uploadArea.style.borderStyle = 'solid';
+
+                    // ML Engine 객체 탐지 실행
+                    detectApparel(file);
+                };
+                img.src = e.target.result;
             };
             reader.readAsDataURL(file);
 
             // 검색 버튼 활성화
             searchBtn.disabled = false;
+        }
+
+        async function detectApparel(file) {
+            const formData = new FormData();
+            formData.append('image', file);
+
+            const loading = document.getElementById('detectLoading');
+            const bboxContainer = document.getElementById('bboxContainer');
+            const instruction = document.getElementById('bboxInstruction');
+
+            loading.classList.remove('d-none');
+            bboxContainer.innerHTML = '';
+            instruction.classList.add('d-none');
+
+            try {
+                const response = await fetch('/api/search/detect', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) throw new Error('객체 탐지 실패');
+
+                const data = await response.json();
+
+                if (data.success && data.boxes && data.boxes.length > 0) {
+                    hasBboxes = true;
+                    instruction.classList.remove('d-none');
+                    drawBboxes(data.boxes);
+                } else {
+                    hasBboxes = false;
+                }
+            } catch (e) {
+                console.error('객체 탐지 오류:', e);
+            } finally {
+                loading.classList.add('d-none');
+            }
+        }
+
+        function drawBboxes(boxes) {
+            const container = document.getElementById('bboxContainer');
+            container.innerHTML = '';
+            container.style.pointerEvents = 'auto'; // Make boxes clickable
+
+            // 실제 이미지 표시 크기와 원본 크기의 비율
+            const renderW = previewImage.clientWidth;
+            const renderH = previewImage.clientHeight;
+
+            boxes.forEach(box => {
+                // 비율 계산 (0~1)
+                const leftRatio = box.x1 / originalImageSize.w;
+                const topRatio = box.y1 / originalImageSize.h;
+                const widthRatio = box.w / originalImageSize.w;
+                const heightRatio = box.h / originalImageSize.h;
+
+                const div = document.createElement('div');
+                div.className = 'bbox-overlay';
+                div.style.position = 'absolute';
+                div.style.border = '2px solid #0d6efd';
+                div.style.backgroundColor = 'rgba(13, 110, 253, 0.1)';
+                div.style.cursor = 'pointer';
+                div.style.left = (leftRatio * 100) + '%';
+                div.style.top = (topRatio * 100) + '%';
+                div.style.width = (widthRatio * 100) + '%';
+                div.style.height = (heightRatio * 100) + '%';
+                div.style.transition = 'all 0.2s';
+
+                // 라벨 추가
+                const label = document.createElement('span');
+                label.className = 'badge bg-primary position-absolute';
+                label.style.top = '-20px';
+                label.style.left = '-2px';
+                label.innerText = box.label;
+                label.dataset.originalText = box.label; // 원래 텍스트 저장
+                div.appendChild(label);
+
+                div.addEventListener('mouseenter', () => {
+                    if (selectedBbox !== box) div.style.backgroundColor = 'rgba(13, 110, 253, 0.3)';
+                });
+                div.addEventListener('mouseleave', () => {
+                    if (selectedBbox !== box) div.style.backgroundColor = 'rgba(13, 110, 253, 0.1)';
+                });
+                div.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    // 선택 취소 및 새로운 거 선택
+                    if (selectedBbox === box) {
+                        selectedBbox = null;
+                        div.style.border = '2px solid #0d6efd';
+                        div.style.backgroundColor = 'rgba(13, 110, 253, 0.1)';
+                        label.classList.replace('bg-success', 'bg-primary');
+                    } else {
+                        selectedBbox = box;
+                        document.querySelectorAll('.bbox-overlay').forEach(el => {
+                            el.style.border = '2px solid #0d6efd';
+                            el.style.backgroundColor = 'rgba(13, 110, 253, 0.1)';
+                            const l = el.querySelector('span');
+                            if (l) l.classList.replace('bg-success', 'bg-primary');
+                        });
+                        div.style.border = '3px solid #198754';
+                        div.style.backgroundColor = 'rgba(25, 135, 84, 0.3)';
+                        label.classList.replace('bg-primary', 'bg-success');
+                        label.innerText = '선택됨';
+                    }
+                });
+
+                container.appendChild(div);
+            });
         }
 
         function formatFileSize(bytes) {
@@ -293,26 +639,60 @@
             searchLoading.classList.remove('d-none');
             searchResults.classList.add('d-none');
             searchBtn.disabled = true;
-            searchBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> 검색 중...';
+            searchBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> 검색 중...';
 
             try {
                 const formData = new FormData();
 
-                // 이미지가 있을 때만 추가
+                // 이미지가 있을 때만 추가 (크롭 여부 확인)
                 if (selectedFile) {
-                    formData.append('image', selectedFile);
+                    if (currentMode === 'auto') {
+                        // YOLO 자동 모드일 경우: 박스가 있는데 사용자가 아예 선택하지 않은 경우 방지
+                        if (hasBboxes && !selectedBbox) {
+                            alert('검색될 의류 영역(박스)을 선택해 주세요. (또는 수동 모드로 전환하여 직접 지정하세요)');
+                            searchLoading.classList.add('d-none');
+                            searchBtn.disabled = false;
+                            searchBtn.innerHTML = '<i class="fas fa-search me-2"></i> 검색 시작하기';
+                            return;
+                        }
+                    } else if (currentMode === 'manual') {
+                        // 수동 드래그 모드일 경우: 영역을 지정하지 않았다면 에러
+                        if (!selectedBbox) {
+                            alert('수동 드래그 모드입니다. 마우스로 드래그하여 옷 영역을 지정해 주세요.');
+                            searchLoading.classList.add('d-none');
+                            searchBtn.disabled = false;
+                            searchBtn.innerHTML = '<i class="fas fa-search me-2"></i> 검색 시작하기';
+                            return;
+                        }
+                    }
+
+                    if (selectedBbox && originalImageObj) {
+                        // 캔버스에 그 파트만 잘라서 Blob으로 만듦
+                        const canvas = document.getElementById('cropCanvas');
+                        canvas.width = selectedBbox.w;
+                        canvas.height = selectedBbox.h;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(originalImageObj,
+                            selectedBbox.x1, selectedBbox.y1, selectedBbox.w, selectedBbox.h,
+                            0, 0, selectedBbox.w, selectedBbox.h);
+
+                        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.95));
+                        formData.append('image', blob, 'cropped_' + selectedFile.name);
+                    } else {
+                        // 원본 전송
+                        formData.append('image', selectedFile);
+                    }
                 }
 
                 if (searchText) {
                     formData.append('search_text', searchText);
                 }
 
-                // 성별, 옷종류 정보를 각각 전달하거나 조합해서 전달
-                if (selectedGender && selectedClothes) {
-                    formData.append('category', `${selectedGender}_${selectedClothes}`);
-                } else if (selectedGender) {
-                    formData.append('category', selectedGender);
-                } else if (selectedClothes) {
+                // 성별, 옷종류 정보를 각각 전달
+                if (selectedGender) {
+                    formData.append('gender', selectedGender);
+                }
+                if (selectedClothes) {
                     formData.append('category', selectedClothes);
                 }
 
@@ -340,7 +720,7 @@
             } finally {
                 searchLoading.classList.add('d-none');
                 searchBtn.disabled = false;
-                searchBtn.innerHTML = '<i class="fas fa-search"></i> 검색';
+                searchBtn.innerHTML = '<i class="fas fa-search me-2"></i> 검색 시작하기';
             }
         });
 

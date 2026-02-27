@@ -25,6 +25,7 @@ async def search_products(
     query_text: Optional[str] = None,
     ml_product_scores: Optional[dict] = None,
     category: Optional[str] = None,
+    gender: Optional[str] = None,
     limit: int = 6,
 ) -> list:
     """
@@ -59,7 +60,7 @@ async def search_products(
             logger.warning(f"ML 결과 Hydration 실패, fallback to DB: {e}")
 
     # 전략 2: DB fallback (현재 기본 동작 - ML 입력이 없거나 실패할 때 항상 작동)
-    return _search_by_db(category, limit)
+    return _search_by_db(category=category, gender=gender, limit=limit)
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -168,27 +169,14 @@ def _hydrate_from_db(product_scores: dict, source: str, limit: int = 6) -> list:
 # 전략 3: DB fallback (현재 기본 동작, 항상 성공 보장)
 # ──────────────────────────────────────────────────────────────────────
 
-def _search_by_db(category: Optional[str], limit: int) -> list:
+def _search_by_db(category: Optional[str], gender: Optional[str], limit: int) -> list:
     """
     PostgreSQL에서 상품을 조회합니다 (성별+카테고리 필터, RANDOM 정렬).
     ES가 불가하거나 초기 구동 상태일 때 항상 동작하는 안전망입니다.
-
-    category 형식:
-      - "남자_상의"  → gender='남자' AND category_code='상의'
-      - "여자_아우터" → gender='여자' AND category_code='아우터'
-      - None / ""   → 전체 조회
     """
     from ..database import get_pg_cursor
 
-    # category 파싱: "성별_카테고리" 형식 분리
-    gender = None
-    category_code = None
-    if category:
-        parts = category.split("_", 1)
-        if len(parts) == 2:
-            gender, category_code = parts[0], parts[1]
-        else:
-            category_code = parts[0]
+    category_code = category
 
     try:
         with get_pg_cursor() as cur:
@@ -197,7 +185,7 @@ def _search_by_db(category: Optional[str], limit: int) -> list:
 
             if gender:
                 conditions.append("p.gender = %s")
-                params.append(gender)
+                params.append(gender.lower())
             if category_code:
                 conditions.append("p.category_code = %s")
                 params.append(category_code)

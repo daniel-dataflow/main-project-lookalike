@@ -8,6 +8,8 @@ WORKDIR /app
 # Build deps for packages like annoy (via fashion-clip dependency)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
+    libgl1 \
+    libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy the requirements file into the container at /app
