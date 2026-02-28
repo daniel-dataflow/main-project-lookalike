@@ -28,43 +28,7 @@
 </head>
 
 <body>
-    <!-- 어드민 인증 오버레이 (생략 없이 유지) -->
-
-    <!-- 어드민 인증 오버레이 -->
-    <div id="adminAuthOverlay"
-        style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:9999; align-items:center; justify-content:center;">
-        <div
-            style="background:#fff; border-radius:16px; padding:40px 36px; width:100%; max-width:380px; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
-            <div class="text-center mb-4">
-                <div
-                    style="width:56px;height:56px;background:linear-gradient(135deg,#1a1a2e,#16213e);border-radius:14px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">
-                    <i class="fas fa-shield-alt text-white fs-5"></i>
-                </div>
-                <h5 class="fw-bold mb-1">관리자 인증</h5>
-                <p class="text-muted" style="font-size:0.85rem">관리자 비밀번호를 입력하세요</p>
-            </div>
-            <form onsubmit="adminLogin(event)">
-                <div class="mb-3">
-                    <input type="text" id="adminUsername" class="form-control form-control-lg mb-2"
-                        placeholder="관리자 아이디" style="border-radius:10px; border:2px solid #e9ecef; text-align:center;"
-                        autocomplete="username">
-                    <input type="password" id="adminPassword" class="form-control form-control-lg"
-                        placeholder="관리자 비밀번호"
-                        style="border-radius:10px; border:2px solid #e9ecef; text-align:center; letter-spacing:4px;"
-                        autocomplete="current-password">
-                </div>
-                <div id="adminAuthError" style="display:none;" class="alert alert-danger py-2 mb-3" role="alert">
-                    <i class="fas fa-exclamation-circle me-1"></i>
-                    <span id="adminAuthErrorMsg"></span>
-                </div>
-                <button type="submit" id="adminLoginBtn" class="btn btn-dark w-100 py-2"
-                    style="border-radius:10px; font-weight:600;">
-                    <span class="btn-text"><i class="fas fa-unlock me-2"></i>인증하기</span>
-                    <span class="spinner-border spinner-border-sm d-none" id="adminLoginSpinner"></span>
-                </button>
-            </form>
-        </div>
-    </div>
+    <!-- 어드민 인증 오버레이 제거됨 (서버 사이드 렌더링 검증 및 admin_login.html로 대체) -->
 
 
     <!-- 프로페셔널 사이드바 -->
@@ -309,142 +273,23 @@
     </script>
 
     <script>
-        // 페이지 로드 시 어드민 인증 상태 확인
-        document.addEventListener('DOMContentLoaded', function () {
-            checkAdminAuth();
-        });
-
-        // [성능 최적화] 인증 결과를 sessionStorage에 5분 캐싱
-        // - 동일 세션 내 페이지 이동 시 API 호출 없이 즉시 콘텐츠 표시
-        // - 로그아웃/만료 시 캐시 무효화
-        const AUTH_CACHE_KEY = 'adminAuthCache';
-        const AUTH_CACHE_TTL = 5 * 60 * 1000; // 5분 (ms)
-
-        async function checkAdminAuth() {
-            // 캐시 확인
+        // 서버에서 이미 권한을 검증하고 렌더링했으므로, 사용자 이름만 한 번 더 가져옵니다.
+        document.addEventListener('DOMContentLoaded', async function () {
             try {
-                const cached = JSON.parse(sessionStorage.getItem(AUTH_CACHE_KEY));
-                if (cached && Date.now() - cached.ts < AUTH_CACHE_TTL) {
-                    if (cached.is_admin) {
-                        showAdminContent();
-                        applyUserName(cached.name);
-                        return;
-                    }
-                }
-            } catch (_) { /* 캐시 파싱 실패 시 무시 */ }
-
-            // [성능 최적화] check + me API 병렬 호출 (직렬 → Promise.all)
-            try {
-                const [checkResp, meResp] = await Promise.all([
-                    fetch('/api/auth/admin/check', { credentials: 'same-origin' }),
-                    fetch('/api/auth/me', { credentials: 'same-origin' })
-                ]);
-                const [checkData, meData] = await Promise.all([
-                    checkResp.json(),
-                    meResp.json()
-                ]);
-
-                if (checkData.is_admin) {
-                    const name = (meData.success && meData.user && meData.user.name) ? meData.user.name : 'Admin';
-                    // 결과 캐싱
-                    sessionStorage.setItem(AUTH_CACHE_KEY, JSON.stringify({
-                        is_admin: true,
-                        name,
-                        ts: Date.now()
-                    }));
-                    showAdminContent();
-                    applyUserName(name);
-                } else {
-                    sessionStorage.removeItem(AUTH_CACHE_KEY);
-                    showAdminAuth();
-                }
+                const meResp = await fetch('/api/auth/me', { credentials: 'same-origin' });
+                const meData = await meResp.json();
+                const name = (meData.success && meData.user && meData.user.name) ? meData.user.name : 'Admin';
+                applyUserName(name);
             } catch (e) {
-                sessionStorage.removeItem(AUTH_CACHE_KEY);
-                showAdminAuth();
+                // 무시
             }
-        }
+        });
 
         function applyUserName(name) {
             const el1 = document.getElementById('adminUserName');
             const el2 = document.getElementById('adminTopName');
             if (el1) el1.textContent = name;
             if (el2) el2.textContent = name;
-        }
-
-        function showAdminAuth() {
-            document.getElementById('adminAuthOverlay').style.display = 'flex';
-            // 인증 전에는 사이드바/메인 숨김 (클래스로 제어하거나 display: none 유지)
-            document.getElementById('adminMainContent').classList.add('d-none');
-            // 사이드바는 d-none d-md-flex 클래스가 있으므로 추가 제어 불필요하지만, 확실히 숨기려면:
-            // document.getElementById('adminSidebar').classList.add('d-none'); 
-
-            document.getElementById('adminUsername').focus();
-        }
-
-        function showAdminContent() {
-            document.getElementById('adminAuthOverlay').style.display = 'none';
-
-            // 인증 완료 시 메인 콘텐츠 확실하게 보이기
-            const mainContent = document.getElementById('adminMainContent');
-            if (mainContent) {
-                mainContent.classList.remove('d-none');
-                // 인라인 스타일 제거 (혹시 남아있을 경우)
-                mainContent.style.removeProperty('display');
-            }
-
-            // 사이드바 확실하게 보이기 (모바일/데스크탑 반응형 고려)
-            const sidebar = document.getElementById('adminSidebar');
-            if (sidebar) {
-                sidebar.style.removeProperty('display');
-                sidebar.style.display = '';
-            }
-        }
-
-        async function adminLogin(e) {
-            e.preventDefault();
-
-            const username = document.getElementById('adminUsername').value.trim();
-            const password = document.getElementById('adminPassword').value.trim();
-            if (!username || !password) return;
-
-            const btn = document.getElementById('adminLoginBtn');
-            const spinner = document.getElementById('adminLoginSpinner');
-            const btnText = btn.querySelector('.btn-text');
-            const errorEl = document.getElementById('adminAuthError');
-
-            btn.disabled = true;
-            spinner.classList.remove('d-none');
-            btnText.classList.add('d-none');
-            errorEl.style.display = 'none';
-
-            try {
-                const resp = await fetch('/api/auth/admin/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'same-origin',
-                    body: JSON.stringify({ username, password }),
-                });
-
-                if (resp.ok) {
-                    showAdminContent();
-                    // 페이지 새로고침하여 콘텐츠 제대로 로드
-                    location.reload();
-                } else {
-                    const err = await resp.json();
-                    document.getElementById('adminAuthErrorMsg').textContent =
-                        err.detail || '인증에 실패했습니다.';
-                    errorEl.style.display = 'block';
-                    document.getElementById('adminPassword').value = '';
-                    document.getElementById('adminPassword').focus();
-                }
-            } catch (e) {
-                document.getElementById('adminAuthErrorMsg').textContent = '서버 연결에 실패했습니다.';
-                errorEl.style.display = 'block';
-            } finally {
-                btn.disabled = false;
-                spinner.classList.add('d-none');
-                btnText.classList.remove('d-none');
-            }
         }
 
         // 사이드바 접기/펴기 토글 함수
@@ -475,8 +320,6 @@
         });
 
         async function adminLogout() {
-            // 로그아웃 시 인증 캐시 무효화
-            sessionStorage.removeItem(AUTH_CACHE_KEY);
             try {
                 await fetch('/api/auth/admin/logout', {
                     method: 'POST',

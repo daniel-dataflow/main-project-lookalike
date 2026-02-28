@@ -284,34 +284,68 @@ async def mypage(request: Request):
     return templates.TemplateResponse("mypage.html", {"request": request})
 
 
-# Admin Routes
+# ──────────────────────────────────────
+# Admin 페이지 라우트 & 권한 검사
+# ──────────────────────────────────────
+def check_admin_access(request: Request):
+    """어드민 권한 확인 헬퍼 - 권한이 없으면 /admin/login으로 리다이렉트"""
+    from .routers.auth import _get_admin_session
+    
+    session = _get_admin_session(request)
+    if not session or not session.get("is_admin"):
+        return RedirectResponse(url="/admin/login", status_code=302)
+    return None
+
+
+@app.get("/admin/login", response_class=HTMLResponse)
+async def admin_login_page(request: Request):
+    """어드민 로그인 페이지"""
+    from .routers.auth import _get_admin_session
+    # 이미 로그인된 경우 메인으로 리다이렉트
+    session = _get_admin_session(request)
+    if session and session.get("is_admin"):
+        return RedirectResponse(url="/admin/infra", status_code=302)
+    
+    return templates.TemplateResponse("admin_login.html", {"request": request})
+
+
 @app.get("/admin", response_class=HTMLResponse)
 async def admin_root(request: Request):
     """어드민 진입점: 기본 페이지를 인프라 모니터링으로 변경 (2026-02-19)
     - 구 실시간 모니터링(admin_dashboard)은 /admin/stats 로 이동
     """
+    if auth_redirect := check_admin_access(request):
+        return auth_redirect
     return RedirectResponse(url="/admin/infra", status_code=302)
 
 
 @app.get("/admin/stats", response_class=HTMLResponse)
 async def admin_stats(request: Request):
     """통계 모니터링 (구 실시간 모니터링 대시보드 — 향후 개발 예정)"""
+    if auth_redirect := check_admin_access(request):
+        return auth_redirect
     return templates.TemplateResponse("admin_dashboard.html", {"request": request})
 
 
 @app.get("/admin/infra_old", response_class=HTMLResponse)
 async def admin_infra_old(request: Request):
+    if auth_redirect := check_admin_access(request):
+        return auth_redirect
     return templates.TemplateResponse("admin_infra_old.html", {"request": request})
 
 
 
 @app.get("/admin/batch", response_class=HTMLResponse)
 async def admin_batch(request: Request):
+    if auth_redirect := check_admin_access(request):
+        return auth_redirect
     return templates.TemplateResponse("admin_batch.html", {"request": request})
 
 
 @app.get("/admin/inquiry", response_class=HTMLResponse)
 async def admin_inquiry(request: Request):
+    if auth_redirect := check_admin_access(request):
+        return auth_redirect
     return templates.TemplateResponse("admin_inquiry.html", {"request": request})
 
 
@@ -322,11 +356,15 @@ async def admin_inquiry(request: Request):
 
 @app.get("/admin/logs", response_class=HTMLResponse)
 async def admin_logs(request: Request):
+    if auth_redirect := check_admin_access(request):
+        return auth_redirect
     return templates.TemplateResponse("admin_logs.html", {"request": request})
 
 
 @app.get("/admin/infra", response_class=HTMLResponse)
 async def admin_infra(request: Request):
+    if auth_redirect := check_admin_access(request):
+        return auth_redirect
     return templates.TemplateResponse("admin_infra.html", {"request": request})
 
 
