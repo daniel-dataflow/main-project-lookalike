@@ -115,18 +115,50 @@ app.mount("/static", StaticFiles(directory=os.path.join(FRONTEND_DIR, "static"))
 
 # HDFS 연동 전 임시/로컬 테스트용: DB에 저장된 /raw/... 경로를 FastAPI에서 임시 처리할 수 있도록 추가
 import re
+import httpx
 from starlette.requests import Request
-from starlette.responses import FileResponse, Response
+from starlette.responses import FileResponse, Response, StreamingResponse
 from starlette.routing import Route
 
 async def serve_raw_image(request: Request):
     """
     /raw/{brand}/image/{filename} 요청을 
-    /app/data-pipeline/elasticsearch/data/image/{filename} 으로 라우팅하여
-    No Image 버그를 방지합니다.
+    HDFS WebHDFS API를 통해 반환합니다. 
+    (HDFS 장애 시 로컬 폴백)
     """
+    brand = request.path_params["brand"]
     filename = request.path_params["filename"]
-    safe_path = os.path.join("/app/data-pipeline/elasticsearch/data/image", filename)
+    
+    hdfs_path = f"/raw/{brand}/image/{filename}"
+    namenode_host = getattr(settings, "HADOOP_NAMENODE_HOST", "namenode")
+    webhdfs_port = getattr(settings, "HDFS_WEBHDFS_PORT", 9870)
+    
+    webhdfs_url = f"http://{namenode_host}:{webhdfs_port}/webhdfs/v1{hdfs_path}?op=OPEN"
+    
+    # 1. WebHDFS 요청 시도
+    try:
+        client = httpx.AsyncClient(follow_redirects=True)
+        req = client.build_request("GET", webhdfs_url)
+        response = await client.send(req, stream=True)
+        
+        if response.status_code == 200:
+            async def generate():
+                async for chunk in response.aiter_bytes():
+                    yield chunk
+                await client.aclose()
+            return StreamingResponse(generate(), media_type="image/jpeg")
+        else:
+            await client.aclose()
+            logger.warning(f"HDFS 404/Error: {webhdfs_url} - status {response.status_code}")
+    except Exception as e:
+        logger.error(f"HDFS Fetch Error: {e}")
+    
+    # 2. 로컬 디렉토리 폴백
+    if brand.lower() == "8seconds":
+        safe_path = os.path.join("/app/data-pipeline/elasticsearch/data/8seconds/hadoop/raw/8seconds/image", filename)
+    else:
+        safe_path = os.path.join("/app/data-pipeline/elasticsearch/data/image", filename)
+        
     if os.path.exists(safe_path):
         return FileResponse(safe_path)
     return Response(content="Not Found", status_code=404)

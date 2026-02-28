@@ -71,9 +71,10 @@ class SearchService:
         image: Any = None,
         text: Optional[str] = None,
         category: Optional[str | Sequence[str]] = None,
+        gender: Optional[str | Sequence[str]] = None,
     ) -> List[Dict[str, Any]]:
         # 0) non-vector 필터 구성
-        filters = self._build_filters(category)
+        filters = self._build_filters(category, gender)
 
         # 1) query vector 생성
         q_clip: Optional[List[float]] = None
@@ -139,19 +140,26 @@ class SearchService:
 
         return fused[: self.cfg.final_k]
 
-    def _build_filters(self, category: Optional[str | Sequence[str]]) -> List[Dict[str, Any]]:
+    def _build_filters(
+        self, category: Optional[str | Sequence[str]], gender: Optional[str | Sequence[str]] = None
+    ) -> List[Dict[str, Any]]:
         filters: List[Dict[str, Any]] = []
 
-        if category is None:
-            return filters
-
-        # category가 문자열 1개면 term, 여러 개면 terms
-        if isinstance(category, str):
-            filters.append({"term": {"category": category}})
-        else:
-            values = [c for c in category if c]
-            if values:
-                filters.append({"terms": {"category": values}})
+        if category is not None:
+            if isinstance(category, str):
+                filters.append({"term": {"category": category}})
+            else:
+                values = [c for c in category if c]
+                if values:
+                    filters.append({"terms": {"category": values}})
+                    
+        if gender is not None:
+            if isinstance(gender, str):
+                filters.append({"term": {"gender": gender.lower()}})
+            else:
+                values = [g.lower() for g in gender if g]
+                if values:
+                    filters.append({"terms": {"gender": values}})
 
         return filters
 

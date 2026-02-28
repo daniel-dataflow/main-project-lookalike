@@ -409,20 +409,32 @@ fi
 
 echo ""
 
-# 11. products 테이블 origine_url 컬럼 추가
-echo "1️⃣1️⃣  products 테이블 origine_url 컬럼 추가..."
-HAS_ORIGINE_URL=$($PG_CMD -U ${POSTGRES_USER} -d ${POSTGRES_DB} -tc \
-    "SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='origine_url';" | tr -d ' ')
+# 11. products 테이블 origin_url 컬럼 추가 및 오타 교정
+echo "1️⃣1️⃣  products 테이블 origin_url 컬럼 확인 및 추가..."
+HAS_ORIGIN_URL=$($PG_CMD -U ${POSTGRES_USER} -d ${POSTGRES_DB} -tc \
+    "SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='origin_url';" | tr -d ' ')
 
-if [ "$HAS_ORIGINE_URL" = "1" ]; then
-    echo "   ⏭️  products.origine_url 컬럼 이미 존재 (스킵)"
+if [ "$HAS_ORIGIN_URL" = "1" ]; then
+    echo "   ⏭️  products.origin_url 컬럼 이미 존재 (스킵)"
 else
-    echo "   ⚠️  products.origine_url 컬럼 추가 중..."
-    $PG_CMD -U ${POSTGRES_USER} -d ${POSTGRES_DB} -c "
-        ALTER TABLE products ADD COLUMN origine_url VARCHAR(512);
-        COMMENT ON COLUMN products.origine_url IS '공식몰 구매링크';
-    "
-    echo "   ✅ products.origine_url 컬럼 추가 완료"
+    # 오타가 있는 기존 컬럼(origine_url)이 있는지 확인
+    HAS_ORIGINE_URL=$($PG_CMD -U ${POSTGRES_USER} -d ${POSTGRES_DB} -tc \
+        "SELECT 1 FROM information_schema.columns WHERE table_name='products' AND column_name='origine_url';" | tr -d ' ')
+
+    if [ "$HAS_ORIGINE_URL" = "1" ]; then
+        echo "   ⚠️  기존 products.origine_url 컬럼 발견 -> origin_url로 이름 변경 중..."
+        $PG_CMD -U ${POSTGRES_USER} -d ${POSTGRES_DB} -c "
+            ALTER TABLE products RENAME COLUMN origine_url TO origin_url;
+        "
+        echo "   ✅ products.origine_url -> origin_url 이름 변경 완료"
+    else
+        echo "   ⚠️  products.origin_url 컬럼 추가 중..."
+        $PG_CMD -U ${POSTGRES_USER} -d ${POSTGRES_DB} -c "
+            ALTER TABLE products ADD COLUMN origin_url VARCHAR(512);
+            COMMENT ON COLUMN products.origin_url IS '공식몰 구매링크';
+        "
+        echo "   ✅ products.origin_url 컬럼 추가 완료"
+    fi
 fi
 
 echo ""
@@ -510,7 +522,7 @@ echo "    ✅ inquiry_board 게시판 테이블 (posts → 마이그레이션)"
 echo "    ✅ comments 댓글 테이블"
 echo "    ✅ search_logs 확장 (thumbnail_path, image_size/width/height, search_status, search_result, result_count, gender)"
 echo "    ✅ search_results 테이블 (비정규화 유지)"
-echo "    ✅ products 테이블 brand_name, gender, origine_url 컬럼 추가 및 타입 수정"
+echo "    ✅ products 테이블 brand_name, gender, origin_url 컬럼 추가 및 타입 수정"
 echo "    ✅ products 테이블 origine_prod_id 컬럼 삭제"
 echo "    ✅ naver_prices 테이블 mall_url 확장 및 update_dt 추가"
 echo "    ✅ product_features 테이블 crop_path 컬럼 추가"

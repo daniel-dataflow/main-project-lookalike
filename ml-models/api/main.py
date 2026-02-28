@@ -12,6 +12,10 @@ from PIL import Image
 
 from search_logic import SearchConfig, SearchService
 
+# YOLO 분리 설계 모듈
+from yolo_router import router as yolo_router
+from yolo_service import yolo_detector
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -42,6 +46,10 @@ class EncoderHub:
 
 
 app = FastAPI(title="Lookalike ML Inference API", version="1.1.0")
+
+# 기존 라우터 말고 새로 만든 YOLO 라우터를 붙인다.
+app.include_router(yolo_router)
+
 encoders = EncoderHub()
 service: Optional[SearchService] = None
 
@@ -64,6 +72,9 @@ def on_startup() -> None:
 
     logger.info("AI 모델 적재 시작")
     encoders.load()
+    
+    # 별도로 YOLO 모델 탑재 (별도 스레드/프로세스처럼 독립적)
+    yolo_detector.load()
 
     cfg = SearchConfig(
         index_name=os.getenv("ML_SEARCH_INDEX", "products"),
@@ -95,6 +106,7 @@ async def search(
     image: Optional[UploadFile] = File(default=None),
     text: Optional[str] = Form(default=None),
     category: Optional[str] = Form(default=None),
+    gender: Optional[str] = Form(default=None),
 ) -> dict:
     if service is None:
         raise HTTPException(status_code=500, detail="Search service is not initialized.")
@@ -110,8 +122,9 @@ async def search(
             raise HTTPException(status_code=400, detail="유효한 이미지 파일이 아닙니다.") from exc
 
     category_value = _parse_category(category)
+    gender_value = _parse_category(gender)
     try:
-        results = service.search(image=pil_img, text=text, category=category_value)
+        results = service.search(image=pil_img, text=text, category=category_value, gender=gender_value)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:
@@ -125,13 +138,14 @@ async def predict_vector(
     image: Optional[UploadFile] = File(default=None),
     text: Optional[str] = Form(default=None),
     category: Optional[str] = Form(default=None),
+    gender: Optional[str] = Form(default=None),
 ) -> dict:
     """
     백엔드 호환 응답 포맷:
     - ml_product_scores: {product_id: score}
     - gender/applied_category/tags: 기존 키 유지
     """
-    payload = await search(image=image, text=text, category=category)
+    payload = await search(image=image, text=text, category=category, gender=gender)
 
     ml_product_scores = {
         str(item.get("id")): float(item.get("score", 0.0))

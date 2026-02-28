@@ -58,7 +58,8 @@ async def search_by_image(
     request: Request,
     image: Optional[UploadFile] = File(None, description="검색할 이미지 (선택)"),
     search_text: Optional[str] = Form(None, description="추가 검색어"),
-    category: Optional[str] = Form(None, description="카테고리 필터"),
+    gender: Optional[str] = Form(None, description="성별 필터"),
+    category: Optional[str] = Form(None, description="의류 카테고리 필터"),
 ):
     """
     이미지 또는 텍스트 기반 상품 검색
@@ -108,6 +109,8 @@ async def search_by_image(
 
             if search_text:
                 data["text"] = search_text
+            if gender:
+                data["gender"] = gender
             if category:
                 data["category"] = category
 
@@ -141,15 +144,16 @@ async def search_by_image(
             query_text=search_text,
             ml_product_scores=ml_scores,
             category=category,
+            gender=gender,
             limit=6,
         )
         result_count = len(ml_results)
 
         # 5. DB에 검색 로그 기록
-        # category 형식: "남자_상의" → gender='남자', applied_category='상의'
-        gender_filter = None
+        # 기존 "남자_상의" 형식의 임시 호환 처리 및 분리 처리
+        gender_filter = gender
         category_filter = category
-        if category and "_" in category:
+        if category and "_" in category and not gender:
             parts = category.split("_", 1)
             gender_filter, category_filter = parts[0], parts[1]
 
@@ -241,6 +245,35 @@ async def search_by_image(
     except Exception as e:
         logger.error(f"이미지 검색 실패: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="서버 오류가 발생했습니다")
+
+
+# ──────────────────────────────────────
+# YOLO 의류 객체 탐지 프록시 (UI 선택용)
+# ──────────────────────────────────────
+@router.post("/detect")
+async def detect_apparel(
+    request: Request,
+    image: UploadFile = File(..., description="의류를 탐지할 원본 이미지")
+):
+    """
+    ML 엔진의 YOLO 객체 탐지 API로 이미지를 단순히 전달(프록시)하고
+    바운딩 박스 목록(좌표)만 반환합니다.
+    """
+    # 설정: ML Engine의 새로운 YOLO 독립 라우터
+    YOLO_ENGINE_URL = os.getenv("YOLO_ENGINE_URL", "http://ml-engine:8914/yolo/detect")
+    
+    try:
+        data = await image.read()
+        files = {"image": (image.filename or "detect.jpg", data, image.content_type or "image/jpeg")}
+        
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(YOLO_ENGINE_URL, files=files)
+            resp.raise_for_status()
+            return resp.json()
+            
+    except Exception as e:
+        logger.error(f"YOLO 탐지 프록시 실패: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="객체 탐지 서버 통신 오류가 발생했습니다.")
 
 
 # ──────────────────────────────────────

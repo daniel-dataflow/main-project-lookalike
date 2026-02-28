@@ -6,3 +6,7 @@ numpy==1.26.4
 Pillow==10.4.0
 sentence-transformers==3.0.1
 fashion-clip==0.2.2
+
+# YOLOv11 & OpenCV (충돌 회피용 독립 모듈)
+ultralytics==8.3.30
+opencv-python-headless==4.9.0.80
