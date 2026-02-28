@@ -8,7 +8,7 @@ from elasticsearch import Elasticsearch
 
 # 인코더 함수 시그니처
 # - clip_image_encoder(image) -> list[float] (dim=512)
-# - sbert_text_encoder(text) -> list[float] (dim=768)
+# - sbert_text_encoder(text) -> list[float] (dim=384)
 EncoderImage = Callable[[Any], List[float]]
 EncoderText = Callable[[str], List[float]]
 
@@ -90,7 +90,7 @@ class SearchService:
         if q_clip is None and q_sbert is None:
             raise ValueError("검색 이미지나 텍스트를 입력해주세요.")
 
-        # Case A) image only -> CLIP 단독 top-5
+        # Case A) image only -> CLIP 단독 top-6
         if q_clip is not None and q_sbert is None:
             clip_hits = self._knn_search(
                 field=self.cfg.clip_field,
@@ -100,7 +100,7 @@ class SearchService:
             )
             return clip_hits[: self.cfg.final_k]
 
-        # Case B) text only -> SBERT 단독 top-5
+        # Case B) text only -> SBERT 단독 top-6
         if q_clip is None and q_sbert is not None:
             sbert_hits = self._knn_search(
                 field=self.cfg.sbert_field,
