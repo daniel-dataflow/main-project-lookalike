@@ -65,13 +65,6 @@
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a href="/admin/batch" class="nav-link {% if request.url.path == '/admin/batch' %}active{% endif %}"
-                        data-tooltip="배치작업 모니터링">
-                        <i class="fas fa-cogs"></i>
-                        <span class="sidebar-text">배치작업 모니터링</span>
-                    </a>
-                </li>
-                <li class="nav-item">
                     <a href="/admin/inquiry"
                         class="nav-link {% if request.url.path == '/admin/inquiry' %}active{% endif %}"
                         data-tooltip="문의 관리">
@@ -85,6 +78,13 @@
                         data-tooltip="통계 모니터링">
                         <i class="fas fa-chart-line"></i>
                         <span class="sidebar-text">통계 모니터링</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a href="/admin/batch" class="nav-link {% if request.url.path == '/admin/batch' %}active{% endif %}"
+                        data-tooltip="배치작업 모니터링">
+                        <i class="fas fa-cogs"></i>
+                        <span class="sidebar-text">배치작업 모니터링</span>
                     </a>
                 </li>
                 <li class="nav-item">
@@ -152,12 +152,6 @@
                     </a>
                 </li>
                 <li>
-                    <a href="/admin/batch"
-                        class="nav-link link-dark {% if request.url.path == '/admin/batch' %}active{% endif %}">
-                        <i class="fas fa-cogs me-2"></i> 배치작업 모니터링
-                    </a>
-                </li>
-                <li>
                     <a href="/admin/inquiry"
                         class="nav-link link-dark {% if request.url.path == '/admin/inquiry' %}active{% endif %}">
                         <i class="far fa-comment-dots me-2"></i> 문의 관리
@@ -167,6 +161,12 @@
                 <li class="nav-item">
                     <a href="/admin/stats" class="nav-link link-dark {% if request.url.path == '/admin/stats' %}active{% endif %}">
                         <i class="fas fa-chart-line me-2"></i> 통계 모니터링
+                    </a>
+                </li>
+                <li>
+                    <a href="/admin/batch"
+                        class="nav-link link-dark {% if request.url.path == '/admin/batch' %}active{% endif %}">
+                        <i class="fas fa-cogs me-2"></i> 배치작업 모니터링
                     </a>
                 </li>
                 <li>
