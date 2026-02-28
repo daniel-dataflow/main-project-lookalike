@@ -235,9 +235,7 @@ async def _fetch_docker_data() -> Dict[str, Any]:
                 )
                 cpu_percent = 0.0
                 if system_delta > 0:
-                    # [수정] 멀티코어 환경에서 개별 프로세스의 총 코어 점유율 반영 (docker stats와 동일하게)
-                    online_cpus = stats.get('cpu_stats', {}).get('online_cpus', len(stats.get('cpu_stats', {}).get('cpu_usage', {}).get('percpu_usage', [1])))
-                    cpu_percent = (cpu_delta / system_delta) * online_cpus * 100.0
+                    cpu_percent = (cpu_delta / system_delta) * 100.0
                 memory_usage = stats['memory_stats'].get('usage', 0)
                 memory_limit = stats['memory_stats'].get('limit', 0)
             except Exception as e:

@@ -165,8 +165,8 @@
                     <tr>
                         <th>컨테이너</th>
                         <th>상태</th>
-                        <th>CPU</th>
-                        <th>메모리</th>
+                        <th class="text-end pe-4">CPU</th>
+                        <th class="text-end pe-4">메모리</th>
                     </tr>
                 </thead>
                 <tbody id="containersList">
@@ -329,8 +329,8 @@
                 <tr>
                     <td>${container.name}</td>
                     <td>${statusBadge}</td>
-                    <td>${container.cpu_percent.toFixed(1)}%</td>
-                    <td>${memoryMB} MB / ${memoryLimitMB} MB</td>
+                    <td class="text-end pe-4">${container.cpu_percent.toFixed(1)}%</td>
+                    <td class="text-end pe-4">${memoryMB} MB / ${memoryLimitMB} MB</td>
                 </tr>
             `;
             }).join('');
