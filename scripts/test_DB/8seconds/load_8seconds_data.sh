@@ -28,7 +28,7 @@ echo "[3/3] Elasticsearch에 임베딩 JSON 업로드..."
 # fastapi 컨테이너 내부 환경을 사용해 ES 접속
 # 8seconds JSON은 image/text 통합 모델 형태이므로 --input 디렉토리 하나만 지정
 docker compose exec -T fastapi python3 data-pipeline/elasticsearch/config/es_upload_json.py \
-    --input "data-pipeline/elasticsearch/data/8seconds/El&Mongo/" \
+    --input "data-pipeline/elasticsearch/data/8seconds/datadb.analyzed_metadata.json" \
     --derive-id-from-filename \
     --es http://elasticsearch:9200 \
     --refresh

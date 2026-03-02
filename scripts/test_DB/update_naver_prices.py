@@ -81,27 +81,54 @@ def main():
                 # 브랜드명과 상품명을 조합하여 검색 정확도 상향
                 search_query = f"{prod['brand_name']} {prod['prod_name']}".strip()
                 
-                # 네이버 API로 상위 5개 검색
-                items = search_naver_shopping(search_query, display=5)
+                # 네이버 API로 넉넉하게 검색 (공식몰 필터링을 위해 20개 요청)
+                items = search_naver_shopping(search_query, display=20)
                 
                 if items:
-                    # 기존 데이터 삭제 후 새 데이터 삽입 (naver_prices 테이블에 고유키가 없으므로 UPSERT 대신 DELETE+INSERT 수행)
-                    cur.execute("DELETE FROM naver_prices WHERE product_id = %s", (pid,))
-                    
-                    # rank는 리스트 인덱스로부터 (1 ~ 5) 가져옴
-                    for rank, item in enumerate(items, start=1):
-                        price = int(item.get("lprice", 0))
+                    filtered_items = []
+                    for item in items:
                         mall_name = item.get("mallName", "알 수 없음")
-                        mall_url = item.get("link", "")
-
-                        # 2. naver_prices 테이블에 정규 INSERT 수행
-                        cur.execute("""
-                            INSERT INTO naver_prices (product_id, rank, price, mall_name, mall_url)
-                            VALUES (%s, %s, %s, %s, %s)
-                        """, (pid, rank, price, mall_name, mall_url))
                         
-                    updated_count += len(items)
-                    print(f"✅ 업데이트 완료: {search_query} -> {len(items)}개의 최저가 저장")
+                        # 공식몰 제외 필터링
+                        is_official = False
+                        brand_upper = prod['brand_name'].upper() if prod['brand_name'] else ""
+                        mall_upper = mall_name.upper()
+                        
+                        if brand_upper == "8SECONDS":
+                            if "에잇세컨즈" in mall_name or "8SECONDS" in mall_upper or "SSF" in mall_upper:
+                                is_official = True
+                        elif brand_upper == "TOPTEN10":
+                            if "탑텐" in mall_name or "TOPTEN" in mall_upper:
+                                is_official = True
+                                
+                        if not is_official:
+                            filtered_items.append(item)
+                    
+                    if filtered_items:
+                        # 가격 낮은순 정렬
+                        items_sorted = sorted(filtered_items, key=lambda x: int(x.get("lprice", 0)))
+                        
+                        # 기존 데이터 삭제 후 새 데이터 삽입
+                        cur.execute("DELETE FROM naver_prices WHERE product_id = %s", (pid,))
+                        
+                        # 상위 5개 삽입
+                        for rank, item in enumerate(items_sorted[:5], start=1):
+                            price = int(item.get("lprice", 0))
+                            mall_name = item.get("mallName", "알 수 없음")
+                            mall_url = item.get("link", "")
+                            image_url = item.get("image", "")
+
+                            # 2. naver_prices 테이블에 정규 INSERT 수행
+                            cur.execute("""
+                                INSERT INTO naver_prices (product_id, rank, price, mall_name, mall_url, image_url, create_dt, update_dt)
+                                VALUES (%s, %s, %s, %s, %s, %s, now(), now())
+                            """, (pid, rank, price, mall_name, mall_url, image_url))
+                            
+                        saved_count = min(5, len(items_sorted))
+                        updated_count += saved_count
+                        print(f"✅ 업데이트 완료: {search_query} -> {saved_count}개의 최저가 저장")
+                    else:
+                        print(f"⚠️ 유효 검색 결과 없음 (전부 공식몰): {search_query}")
                 else:
                     print(f"⚠️ 검색 결과 없음: {search_query}")
                 

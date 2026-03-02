@@ -234,6 +234,7 @@ async def product_detail(request: Request, product_id: str):
                     mall_name,
                     price,
                     mall_url,
+                    image_url,
                     rank
                 FROM naver_prices
                 WHERE product_id = %s

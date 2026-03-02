@@ -90,6 +90,7 @@ psql -h postgresql -U "$POSTGRES_USER" -d "$POSTGRES_DB" <<-EOSQL
         price INTEGER,
         mall_name VARCHAR(100),
         mall_url VARCHAR(512),
+        image_url VARCHAR(512),
         create_dt TIMESTAMP DEFAULT NOW(),
         update_dt TIMESTAMP DEFAULT NOW()
     );

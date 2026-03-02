@@ -474,7 +474,7 @@ $PG_CMD -U ${POSTGRES_USER} -d ${POSTGRES_DB} -c "
     ALTER TABLE products ALTER COLUMN brand_name TYPE VARCHAR(50);
 "
 
-# naver_prices.update_dt & mall_url
+# naver_prices.update_dt & mall_url & image_url
 HAS_NP_UPDATE=$($PG_CMD -U ${POSTGRES_USER} -d ${POSTGRES_DB} -tc \
     "SELECT 1 FROM information_schema.columns WHERE table_name='naver_prices' AND column_name='update_dt';" | tr -d ' ')
 if [ "$HAS_NP_UPDATE" != "1" ]; then
@@ -484,6 +484,15 @@ if [ "$HAS_NP_UPDATE" != "1" ]; then
     "
 fi
 $PG_CMD -U ${POSTGRES_USER} -d ${POSTGRES_DB} -c "ALTER TABLE naver_prices ALTER COLUMN mall_url TYPE VARCHAR(512);"
+
+HAS_NP_IMAGE=$($PG_CMD -U ${POSTGRES_USER} -d ${POSTGRES_DB} -tc \
+    "SELECT 1 FROM information_schema.columns WHERE table_name='naver_prices' AND column_name='image_url';" | tr -d ' ')
+if [ "$HAS_NP_IMAGE" != "1" ]; then
+    echo "   ⚠️  naver_prices image_url 추가 중..."
+    $PG_CMD -U ${POSTGRES_USER} -d ${POSTGRES_DB} -c "
+        ALTER TABLE naver_prices ADD COLUMN image_url VARCHAR(512);
+    "
+fi
 
 # product_features.crop_path
 HAS_CROP=$($PG_CMD -U ${POSTGRES_USER} -d ${POSTGRES_DB} -tc \

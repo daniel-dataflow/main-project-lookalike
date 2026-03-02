@@ -122,6 +122,7 @@ def init_postgresql():
                 price INTEGER,
                 mall_name VARCHAR(100),
                 mall_url VARCHAR(500),
+                image_url VARCHAR(512),
                 create_dt TIMESTAMP DEFAULT NOW()
             );
             """,
