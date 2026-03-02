@@ -51,7 +51,13 @@ async def search_products(
     # 전략 1: ML API에서 받은 ID 목록을 기반으로 DB 데이터 수화 (Hydration)
     if ml_product_scores is not None and len(ml_product_scores) > 0:
         try:
-            hydrated = _hydrate_from_db(ml_product_scores, source="ml_api", limit=limit)
+            hydrated = _hydrate_from_db(
+                ml_product_scores,
+                source="ml_api",
+                category=category,
+                gender=gender,
+                limit=limit,
+            )
             if hydrated:
                 return hydrated
             # ML 결과는 왔지만 DB 매핑이 0건인 경우 빈 배열을 반환하지 않고 fallback 사용.
@@ -69,7 +75,13 @@ async def search_products(
 
 
 
-def _hydrate_from_db(product_scores: dict, source: str, limit: int = 6) -> list:
+def _hydrate_from_db(
+    product_scores: dict,
+    source: str,
+    category: Optional[str] = None,
+    gender: Optional[str] = None,
+    limit: int = 6,
+) -> list:
     """
     ES에서 반환된 {product_code: score} 목록을 사용하여
     PostgreSQL에서 표시용 부가 데이터(최저가, 쇼핑몰 이름, URL 등)를 채워 넣고,
@@ -85,6 +97,20 @@ def _hydrate_from_db(product_scores: dict, source: str, limit: int = 6) -> list:
         with get_pg_cursor() as cur:
             # IN clause용 파라미터 생성
             placeholders = ",".join(["%s"] * len(product_ids))
+            conditions = [
+                f"(p.model_code IN ({placeholders}) OR p.product_id::text IN ({placeholders}))"
+            ]
+            params: list = list(product_ids) + list(product_ids)
+
+            # ML 경로에서도 사용자가 선택한 성별/카테고리 조건을 강제 적용한다.
+            if gender:
+                conditions.append("p.gender = %s")
+                params.append(gender.lower())
+            if category:
+                conditions.append("p.category_code = %s")
+                params.append(category)
+
+            where_clause = " AND ".join(conditions)
             cur.execute(
                 f"""
                 SELECT
@@ -96,9 +122,9 @@ def _hydrate_from_db(product_scores: dict, source: str, limit: int = 6) -> list:
                 FROM products p
                 LEFT JOIN naver_prices np
                     ON p.product_id = np.product_id AND np.rank = 1
-                WHERE p.model_code IN ({placeholders}) OR p.product_id::text IN ({placeholders})
+                WHERE {where_clause}
                 """,
-                tuple(product_ids) + tuple(product_ids),
+                tuple(params),
             )
             rows = cur.fetchall()
 
