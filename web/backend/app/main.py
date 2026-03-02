@@ -208,6 +208,7 @@ async def product_detail(request: Request, product_id: str):
                     p.model_code,
                     p.brand_name,
                     p.prod_name,
+                    p.origin_url,
                     p.base_price,
                     p.category_code,
                     p.img_hdfs_path,
