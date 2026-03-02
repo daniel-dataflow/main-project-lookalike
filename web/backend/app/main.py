@@ -415,10 +415,6 @@ async def team_page(request: Request):
 async def team_page(request: Request):
     return templates.TemplateResponse("teams.html", {"request": request})
 
-@app.get("/teams2", response_class=HTMLResponse)
-async def team_page(request: Request):
-    return templates.TemplateResponse("teams2.html", {"request": request})
-
 
 @app.get("/search-history", response_class=HTMLResponse)
 async def search_history(request: Request):

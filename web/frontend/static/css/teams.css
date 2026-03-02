@@ -14,13 +14,12 @@
   --sh-lg: 0 8px 40px rgba(0,0,0,0.11);
 }
 *, *::before, *::after { box-sizing: border-box; margin:0; padding:0; }
-.teams-wrapper {
+body {
   background: var(--bg);
   color: var(--ink);
   font-family: 'Noto Sans KR', sans-serif;
   line-height: 1.7;
   overflow-x: hidden;
-  position: relative;
 }
 
 /* ── PARTICLES ── */
@@ -218,7 +217,20 @@
 .det-label { font-size:10px; font-weight:700; letter-spacing:.3em; text-transform:uppercase; color:var(--accent); margin-bottom:7px; }
 .det-list { list-style:none; display:flex; flex-direction:column; gap:5px; }
 .det-list li { font-size:12.5px; color:var(--ink2); padding-left:14px; position:relative; line-height:1.6; }
+.det-list li code {
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  background: #f0f0ee;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 1px 5px;
+  color: var(--accent);
+}
+.det-list li strong { color: var(--ink); }
 .det-list li::before { content:'▸'; position:absolute; left:0; color:var(--accent); font-size:10px; top:3px; }
+.det-sec-next { background:linear-gradient(135deg,#f0fbf5,#f7fff3); border:1px dashed #7ecfa0; border-radius:10px; padding:14px 16px; }
+.det-sec-next .det-label { color:var(--green); }
+.det-sec-next .det-list li::before { color:var(--green); content:'◎'; }
 
 /* ══════════════════════════════
    SECTION 4: PIPELINE
@@ -310,7 +322,7 @@
 
 /* ── PIPELINE TABS ── */
 .pipe-tabs {
-  display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:36px;
+  display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:36px;
 }
 .pipe-tab {
   display:flex; align-items:center; gap:14px;
@@ -320,20 +332,39 @@
 }
 .pipe-tab:hover { border-color:var(--accent); box-shadow:var(--sh); }
 .pipe-tab.active { border-color:var(--accent); background:#fff8f4; box-shadow:0 4px 20px rgba(212,82,42,.12); }
+.pipe-tab[data-tab="service"].active { border-color:var(--blue); background:#f0f5ff; box-shadow:0 4px 20px rgba(37,99,168,.12); }
+.pipe-tab[data-tab="ops"].active    { border-color:var(--green); background:#f0fbf5; box-shadow:0 4px 20px rgba(45,138,94,.12); }
 .tab-icon { font-size:26px; flex-shrink:0; }
-.tab-text { display:flex; flex-direction:column; gap:3px; }
-.tab-text  { font-size:14px; font-weight:700; color:var(--ink); }
+.tab-text { display:flex; flex-direction:column; gap:3px; font-size:14px; font-weight:700; color:var(--ink); }
 .tab-text small { display:block; font-size:11px; color:var(--muted); font-weight:400; margin-top:2px; }
 .pipe-tab.active .tab-text { color:var(--accent); }
+.pipe-tab[data-tab="service"].active .tab-text { color:var(--blue); }
+.pipe-tab[data-tab="ops"].active    .tab-text { color:var(--green); }
 
 .pipe-panel { animation:panelIn .35s ease; }
 .pipe-panel.hidden { display:none; }
 @keyframes panelIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
 
 .pipe-dot { --dc:#d4522a; }
-.pipe-step:hover .pipe-dot { background:var(--dc) !important; color:#fff; border-color:var(--dc) !important; box-shadow:0 4px 14px color-mix(in srgb, var(--dc) 40%, transparent); }
+.pipe-step:hover .pipe-dot { background:var(--dc) !important; color:#fff; border-color:var(--dc) !important; }
 
-/* ── RESPONSIVE ── */
+/* ops note */
+.ops-note {
+  margin-top:12px; padding:10px 14px;
+  background:#f0fbf5; border:1px solid #a8dfc0; border-radius:8px;
+  font-size:12.5px; color:var(--ink2); line-height:1.7;
+}
+.ops-note-badge {
+  display:inline-block; font-size:10px; font-weight:700;
+  background:var(--green); color:#fff; border-radius:4px;
+  padding:2px 7px; margin-right:6px; letter-spacing:.05em;
+}
+
+@media (max-width:760px) {
+  .pipe-tabs { grid-template-columns:1fr; }
+  .pipe-branch-wrap:has(.branch-a),
+  .pipe-branch-wrap:has(.branch-img) { grid-template-columns:1fr; }
+}
 @media (max-width:900px) {
   .lk-section { padding:56px 24px; }
   .ov-top { grid-template-columns:1fr; gap:28px; }

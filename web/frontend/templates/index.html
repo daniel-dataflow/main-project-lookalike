@@ -3,156 +3,160 @@
 {% block title %}Lookalike - 홈{% endblock %}
 
 {% block content %}
-<div class="text-center mb-3">
-    <h4 class="fw-bold mb-1">어떤 상품을 찾아 드릴까요?</h4>
-    <p class="text-muted small mb-0">이미지를 업로드하고 유사한 상품을 검색해보세요</p>
-</div>
-
-<!-- 통합 검색 카드 -->
-<div class="card bg-white border-0 shadow-sm mb-3">
-    <div class="card-body p-3 pb-2">
-
-        <!-- ① 카테고리 선택 (맨 위) -->
-        <div class="mb-3">
-            <div class="d-flex align-items-center mb-2">
-                <h6 class="fw-bold mb-0"><i class="fas fa-sliders-h text-secondary me-2"></i>카테고리 선택 <span
-                        class="text-muted fw-normal small">(선택)</span></h6>
-            </div>
-            <!-- 성별 -->
-            <div class="d-flex align-items-center mb-2">
-                <span class="text-muted small fw-medium" style="min-width: 36px;">성별</span>
-                <div class="d-flex gap-2" id="genderBtns">
-                    <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 gender-btn"
-                        data-gender="men">남자</button>
-                    <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 gender-btn"
-                        data-gender="women">여자</button>
-                </div>
-            </div>
-            <!-- 종류 -->
-            <div class="d-flex align-items-center">
-                <span class="text-muted small fw-medium" style="min-width: 36px;">종류</span>
-                <div class="d-flex gap-2" id="categoryBtns">
-                    <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 category-btn"
-                        data-category="outer">아우터</button>
-                    <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 category-btn"
-                        data-category="top">상의</button>
-                    <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 category-btn"
-                        data-category="bottom">하의</button>
-                </div>
-            </div>
-            <div id="categoryError" class="d-none mt-1" style="color: #dc3545; font-size: 0.82rem;">
-                <i class="fas fa-exclamation-circle me-1"></i>성별과 옷 종류를 모두 선택해주세요.
-            </div>
-        </div>
-
-        <hr class="my-2">
-
-        <!-- ② 이미지 업로드 영역 -->
-        <div class="mb-3">
-            <div class="d-flex align-items-center mb-2">
-                <h6 class="fw-bold mb-0"><i class="fas fa-camera text-primary me-2"></i>상품 이미지</h6>
-            </div>
-            <div class="mx-auto upload-wrapper">
-                <div class="upload-area rounded d-flex flex-column align-items-center justify-content-center text-center position-relative"
-                    id="uploadArea"
-                    style="border: 2px dashed #dee2e6; background-color: #f8f9fa; cursor: pointer; width: 100%; aspect-ratio: 1 / 1; transition: all 0.3s ease; overflow: hidden;">
-                    <!-- 기본 상태: 정사각형 -->
-                    <div id="uploadPlaceholder" class="position-absolute top-50 start-50 translate-middle w-100 px-3">
-                        <i class="fas fa-cloud-upload-alt text-secondary mb-2" style="font-size: 2rem;"></i>
-                        <p class="text-secondary mb-1 small fw-medium">이미지를 드래그하거나 클릭하여 업로드</p>
-                        <p class="text-muted mb-0" style="font-size: 0.75rem;">JPG, PNG 지원 (최대 10MB)</p>
-                    </div>
-                    <!-- 이미지 미리보기 (업로드 후 확장) -->
-                    <div id="uploadPreview" class="d-none text-center w-100 h-100 d-flex flex-column p-2">
-                        <div class="mb-2 d-flex justify-content-center gap-3" style="z-index: 5;">
-                            <div class="form-check form-check-inline mx-0">
-                                <input class="form-check-input" type="radio" name="cropMode" id="modeAuto" value="auto"
-                                    checked>
-                                <label class="form-check-label text-primary fw-bold small" for="modeAuto">
-                                    <i class="fas fa-magic me-1"></i>YOLO 탐지
-                                </label>
-                            </div>
-                            <div class="form-check form-check-inline mx-0">
-                                <input class="form-check-input" type="radio" name="cropMode" id="modeManual"
-                                    value="manual">
-                                <label class="form-check-label text-danger fw-bold small" for="modeManual">
-                                    <i class="fas fa-crop-alt me-1"></i>수동 지정
-                                </label>
-                            </div>
-                        </div>
-
-                        <div class="position-relative d-inline-block mx-auto flex-grow-1 d-flex align-items-center justify-content-center"
-                            id="imageWrapper" style="width: 100%; height: 0; min-height: 0;">
-                            <img id="previewImage" src="" alt="Preview" class="img-fluid rounded shadow-sm"
-                                style="max-width: 100%; max-height: 100%; object-fit: contain;" draggable="false">
-
-                            <!-- 바운딩 박스 컨테이너 (자동) -->
-                            <div id="bboxContainer" class="position-absolute top-0 start-0 w-100 h-100"
-                                style="pointer-events: none;"></div>
-
-                            <!-- 수동 박스 그리기 컨테이너 (드래그) -->
-                            <div id="manualBboxContainer" class="position-absolute top-0 start-0 w-100 h-100 d-none"
-                                style="pointer-events: auto; cursor: crosshair;">
-                                <div id="manualBox" class="position-absolute d-none"
-                                    style="border: 2px dashed #dc3545; background-color: rgba(220, 53, 69, 0.2);"></div>
-                            </div>
-
-                            <!-- 로딩 오버레이 -->
-                            <div id="detectLoading"
-                                class="position-absolute top-50 start-50 translate-middle d-none bg-dark text-white p-2 rounded bg-opacity-75"
-                                style="z-index: 50;">
-                                <span class="spinner-border spinner-border-sm me-1"></span> 의류 자동 인식 중...
-                            </div>
-
-                            <button type="button" id="removeImageBtn"
-                                class="btn btn-danger btn-sm position-absolute top-0 end-0 m-2 rounded-circle"
-                                style="width: 30px; height: 30px; padding: 0; z-index: 10;">
-                                <i class="fas fa-times"></i>
-                            </button>
-                        </div>
-
-                        <canvas id="cropCanvas" class="d-none"></canvas>
-                        <div class="mt-auto pt-1" style="z-index: 5;">
-                            <p id="previewFileName" class="text-muted small mb-0 text-truncate px-2"></p>
-                            <p id="bboxInstruction" class="text-primary small mb-0 d-none mt-1 fw-bold">
-                                <i class="fas fa-hand-pointer"></i> 네모를 클릭하여 검색 부위 지정!
-                            </p>
-                        </div>
-                    </div>
-                    <input type="file" id="imageUpload" class="d-none" accept="image/jpeg,image/png,image/jpg">
-                </div>
-            </div>
-        </div>
-
-        <hr class="my-2">
-
-        <!-- ③ 텍스트 검색 -->
-        <div class="mb-2">
-            <div class="d-flex align-items-center mb-2">
-                <h6 class="fw-bold mb-0"><i class="fas fa-keyboard text-secondary me-2"></i>텍스트 검색 <span
-                        class="text-muted fw-normal small">(선택)</span></h6>
-            </div>
-            <div class="input-group input-group-sm">
-                <span class="input-group-text bg-light border-end-0"><i
-                        class="fas fa-search text-muted small"></i></span>
-                <input type="text" class="form-control border-start-0 ps-0"
-                    placeholder="추가 검색어: 면접 복장, 하객룩으로 입기 좋은 자켓..." id="searchInput">
-            </div>
-            <p class="text-muted text-center mt-2 mb-0" style="font-size: 0.78rem;">
-                <i class="far fa-lightbulb text-warning me-1"></i>
-                이미지만으로도 검색 가능하며, 카테고리와 텍스트를 추가하면 더 정확한 결과를 얻을 수 있습니다.
-            </p>
-        </div>
-
+<div class="mx-auto" style="max-width: 900px;">
+    <div class="text-center mb-3">
+        <h4 class="fw-bold mb-1">어떤 상품을 찾아 드릴까요?</h4>
+        <p class="text-muted small mb-0">이미지를 업로드하고 유사한 상품을 검색해보세요</p>
     </div>
-</div>
 
-<!-- 검색 버튼 -->
-<div class="text-center mb-4">
-    <button class="btn btn-dark btn-lg shadow-sm w-100 py-3 rounded-pill fw-bold" id="searchBtn"
-        style="max-width: 600px; font-size: 1.15rem;">
-        <i class="fas fa-search me-2"></i>검색 시작하기
-    </button>
+    <!-- 통합 검색 카드 -->
+    <div class="card bg-white border-0 shadow-sm mb-3 hover-bounce">
+        <div class="card-body p-3 pb-2">
+
+            <!-- ① 카테고리 선택 (맨 위) -->
+            <div class="mb-3">
+                <div class="d-flex align-items-center mb-2">
+                    <h6 class="fw-bold mb-0"><i class="fas fa-sliders-h text-secondary me-2"></i>카테고리 선택 <span
+                            class="text-muted fw-normal small">(선택)</span></h6>
+                </div>
+                <!-- 성별 -->
+                <div class="d-flex align-items-center mb-2">
+                    <span class="text-muted small fw-medium" style="min-width: 36px;">성별</span>
+                    <div class="d-flex gap-2" id="genderBtns">
+                        <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 gender-btn"
+                            data-gender="men">남자</button>
+                        <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 gender-btn"
+                            data-gender="women">여자</button>
+                    </div>
+                </div>
+                <!-- 종류 -->
+                <div class="d-flex align-items-center">
+                    <span class="text-muted small fw-medium" style="min-width: 36px;">종류</span>
+                    <div class="d-flex gap-2" id="categoryBtns">
+                        <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 category-btn"
+                            data-category="outer">아우터</button>
+                        <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 category-btn"
+                            data-category="top">상의</button>
+                        <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 category-btn"
+                            data-category="bottom">하의</button>
+                    </div>
+                </div>
+                <div id="categoryError" class="d-none mt-1" style="color: #dc3545; font-size: 0.82rem;">
+                    <i class="fas fa-exclamation-circle me-1"></i>성별과 옷 종류를 모두 선택해주세요.
+                </div>
+            </div>
+
+            <hr class="my-2">
+
+            <!-- ② 이미지 업로드 영역 -->
+            <div class="mb-3">
+                <div class="d-flex align-items-center mb-2">
+                    <h6 class="fw-bold mb-0"><i class="fas fa-camera text-primary me-2"></i>상품 이미지</h6>
+                </div>
+                <div class="mx-auto upload-wrapper">
+                    <div class="upload-area rounded d-flex flex-column align-items-center justify-content-center text-center position-relative"
+                        id="uploadArea" class="hover-bounce"
+                        style="border: 2px dashed #dee2e6; background-color: #f8f9fa; cursor: pointer; width: 100%; aspect-ratio: 1 / 1; transition: all 0.3s ease; overflow: hidden;">
+                        <!-- 기본 상태: 정사각형 -->
+                        <div id="uploadPlaceholder"
+                            class="position-absolute top-50 start-50 translate-middle w-100 px-3">
+                            <i class="fas fa-cloud-upload-alt text-secondary mb-2" style="font-size: 2rem;"></i>
+                            <p class="text-secondary mb-1 small fw-medium">이미지를 드래그하거나 클릭하여 업로드</p>
+                            <p class="text-muted mb-0" style="font-size: 0.75rem;">JPG, PNG 지원 (최대 10MB)</p>
+                        </div>
+                        <!-- 이미지 미리보기 (업로드 후 확장) -->
+                        <div id="uploadPreview" class="d-none text-center w-100 h-100 d-flex flex-column p-2">
+                            <div class="mb-2 d-flex justify-content-center gap-3" style="z-index: 5;">
+                                <div class="form-check form-check-inline mx-0">
+                                    <input class="form-check-input" type="radio" name="cropMode" id="modeAuto"
+                                        value="auto" checked>
+                                    <label class="form-check-label text-primary fw-bold small" for="modeAuto">
+                                        <i class="fas fa-magic me-1"></i>YOLO 탐지
+                                    </label>
+                                </div>
+                                <div class="form-check form-check-inline mx-0">
+                                    <input class="form-check-input" type="radio" name="cropMode" id="modeManual"
+                                        value="manual">
+                                    <label class="form-check-label text-danger fw-bold small" for="modeManual">
+                                        <i class="fas fa-crop-alt me-1"></i>수동 지정
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="position-relative d-inline-block mx-auto flex-grow-1 d-flex align-items-center justify-content-center"
+                                id="imageWrapper" style="width: 100%; height: 0; min-height: 0;">
+                                <img id="previewImage" src="" alt="Preview" class="img-fluid rounded shadow-sm"
+                                    style="max-width: 100%; max-height: 100%; object-fit: contain;" draggable="false">
+
+                                <!-- 바운딩 박스 컨테이너 (자동) -->
+                                <div id="bboxContainer" class="position-absolute top-0 start-0 w-100 h-100"
+                                    style="pointer-events: none;"></div>
+
+                                <!-- 수동 박스 그리기 컨테이너 (드래그) -->
+                                <div id="manualBboxContainer" class="position-absolute top-0 start-0 w-100 h-100 d-none"
+                                    style="pointer-events: auto; cursor: crosshair;">
+                                    <div id="manualBox" class="position-absolute d-none"
+                                        style="border: 2px dashed #dc3545; background-color: rgba(220, 53, 69, 0.2);">
+                                    </div>
+                                </div>
+
+                                <!-- 로딩 오버레이 -->
+                                <div id="detectLoading"
+                                    class="position-absolute top-50 start-50 translate-middle d-none bg-dark text-white p-2 rounded bg-opacity-75"
+                                    style="z-index: 50;">
+                                    <span class="spinner-border spinner-border-sm me-1"></span> 의류 자동 인식 중...
+                                </div>
+
+                                <button type="button" id="removeImageBtn"
+                                    class="btn btn-danger btn-sm position-absolute top-0 end-0 m-2 rounded-circle"
+                                    style="width: 30px; height: 30px; padding: 0; z-index: 10;">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+
+                            <canvas id="cropCanvas" class="d-none"></canvas>
+                            <div class="mt-auto pt-1" style="z-index: 5;">
+                                <p id="previewFileName" class="text-muted small mb-0 text-truncate px-2"></p>
+                                <p id="bboxInstruction" class="text-primary small mb-0 d-none mt-1 fw-bold">
+                                    <i class="fas fa-hand-pointer"></i> 네모를 클릭하여 검색 부위 지정!
+                                </p>
+                            </div>
+                        </div>
+                        <input type="file" id="imageUpload" class="d-none" accept="image/jpeg,image/png,image/jpg">
+                    </div>
+                </div>
+            </div>
+
+            <hr class="my-2">
+
+            <!-- ③ 텍스트 검색 -->
+            <div class="mb-2">
+                <div class="d-flex align-items-center mb-2">
+                    <h6 class="fw-bold mb-0"><i class="fas fa-keyboard text-secondary me-2"></i>텍스트 검색 <span
+                            class="text-muted fw-normal small">(선택)</span></h6>
+                </div>
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text bg-light border-end-0"><i
+                            class="fas fa-search text-muted small"></i></span>
+                    <input type="text" class="form-control border-start-0 ps-0"
+                        placeholder="추가 검색어: 면접 복장, 하객룩으로 입기 좋은 자켓..." id="searchInput">
+                </div>
+                <p class="text-muted text-center mt-2 mb-0" style="font-size: 0.78rem;">
+                    <i class="far fa-lightbulb text-warning me-1"></i>
+                    이미지만으로도 검색 가능하며, 카테고리와 텍스트를 추가하면 더 정확한 결과를 얻을 수 있습니다.
+                </p>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- 검색 버튼 -->
+    <div class="text-center mb-4">
+        <button class="btn btn-dark btn-lg shadow-sm w-100 py-3 rounded-pill fw-bold" id="searchBtn" class="search-btn-bounce"
+            style="max-width: 600px; font-size: 1.15rem;">
+            <i class="fas fa-search me-2"></i>검색 시작하기
+        </button>
+    </div>
 </div>
 
 <!-- Loading Overlay -->
