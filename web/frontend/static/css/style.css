@@ -417,3 +417,20 @@ body {
     background-color: var(--primary-color);
     color: white;
 }
+
+/* 이미지 업로드 래퍼 - 반응형 크기 */
+.upload-wrapper {
+    width: 100%;
+    max-width: 220px;
+    transition: max-width 0.3s ease;
+}
+
+@media (min-width: 768px) {
+    .upload-wrapper {
+        max-width: 320px;
+    }
+}
+
+.upload-wrapper.expanded {
+    max-width: 500px !important;
+}
