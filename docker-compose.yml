@@ -459,6 +459,7 @@ services:
       dockerfile: Dockerfile.ml.fastapi
     container_name: ml-engine-main
     hostname: ml-engine
+    env_file: [ .env ]  # rewrite 기능 관련 파라미터 읽어오기
     working_dir: /app/ml-models/api
     ports:
       - "8914:8914"

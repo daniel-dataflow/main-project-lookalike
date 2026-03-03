@@ -11,6 +11,7 @@ from elasticsearch import Elasticsearch
 # - sbert_text_encoder(text) -> list[float] (dim=384)
 EncoderImage = Callable[[Any], List[float]]
 EncoderText = Callable[[str], List[float]]
+RewriteText = Callable[[str], str]
 
 
 @dataclass
@@ -60,11 +61,14 @@ class SearchService:
         config: SearchConfig,
         clip_image_encoder: EncoderImage,
         sbert_text_encoder: EncoderText,
+        # Optional hook: 검색 전 텍스트 정규화/리라이트를 수행한다.
+        query_rewriter: Optional[RewriteText] = None,
     ) -> None:
         self.cfg = config
         self.es = Elasticsearch(config.es_url)
         self.clip_image_encoder = clip_image_encoder
         self.sbert_text_encoder = sbert_text_encoder
+        self.query_rewriter = query_rewriter
 
     def search(
         self,
@@ -84,7 +88,17 @@ class SearchService:
             q_clip = self._l2_normalize(self.clip_image_encoder(image))
 
         if text is not None and text.strip():
-            q_sbert = self._l2_normalize(self.sbert_text_encoder(text.strip()))
+            text_for_embedding = text.strip()
+            if self.query_rewriter is not None:
+                try:
+                    # rewrite 결과가 비어 있지 않을 때만 임베딩 입력으로 사용한다.
+                    rewritten = self.query_rewriter(text_for_embedding).strip()
+                    if rewritten:
+                        text_for_embedding = rewritten
+                except Exception:
+                    # rewrite 실패 시 검색 중단 없이 원문 임베딩으로 fallback
+                    pass
+            q_sbert = self._l2_normalize(self.sbert_text_encoder(text_for_embedding))
 
         # 쿼리가 비어 있으면 프론트에서 경고창을 띄울 수 있도록 명시적 예외를 준다.
         if q_clip is None and q_sbert is None:
