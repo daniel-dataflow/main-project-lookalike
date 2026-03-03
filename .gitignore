@@ -218,3 +218,6 @@ ml-models/api/app.py
 /docker-compose.hadoop-arm64.yml
 /hadoop-conf
 /hadoop-scripts
+
+# yolo 가중치 파일
+/weights
