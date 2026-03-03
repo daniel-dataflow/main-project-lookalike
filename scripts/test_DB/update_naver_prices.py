@@ -1,5 +1,6 @@
 import os
 import time
+import random
 import requests
 import psycopg2
 from psycopg2.extras import RealDictCursor
@@ -40,7 +41,8 @@ def search_naver_shopping(query: str, display: int = 5) -> list:
     # 사용자 지침 "X-Naver-Client-Id을 참조해봐" 반영
     headers = {
         "X-Naver-Client-Id": NAVER_CLIENT_ID,
-        "X-Naver-Client-Secret": NAVER_CLIENT_SECRET
+        "X-Naver-Client-Secret": NAVER_CLIENT_SECRET,
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
     }
     params = {
         "query": query,
@@ -132,8 +134,9 @@ def main():
                 else:
                     print(f"⚠️ 검색 결과 없음: {search_query}")
                 
-                # 네이버 API Rate Limit(초당 10회 권장) 고려하여 휴식
-                time.sleep(0.1)
+                # 네이버 안티 봇 회피 및 API Rate Limit 고려하여 충분한 랜덤 지연 시간 추가
+                delay = random.uniform(1.5, 3.0)
+                time.sleep(delay)
 
             # 변경사항 최종 커밋
             conn.commit()
