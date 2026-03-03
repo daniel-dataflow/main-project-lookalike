@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
 import logging
 import os
+import re
 from io import BytesIO
 from typing import Any, List, Optional, Sequence
 
@@ -45,12 +47,123 @@ class EncoderHub:
         return np.asarray(vec, dtype=np.float32).tolist()
 
 
+class QueryRewriter:
+    """Qwen 기반 검색어 rewrite 래퍼."""
+
+    def __init__(self) -> None:
+        # 기본값은 off. 운영 중 지연/자원 이슈가 있으면 env만 바꿔 즉시 비활성화 가능하다.
+        self._enabled = os.getenv("ENABLE_QUERY_REWRITE", "false").lower() == "true"
+        # env가 없을 때만 3B 기본 모델을 사용한다.
+        self._model_name = os.getenv("QUERY_REWRITE_MODEL", "Qwen/Qwen2.5-3B-Instruct")
+        self._max_new_tokens = int(os.getenv("QUERY_REWRITE_MAX_NEW_TOKENS", "48"))
+        self._tokenizer: Any = None
+        self._model: Any = None
+
+    def load(self) -> None:
+        if not self._enabled:
+            logger.info("Query rewrite disabled.")
+            return
+
+        logger.info("Query rewrite model loading: %s", self._model_name)
+        from transformers import AutoModelForCausalLM, AutoTokenizer
+
+        self._tokenizer = AutoTokenizer.from_pretrained(self._model_name)
+        self._model = AutoModelForCausalLM.from_pretrained(
+            self._model_name,
+            torch_dtype="auto",
+        )
+        logger.info("Query rewrite model loaded.")
+
+    def rewrite(self, text: str) -> str:
+        if not self._enabled or self._model is None or self._tokenizer is None:
+            return text
+
+        base = text.strip()
+        if not base:
+            return base
+
+        system_prompt = (
+            "당신은 패션 검색 질의를 VLM 검색텍스트 형식으로 변환하는 전문가입니다.\n\n"
+            "규칙:\n"
+            "- 출력은 반드시 JSON만.\n"
+            "- 사용자가 말하지 않은 속성은 추측하지 말고 빈 문자열(\"\")로 둡니다.\n"
+            "- material(소재)만 예외적으로 \"(추정)\" 허용.\n"
+            "- occasion은 사용자가 질의에 명시했을 때만 채웁니다. (없으면 빈 배열)\n"
+            "- search_text는 반드시 1문장.\n"
+            "- search_text 속성 순서 고정:\n"
+            "  세부카테고리 -> 색상 -> 디자인 -> 패턴 -> 소재 -> 실루엣/핏 -> 상황\n"
+            "- 문장은 속성 나열 중심, 쉼표로 구분."
+        )
+        user_prompt = (
+            f"사용자 검색 질의: {base}\n\n"
+            "가능하면 카테고리를 추출해서 summary에 넣고,\n"
+            "details를 채우고,\n"
+            "search_text를 VLM 스타일로 작성하세요.\n\n"
+            "출력 형식:\n"
+            "{\n"
+            "  \"summary\": \"\",\n"
+            "  \"details\": {\n"
+            "    \"color\": \"\",\n"
+            "    \"design\": \"\",\n"
+            "    \"pattern\": \"\",\n"
+            "    \"material\": \"\",\n"
+            "    \"silhouette\": \"\"\n"
+            "  },\n"
+            "  \"occasion\": [],\n"
+            "  \"search_text\": \"\"\n"
+            "}\n\n"
+            "occasion 후보:\n"
+            "[면접, 하객, 출근, 데이트, 데일리, 격식있는행사, 여행, 파티, 캐주얼모임]"
+        )
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt},
+        ]
+
+        try:
+            # 채팅 템플릿을 사용해 모델 출력 형식을 안정화한다.
+            input_ids = self._tokenizer.apply_chat_template(
+                messages,
+                add_generation_prompt=True,
+                return_tensors="pt",
+            ).to(self._model.device)
+            output_ids = self._model.generate(
+                input_ids,
+                max_new_tokens=self._max_new_tokens,
+                do_sample=False,
+                temperature=0.0,
+            )
+            generated_ids = output_ids[0][input_ids.shape[1] :]
+            rewritten_raw = self._tokenizer.decode(generated_ids, skip_special_tokens=True).strip()
+            payload = self._extract_json_payload(rewritten_raw)
+            search_text = payload.get("search_text")
+            if isinstance(search_text, str) and search_text.strip():
+                return search_text.strip()
+            return base
+        except Exception as exc:
+            logger.warning("Query rewrite failed, fallback to original text: %s", exc)
+            return base
+
+    @staticmethod
+    def _extract_json_payload(raw_text: str) -> dict:
+        # 모델이 코드블록/여분 텍스트를 섞어도 첫 JSON object를 복원한다.
+        text = raw_text.strip()
+        match = re.search(r"\{.*\}", text, flags=re.DOTALL)
+        if not match:
+            return {}
+        try:
+            return json.loads(match.group(0))
+        except Exception:
+            return {}
+
+
 app = FastAPI(title="Lookalike ML Inference API", version="1.1.0")
 
 # 기존 라우터 말고 새로 만든 YOLO 라우터를 붙인다.
 app.include_router(yolo_router)
 
 encoders = EncoderHub()
+rewriter = QueryRewriter()
 service: Optional[SearchService] = None
 
 
@@ -72,6 +185,7 @@ def on_startup() -> None:
 
     logger.info("AI 모델 적재 시작")
     encoders.load()
+    rewriter.load()
     
     # 별도로 YOLO 모델 탑재 (별도 스레드/프로세스처럼 독립적)
     yolo_detector.load()
@@ -92,6 +206,7 @@ def on_startup() -> None:
         config=cfg,
         clip_image_encoder=encoders.encode_image_clip,
         sbert_text_encoder=encoders.encode_text_sbert,
+        query_rewriter=rewriter.rewrite,
     )
     logger.info("AI 모델 적재 완료")
 
