@@ -284,6 +284,7 @@ services:
       - TZ=${TZ}
     ports:
       - "${HADOOP_DATANODE_WEBUI_PORT}:9864"
+      - "9864:9864"
     volumes:
       - datanode_data:/hadoop/dfs/data
     networks: [main-network]
@@ -469,6 +470,7 @@ services:
       - ./data-pipeline/airflow/plugins:/opt/airflow/plugins
       - ./data-pipeline:/opt/airflow/data-pipeline
       - airflow_logs:/opt/airflow/logs
+      - ./data:/opt/airflow/data
       - ./data-pipeline/spark/jobs:/opt/airflow/data-pipeline/spark/jobs
       - ./best.pt:/opt/airflow/model/best.pt:ro  # ✅ YOLO 모델 마운트
     networks: [main-network]
@@ -526,6 +528,7 @@ services:
       - airflow_logs:/opt/airflow/logs
       - ./data-pipeline/spark/jobs:/opt/airflow/data-pipeline/spark/jobs
       - ./best.pt:/opt/airflow/model/best.pt:ro  # ✅ YOLO 모델 마운트
+      - ./data:/opt/airflow/data
     networks: [main-network]
     restart: unless-stopped
     deploy:

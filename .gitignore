@@ -222,3 +222,4 @@ venv/
 .venv/
 __pycache__/
 .ollama/
+data-pipeline/crawlers/web_crawlers/debug_logs/

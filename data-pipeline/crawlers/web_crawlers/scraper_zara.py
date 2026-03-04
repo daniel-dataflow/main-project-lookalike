@@ -1,22 +1,18 @@
 import asyncio
 import re
 import json
+import os
 from datetime import datetime
 from playwright.async_api import async_playwright
-from hdfs import InsecureClient
+from hdfs import InsecureClient  # HDFS 라이브러리 추가
 
 # --- 설정 ---
 BRAND_NAME = "zara"
-## 26.2.15
-TODAY_STR = datetime.now().strftime('%Y%m%d') # 20260215 형태
-# namenode는 docker-compose의 서비스 이름이고, 9000은 설정하신 포트입니다.
-#HDFS_ROOT_PATH = f"hdfs://namenode:9000/user/airflow/data/{BRAND_NAME}/{TODAY_STR}"
-HDFS_ROOT_PATH = f"/raw/{BRAND_NAME}/{TODAY_STR}" # 'hdfs://' 빼고 깔끔하게 경로만
-# HDFS 설정
-## 26.2.15
-HDFS_NAMENODE_URL = "http://namenode:9870"
-#HDFS_NAMENODE_URL = "http://localhost:9870"  # WebHDFS 포트 (9870 or 50070)
-HDFS_USER = "hadoop"  # HDFS 유저명
+TODAY_STR = datetime.now().strftime('%Y%m%d')
+
+# HDFS 설정 (Docker 내부 Airflow에서 실행 기준)
+HDFS_NAMENODE_URL = "http://namenode:9870" 
+HDFS_USER = "hadoop" 
 
 # 수집 대상 URL
 TARGET_MAP = {
@@ -27,13 +23,11 @@ TARGET_MAP = {
     }
 }
 
-
-
 visited_products = set()
-sem = asyncio.Semaphore(3) # 3
+sem = asyncio.Semaphore(3)
 
 async def extract_product_data_from_dom(page):
-    """DOM 데이터 추출 로직 (이전과 동일)"""
+    """DOM 데이터 추출 로직"""
     try:
         await page.mouse.wheel(0, 500)
         await asyncio.sleep(1.0)
@@ -130,7 +124,7 @@ async def process_product(product_id, gender, category, context, collected_data,
         p_page = await context.new_page()
         try:
             print(f"   🔎 접속 중... {product_id}")
-            await p_page.set_extra_http_headers({"Referer": "https://www.google.com/", "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"})
+            await p_page.set_extra_http_headers({"Referer": "https://www.google.com/"})
             await p_page.goto(product_url, timeout=60000, wait_until="domcontentloaded")
             
             product_dict = None
@@ -156,7 +150,25 @@ async def crawl_category(gender, category_name, target_url, context, collected_d
     page = await context.new_page()
     product_map = {} 
     try:
-        await page.goto(target_url, timeout=90000, wait_until="domcontentloaded")
+        response = await page.goto(target_url, timeout=90000, wait_until="domcontentloaded")
+        
+        # ====== [디버깅 로직] ======
+        os.makedirs("./debug_logs", exist_ok=True)
+        await asyncio.sleep(5)
+        
+        page_title = await page.title()
+        print(f"   📄 [디버그] 페이지 타이틀: {page_title}")
+        print(f"   🌐 [디버그] HTTP 상태 코드: {response.status if response else 'Unknown'}")
+        
+        screenshot_path = f"./debug_logs/debug_{gender}_{category_name}.png"
+        await page.screenshot(path=screenshot_path, full_page=True)
+        print(f"   📸 [디버그] 스크린샷 저장됨: {screenshot_path}")
+        
+        html_content = await page.content()
+        with open(f"./debug_logs/debug_{gender}_{category_name}.html", "w", encoding="utf-8") as f:
+            f.write(html_content)
+        # ==============================
+
         for _ in range(5):
             await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
             await asyncio.sleep(2)
@@ -177,15 +189,34 @@ async def crawl_category(gender, category_name, target_url, context, collected_d
         await page.close()
 
 async def run():
-    print(f"--- [START] ZARA HDFS 수집기 ---")
+    print(f"--- [START] ZARA 하둡 수집기 (Xvfb 모드 + Stealth + Debug) ---")
     collected_data = [] 
     
     async with async_playwright() as p:
-        # 26.2.15
-        browser = await p.chromium.launch(headless=True, args=["--start-maximized", "--disable-blink-features=AutomationControlled"]) 
-        #browser = await p.chromium.launch(headless=False, args=["--start-maximized", "--disable-blink-features=AutomationControlled"]) 
-        context = await browser.new_context(viewport={"width": 1920, "height": 1080}, locale="ko-KR")
-        await context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+        browser = await p.chromium.launch(
+            headless=False, 
+            args=[
+                "--start-maximized", 
+                "--disable-blink-features=AutomationControlled",
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                "--disable-dev-shm-usage"
+            ]
+        ) 
+        
+        context = await browser.new_context(
+            viewport={"width": 1920, "height": 1080}, 
+            locale="ko-KR",
+            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+        )
+        
+        stealth_js = """
+            Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+            window.chrome = { runtime: {} };
+            Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3] });
+            Object.defineProperty(navigator, 'languages', { get: () => ['ko-KR', 'ko', 'en-US', 'en'] });
+        """
+        await context.add_init_script(stealth_js)
 
         for gender, categories in TARGET_MAP.items():
             for category, urls in categories.items():
@@ -194,49 +225,41 @@ async def run():
                     await crawl_category(gender, category, url, context, collected_data)
         await browser.close()
 
-    # --- HDFS 저장 로직 (경로 수정됨) ---
+    # --- HDFS 파일 저장 로직 ---
     if collected_data:
-        print(f"\n📦 {len(collected_data)}건 수집 완료. HDFS 업로드 시작...")
+        print(f"\n📦 {len(collected_data)}건 수집 완료. HDFS 저장 시작...")
+        today_date = datetime.now().strftime('%Y-%m-%d')
+        target_dir = f"/raw/{BRAND_NAME}/{today_date}"
         
         try:
             client = InsecureClient(HDFS_NAMENODE_URL, user=HDFS_USER)
             
-            # [수정됨] 날짜 기반 동적 경로 생성
-            # 예: /raw/zara/2024-05-21
-            # 26.2.15
-            today_date = datetime.now().strftime('%Y-%m-%d')
-            #today_date = datetime.now().strftime('%Y-%m-%d')
-            target_dir = f"/raw/{BRAND_NAME}/{today_date}"
-            
-            # 디렉토리 생성 (있으면 무시, 없으면 생성)
+            # 디렉토리 생성 시도
             try:
                 client.makedirs(target_dir)
-                print(f"   📁 타겟 디렉토리 확인: {target_dir}")
+                print(f"   📁 HDFS 타겟 디렉토리 확인: {target_dir}")
             except Exception as e:
-                # 이미 존재하거나 권한 문제일 수 있음
-                print(f"   ℹ️ 디렉토리 생성 메시지: {e}")
+                print(f"   ℹ️ HDFS 디렉토리 생성 메시지(이미 존재할 수 있음): {e}")
 
             saved_count = 0
             for item in collected_data:
                 try:
                     filename = f"{BRAND_NAME}_{item['gender'].lower()}_{item['category'].lower()}_{item['product_id']}.json"
                     hdfs_file_path = f"{target_dir}/{filename}"
-                    
                     final_data = item['data']
                     
-                    # HDFS 쓰기
+                    # HDFS에 JSON 파일 쓰기
                     with client.write(hdfs_file_path, encoding='utf-8', overwrite=True) as writer:
                         json.dump(final_data, writer, ensure_ascii=False, indent=4)
-                    
                     saved_count += 1
                 except Exception as e:
-                    print(f"   ❌ 업로드 실패 ({item.get('product_id')}): {e}")
+                    print(f"   ❌ HDFS 저장 실패 ({item.get('product_id')}): {e}")
 
-            print(f"\n✨ 총 {saved_count}개 파일 업로드 완료")
-            print(f"   👉 경로: {target_dir}")
+            print(f"\n✨ 총 {saved_count}개 파일 HDFS 저장 완료")
+            print(f"   👉 저장 위치: {target_dir}")
 
         except Exception as e:
-            print(f"\n🚨 HDFS 오류: {e}")
+            print(f"\n🚨 HDFS 연결/저장 오류: {e}")
     else:
         print("\n❌ 수집된 데이터가 없습니다.")
 

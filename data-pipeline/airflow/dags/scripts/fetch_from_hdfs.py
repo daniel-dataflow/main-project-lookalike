@@ -96,7 +96,6 @@ def fetch_from_hdfs(
     brand: str,
     hdfs_root: str,
     incoming_dir: str,
-    limit: int = 300,
 ) -> list[dict[str, Any]]:
     """
     Airflow Task:
@@ -115,7 +114,7 @@ def fetch_from_hdfs(
     """
     
     # HDFS에서 이미지 파일 경로 수집 후 limit 적용
-    files = _list_files(hdfs_root)[:limit]
+    files = _list_files(hdfs_root)
 
     incoming = Path(incoming_dir)
     incoming.mkdir(parents=True, exist_ok=True)

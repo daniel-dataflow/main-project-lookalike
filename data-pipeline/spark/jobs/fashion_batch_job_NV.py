@@ -20,12 +20,6 @@ NAVER_CLIENT_SECRET = "sss0tmNxwC"
 # NAVER_CLIENT_SECRET = os.getenv("NAVER_CLIENT_SECRET")
 NAVER_URL = "https://openapi.naver.com/v1/search/shop.json"
 
-# 제대로 읽어왔는지 확인용 (보안을 위해 앞글자만 출력)
-# if NAVER_CLIENT_ID:
-#     print(f"✅ NAVER API Key Loaded: {NAVER_CLIENT_ID[:3]}***")
-# else:
-#     print("❌ .env 파일을 찾지 못했거나 설정이 없습니다.")
-
 if not NAVER_CLIENT_ID or not NAVER_CLIENT_SECRET:
     raise ValueError("NAVER API 환경변수가 설정되지 않았습니다.")
 
@@ -72,8 +66,8 @@ try:
         # ---------------------------------
         params = {
             "query": query,
-            "display": 5,
-            "sort": "asc"
+            "display": 20, # 공식몰 필터링을 위해 20개 조회
+            "sort": "sim"  # asc 대신 sim 사용이 더 정확함
         }
 
         headers = {
@@ -104,11 +98,36 @@ try:
             continue
 
         # ---------------------------------
+        # 4.5️⃣ 공식몰 필터링 로직
+        # ---------------------------------
+        filtered_items = []
+        brand_upper = brand_name.upper() if brand_name else ""
+        
+        for item in items:
+            mall_name = item.get("mallName", "")
+            mall_upper = mall_name.upper()
+            is_official = False
+            
+            if brand_upper == "8SECONDS":
+                if "에잇세컨즈" in mall_name or "8SECONDS" in mall_upper or "SSF" in mall_upper:
+                    is_official = True
+            elif brand_upper == "TOPTEN10":
+                if "탑텐" in mall_name or "TOPTEN" in mall_upper:
+                    is_official = True
+                    
+            if not is_official:
+                filtered_items.append(item)
+
+        if not filtered_items:
+            print(f"🔍 {product_id} 유효 검색 결과 없음 (모두 공식몰)")
+            continue
+
+        # ---------------------------------
         # 5️⃣ 가격 낮은순 정렬
         # ---------------------------------
         try:
             items_sorted = sorted(
-                items,
+                filtered_items,
                 key=lambda x: int(x.get("lprice", 0))
             )
         except Exception as e:
@@ -125,7 +144,7 @@ try:
             """, (product_id,))
 
             # ---------------------------------
-            # 7️⃣ 1~5위 저장
+            # 7️⃣ 1~5위 저장 (image_url 포함)
             # ---------------------------------
             for idx, item in enumerate(items_sorted[:5], start=1):
 

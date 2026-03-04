@@ -6,24 +6,22 @@ from airflow.operators.bash import BashOperator
 from dotenv import load_dotenv
 
 # ---------------------------------------------------------
-# [TaskFlow API 함수 임포트] - (뒷단 로직용)
+# [TaskFlow API 함수 임포트]
 # ---------------------------------------------------------
 from scripts.fetch_from_hdfs import fetch_from_hdfs
 from scripts.yolo_pipeline import yolo_reorganize_dedup_upsert
 from scripts.embed_to_json import embed_to_json
 from scripts.upsert_mongo import upsert_mongo
-from scripts.upsert_es import upsert_es
 
 # .env 환경변수 로드 (네이버 API 키 등)
 load_dotenv()
 
 # ---------------------------------------------------------
-# [경로 및 설정값 정의] - (경로 변경 절대 없음)
+# [경로 및 상수 정의]
 # ---------------------------------------------------------
 CRAWLER_DIR = "/opt/airflow/data-pipeline/crawlers/web_crawlers"
 SPARK_DIR = "/opt/airflow/data-pipeline/spark/jobs"
 TODAY_STR = "{{ ds_nodash }}"
-MONGO_CONNECTION_URI = "mongodb://datauser:DataPass2026!@mongo-main:27017/?authSource=admin"
 
 default_args = {
     'owner': 'lookalike',
@@ -34,20 +32,20 @@ default_args = {
 }
 
 with DAG(
-    dag_id='fashion_total_pipeline',
+    dag_id='fashion_total_pipeline_integrated',
     default_args=default_args,
-    description='Crawl -> Spark -> Naver API -> YOLO -> VLM -> Text Embed -> ES 통합 파이프라인',
+    description='Crawl -> Spark -> Naver API -> YOLO -> Image Embed -> Mongo -> VLM(Text Embed) -> ES 통합 파이프라인',
     schedule_interval=None,
     catchup=False,
     tags=['fashion', 'full_logic', 'integrated'],
     max_active_tasks=2, 
 ) as dag:
 
-    # 테스트를 위해 uniqlo와 8seconds를 열어두었습니다. 필요에 따라 주석 해제하세요.
+    # 테스트를 위해 8seconds만 활성화. 필요시 주석 해제하여 병렬 확장 가능!
     brands = {
+        # '8seconds': '8S',
         # 'topten': 'TT',
-         '8seconds': '8S',
-        # 'zara': 'ZR',
+        'zara': 'ZR',
         # 'uniqlo': 'UQ',
         # 'musinsa': 'MS'
     }
@@ -55,43 +53,37 @@ with DAG(
     for crawler_key, spark_key in brands.items():
         
         # =========================================================
-        # [STEP 1~3] 앞단 로직: 크롤링 -> 스파크 -> 네이버 최저가 API
+        # [STEP 1~3] 데이터 수집 및 기본 전처리 (Crawler, Spark, Naver API)
         # =========================================================
         
-        # 1. 크롤링 (Scrapy)
+        # 1. 크롤링 (Playwright/Selenium)
+        if crawler_key == 'zara':
+            crawl_cmd = f'PYTHONPATH={CRAWLER_DIR} xvfb-run -a python3 -u {CRAWLER_DIR}/scraper_{crawler_key}.py {TODAY_STR}'
+        else:
+            crawl_cmd = f'PYTHONPATH={CRAWLER_DIR} python3 -u {CRAWLER_DIR}/scraper_{crawler_key}.py {TODAY_STR}'
+
         crawl_task = BashOperator(
             task_id=f'crawl_{crawler_key}',
-            bash_command=(
-                f'PYTHONPATH={CRAWLER_DIR} '
-                f'python3 {CRAWLER_DIR}/scraper_{crawler_key}.py {TODAY_STR}'
-            )
+            bash_command=crawl_cmd
         )
 
-        # 2. Spark 처리 (DB 적재 및 HDFS 이미지 저장)
+
+        # 2. Spark DB 적재 및 HDFS 파일 저장
         spark_task = BashOperator(
             task_id=f"spark_process_{crawler_key}",
-            env={
-                'POSTGRES_HOST': 'postgresql',
-                'POSTGRES_DB': 'datadb',
-                'POSTGRES_USER': 'datauser',
-                'POSTGRES_PASSWORD': 'DataPass2026!'
-            },
-            append_env=True,
             bash_command=(
                 "export SPARK_HOME=/home/airflow/.local/lib/python3.11/site-packages/pyspark && "
                 "export PATH=$SPARK_HOME/bin:$PATH && "
                 "spark-submit --master local[*] "
-                "--packages org.postgresql:postgresql:42.6.0,"
-                "org.mongodb.spark:mongo-spark-connector_2.12:10.3.0 " 
-                f"{SPARK_DIR}/fashion_batch_job_{spark_key}.py "
-                f"{TODAY_STR}"
+                "--packages org.postgresql:postgresql:42.6.0,org.mongodb.spark:mongo-spark-connector_2.12:10.3.0 " 
+                f"{SPARK_DIR}/fashion_batch_job_{spark_key}.py {TODAY_STR}"
             )
         )
 
         # 3. 네이버 최저가 API 수집
         naver_api_task = BashOperator(
             task_id=f'naver_api_{crawler_key}',
-            bash_command=f'python3 {SPARK_DIR}/fashion_batch_job_NV.py',
+            bash_command=f'python3 -u {SPARK_DIR}/fashion_batch_job_NV.py',
             env={
                 'DB_HOST': 'postgresql',
                 'NAVER_CLIENT_ID': os.getenv('NAVER_CLIENT_ID', ""),
@@ -101,7 +93,7 @@ with DAG(
         )
 
         # =========================================================
-        # [STEP 4~7] 중간 로직: YOLO 객체 인식 & 이미지 임베딩 (TaskFlow)
+        # [STEP 4~7] 이미지 분석 및 몽고DB 적재 (TaskFlow API)
         # =========================================================
         
         fetched = fetch_from_hdfs.override(task_id=f"fetch_from_hdfs_{crawler_key}")(
@@ -127,45 +119,34 @@ with DAG(
         mongo_done = upsert_mongo.override(task_id=f"upsert_mongo_{crawler_key}")(
             json_paths=json_paths,
             mongo_uri="{{ var.value.MONGO_URI }}", 
-            db_name="datadb",
-            collection="analyzed_metadata",
-        )
-
-        es_done = upsert_es.override(task_id=f"upsert_es_{crawler_key}")(
-            json_paths=json_paths,
-            es_url="{{ var.value.ES_URL }}",
-            index_name=f"vector_idx_{crawler_key}",
+            db_name="fashion",
+            collection="products",
         )
 
         # =========================================================
-        # [STEP 8~10] 뒷단 로직: VLM 텍스트 추출 -> 텍스트 임베딩 -> ES 동기화
+        # [STEP 8~9] VLM 텍스트 추출 및 임베딩 -> ElasticSearch 동기화
         # =========================================================
         
         vlm_analyze_task = BashOperator(
             task_id=f'vlm_analyze_images_{crawler_key}',
-            bash_command=f'python /opt/airflow/dags/scripts/vlm.py {crawler_key}'
-        )
-
-        text_embed_task = BashOperator(
-            task_id=f'generate_text_vectors_{crawler_key}',
-            bash_command=f'python /opt/airflow/dags/scripts/text_embedder.py --mongo_uri "{MONGO_CONNECTION_URI}" --brand_name {crawler_key} '
+            bash_command=f'python3 -u /opt/airflow/dags/scripts/vlm.py' # 필요시 나중에 인자 넘기기 가능
         )
 
         sync_es_task = BashOperator(
             task_id=f'sync_mongo_to_es_{crawler_key}',
-            bash_command=f'python /opt/airflow/dags/scripts/sync_to_es.py --brand_name {crawler_key} '
+            bash_command=f'python3 -u /opt/airflow/dags/scripts/sync_to_es.py --brand_name {crawler_key}'
         )
 
         # =========================================================
         # 🔗 [핵심] 파이프라인 전체 흐름(의존성) 연결
         # =========================================================
-        # 1. 앞단 순차 실행 후 하둡에서 이미지 가져오기(fetched) 시작
-        crawl_task >> spark_task >> naver_api_task >> fetched
+        # 참고: TaskFlow API(fetched -> final_rows -> json_paths -> mongo_done)는
+        # 함수의 인자 전달을 통해 에어플로우가 자동으로 의존성을 연결합니다.
+        
+        # 1. 앞단 로직 연결 (크롤링 -> 스파크 -> API -> HDFS 다운로드 시작)
+        # crawl_task >> spark_task >> naver_api_task >> 
 
-        # (fetched -> final_rows -> json_paths -> mongo_done/es_done 는 TaskFlow API가 자동 연결함)
+        fetched
 
-        # 2. Mongo와 ES 적재가 모두 끝나면 VLM 분석 시작
-        mongo_done >> vlm_analyze_task
-
-        # 3. VLM 텍스트 추출 -> 텍스트 임베딩 -> ES에 최종 업데이트
-        vlm_analyze_task >> text_embed_task >> sync_es_task
+        # 2. 뒷단 로직 연결 (몽고DB 적재 완료 -> VLM/임베딩 -> ES 동기화)
+        mongo_done >> vlm_analyze_task >> sync_es_task

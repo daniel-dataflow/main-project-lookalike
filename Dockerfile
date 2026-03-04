@@ -10,6 +10,8 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     openjdk-17-jdk \
     build-essential \
+    xvfb \
+    xauth \
     libgl1 \
     libglib2.0-0 libnss3 libnspr4 libdbus-1-3 libatk1.0-0 libatk-bridge2.0-0 \
     libcups2 libdrm2 libxcb1 libxkbcommon0 libatspi2.0-0 libx11-6 \
@@ -43,7 +45,6 @@ RUN python -m pip install --no-cache-dir \
     pyspark==3.5.3
 
 # 2-2. 크롤링, NLP 및 기타 유틸리티 라이브러리 
-# 🚨 해결: --constraint 옵션을 삭제하여 충돌을 방지합니다.
 RUN python -m pip install --no-cache-dir \
     playwright==1.41.2 \
     pytest-playwright \

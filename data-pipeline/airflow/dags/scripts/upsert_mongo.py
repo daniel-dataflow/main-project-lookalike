@@ -12,8 +12,8 @@ from airflow.decorators import task
 def upsert_mongo(
     json_paths: list[str],
     mongo_uri: str,
-    db_name: str = "fashion",
-    collection: str = "products",
+    db_name: str = "datadb",
+    collection: str = "analyzed_metadata",
 ) -> int:
     """
     수행하는 일:
