@@ -18,8 +18,9 @@ COPY ml-models/api/requirements.txt .
 # Install any needed packages specified in requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the current directory contents into the container at /app
-COPY . .
+# Copy only ML engine runtime sources (avoid full-repo copy to reduce build time)
+COPY ml-models/api /app/ml-models/api
+COPY ml-models/weights /app/ml-models/weights
 
 # Make port 8914 available to the world outside this container
 EXPOSE 8914
