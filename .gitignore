@@ -210,6 +210,7 @@ miniconda3/
 logs/
 data-pipeline/airflow/simple_auth_manager_passwords.json.generated
 data-pipeline/elasticsearch/data/
+data-pipeline/database/data/
 
 ml-models/api/app.py
 
