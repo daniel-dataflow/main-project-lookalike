@@ -215,6 +215,32 @@
         let originalImageSize = { w: 0, h: 0 };
         let originalImageObj = null;
 
+        // YOLO 라벨을 검색 category 값으로 정규화한다.
+        function mapYoloLabelToCategory(label) {
+            const normalized = String(label || '').trim().toLowerCase();
+            if (!normalized) return null;
+            if (normalized === 'top' || normalized === '상의') return 'top';
+            if (normalized === 'bottom' || normalized === '하의') return 'bottom';
+            if (normalized === 'outer' || normalized === '아우터') return 'outer';
+            return null;
+        }
+
+        function applyCategorySelection(categoryValue) {
+            if (!categoryValue) return;
+            selectedClothes = categoryValue;
+            categoryBtns.forEach(b => {
+                const isTarget = b.dataset.category === categoryValue;
+                b.classList.toggle('active', isTarget);
+                b.classList.toggle('btn-primary', isTarget);
+                b.classList.toggle('btn-outline-secondary', !isTarget);
+            });
+            document.getElementById('categoryError').classList.add('d-none');
+            console.log('[YOLO->CATEGORY] applyCategorySelection:', {
+                categoryValue,
+                selectedClothes
+            });
+        }
+
         // 성별 선택
         const genderBtns = document.querySelectorAll('.gender-btn');
         genderBtns.forEach(btn => {
@@ -603,6 +629,9 @@
             if (!imgRect) return;
 
             boxes.forEach(box => {
+                // YOLO 라벨을 카테고리 값으로 미리 정규화해 둔다.
+                box.normalizedCategory = mapYoloLabelToCategory(box.label);
+
                 // 원래 좌표 자체의 한도 보정 (백엔드에서 이미지 밖 좌표를 준 경우 방어)
                 const originalX1 = Math.max(0, Math.min(box.x1, originalImageSize.w));
                 const originalY1 = Math.max(0, Math.min(box.y1, originalImageSize.h));
@@ -674,6 +703,15 @@
                         div.style.backgroundColor = 'rgba(25, 135, 84, 0.3)';
                         label.classList.replace('bg-primary', 'bg-success');
                         label.innerText = '선택됨';
+
+                        // YOLO 박스 선택은 해당 라벨의 카테고리 선택으로 간주한다.
+                        const mappedCategory = box.normalizedCategory || mapYoloLabelToCategory(label.dataset.originalText || box.label);
+                        console.log('[YOLO->CATEGORY] bbox click:', {
+                            rawLabel: box.label,
+                            normalizedCategory: box.normalizedCategory,
+                            mappedCategory
+                        });
+                        applyCategorySelection(mappedCategory);
                     }
                 });
 
@@ -757,9 +795,25 @@
                 if (selectedGender) {
                     formData.append('gender', selectedGender);
                 }
+                // category 우선순위:
+                // 1) 사용자가 직접 선택한 category 버튼
+                // 2) YOLO 자동 박스 선택 라벨(Top/Bottom/Outer) 매핑
                 if (selectedClothes) {
                     formData.append('category', selectedClothes);
+                } else if (selectedBbox) {
+                    const mapped = selectedBbox.normalizedCategory || mapYoloLabelToCategory(selectedBbox.label);
+                    if (mapped) {
+                        applyCategorySelection(mapped); // UI도 동기화
+                        formData.append('category', mapped);
+                    }
                 }
+                console.log('[SEARCH REQUEST] payload states:', {
+                    currentMode,
+                    selectedClothes,
+                    selectedBbox,
+                    selectedGender,
+                    hasCategoryInFormData: formData.has('category')
+                });
 
                 const response = await fetch('/api/search/by-image', {
                     method: 'POST',
