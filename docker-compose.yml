@@ -460,15 +460,22 @@ services:
     container_name: ml-engine-main
     hostname: ml-engine
     env_file: [ .env ]  # rewrite 기능 관련 파라미터 읽어오기
+    environment:
+      - PYTHONUNBUFFERED=1
     working_dir: /app/ml-models/api
     ports:
       - "8914:8914"
+    volumes:
+      - ./ml-models/api:/app/ml-models/api
+      - ./ml-models/weights:/app/ml-models/weights:ro
     networks: [ main-network ]
     restart: unless-stopped
     deploy:
       resources:
         limits: { memory: 2G }
         reservations: { memory: 1G }
+    command: >
+      bash -c "python -m uvicorn main:app --host 0.0.0.0 --port 8914 --reload"
 
   # ============================================================
   # 12. Airflow Webserver — apache/airflow:2.10.4-python3.11

@@ -225,6 +225,9 @@ class SearchService:
         }
 
         all_filters = list(filters)
+        # 검색 대상 벡터 필드가 없는 문서는 제외한다.
+        # (예: text_vector가 없는 상품은 텍스트 검색에서 자동 제외)
+        all_filters.append({"exists": {"field": field}})
         if candidate_ids:
             # 2-stage에서 1차 후보 ID 집합으로 2차 검색 범위를 제한한다.
             all_filters.append({"terms": {self.cfg.id_field: candidate_ids}})
