@@ -4,7 +4,10 @@ import json
 import logging
 import os
 import re
+import threading
 from io import BytesIO
+from collections import OrderedDict
+from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from typing import Any, List, Optional, Sequence
 
 import numpy as np
@@ -56,26 +59,80 @@ class QueryRewriter:
         # env가 없을 때만 3B 기본 모델을 사용한다.
         self._model_name = os.getenv("QUERY_REWRITE_MODEL", "Qwen/Qwen2.5-3B-Instruct")
         self._max_new_tokens = int(os.getenv("QUERY_REWRITE_MAX_NEW_TOKENS", "48"))
+        self._timeout_sec = float(os.getenv("QUERY_REWRITE_TIMEOUT_SEC", "3.0"))
+        # 짧은 질의일수록 rewrite를 적용하고, 너무 긴 질의는 그대로 사용한다.
+        self._max_text_len = int(os.getenv("QUERY_REWRITE_MAX_TEXT_LEN", "20"))
+        self._cache_max_size = int(os.getenv("QUERY_REWRITE_CACHE_SIZE", "512"))
+        # true일 때만 startup 백그라운드 preload 수행 (기본은 off)
+        self._preload_on_startup = os.getenv("QUERY_REWRITE_PRELOAD_ON_STARTUP", "false").lower() == "true"
         self._tokenizer: Any = None
         self._model: Any = None
+        self._load_attempted = False
+        self._load_lock = threading.Lock()
+        self._cache: "OrderedDict[str, str]" = OrderedDict()
+        self._executor = ThreadPoolExecutor(max_workers=1)
+        # 모델코드/품번 형태 키워드는 rewrite에서 제외
+        self._model_code_pattern = re.compile(r"\b[A-Z]{1,5}\d{6,}\b")
 
     def load(self) -> None:
         if not self._enabled:
             logger.info("Query rewrite disabled.")
             return
 
-        logger.info("Query rewrite model loading: %s", self._model_name)
-        from transformers import AutoModelForCausalLM, AutoTokenizer
+        with self._load_lock:
+            if self._tokenizer is not None and self._model is not None:
+                return
 
-        self._tokenizer = AutoTokenizer.from_pretrained(self._model_name)
-        self._model = AutoModelForCausalLM.from_pretrained(
-            self._model_name,
-            torch_dtype="auto",
-        )
-        logger.info("Query rewrite model loaded.")
+            logger.info("Query rewrite model loading: %s", self._model_name)
+            from transformers import AutoModelForCausalLM, AutoTokenizer
 
-    def rewrite(self, text: str) -> str:
-        if not self._enabled or self._model is None or self._tokenizer is None:
+            self._tokenizer = AutoTokenizer.from_pretrained(self._model_name)
+            self._model = AutoModelForCausalLM.from_pretrained(
+                self._model_name,
+                torch_dtype="auto",
+            )
+            logger.info("Query rewrite model loaded.")
+
+    def preload_in_background(self) -> None:
+        """startup 지연을 피하기 위해 rewrite 모델을 백그라운드에서 미리 올린다."""
+        if not self._enabled:
+            return
+        if not self._preload_on_startup:
+            return
+        if self._load_attempted:
+            return
+        self._load_attempted = True
+        threading.Thread(target=self._safe_load, daemon=True).start()
+
+    def _safe_load(self) -> None:
+        try:
+            self.load()
+        except Exception as exc:
+            logger.warning("Query rewrite background load failed: %s", exc)
+
+    def _is_ready(self) -> bool:
+        return self._tokenizer is not None and self._model is not None
+
+    def _ensure_loaded(self) -> bool:
+        """텍스트 검색이 실제 발생했을 때만 rewrite 모델을 로드한다."""
+        if not self._enabled:
+            return False
+        if self._is_ready():
+            return True
+        if self._load_attempted:
+            return False
+
+        self._load_attempted = True
+        try:
+            self.load()
+            return self._model is not None and self._tokenizer is not None
+        except Exception as exc:
+            logger.warning("Query rewrite lazy load failed: %s", exc)
+            return False
+
+    def _rewrite_core(self, text: str) -> str:
+        """모델 추론 부분만 분리. timeout 제어는 상위에서 수행한다."""
+        if not self._is_ready():
             return text
 
         base = text.strip()
@@ -144,6 +201,64 @@ class QueryRewriter:
             logger.warning("Query rewrite failed, fallback to original text: %s", exc)
             return base
 
+    def rewrite_if_needed(
+        self,
+        text: str,
+        has_image: bool,
+        category: Optional[str | Sequence[str]],
+    ) -> str:
+        """
+        성능/품질 균형 규칙:
+        - 짧은 텍스트는 rewrite 대상, 긴 텍스트는 skip
+        - 이미지+텍스트는 skip
+        - 카테고리 선택 시 skip
+        - 품번/모델코드 형태 텍스트는 skip
+        - 모델 준비 안 됐으면 즉시 원문 fallback
+        - 3초(timeout) 초과 시 원문 fallback
+        """
+        base = (text or "").strip()
+        if not base:
+            return base
+        if not self._enabled:
+            return base
+        if len(base) > self._max_text_len:
+            return base
+        if has_image:
+            return base
+        if category is not None and str(category).strip():
+            return base
+        if self._model_code_pattern.search(base):
+            return base
+
+        cached = self._cache.get(base)
+        if cached is not None:
+            # LRU 갱신
+            self._cache.move_to_end(base)
+            return cached
+
+        if not self._ensure_loaded():
+            return base
+
+        future = self._executor.submit(self._rewrite_core, base)
+        try:
+            rewritten = future.result(timeout=self._timeout_sec).strip()
+        except TimeoutError:
+            logger.info("Query rewrite timeout(%.1fs), fallback to original text", self._timeout_sec)
+            return base
+        except Exception as exc:
+            logger.warning("Query rewrite failed, fallback to original text: %s", exc)
+            return base
+
+        if not rewritten:
+            return base
+
+        # LRU 캐시 저장
+        self._cache[base] = rewritten
+        self._cache.move_to_end(base)
+        if len(self._cache) > self._cache_max_size:
+            self._cache.popitem(last=False)
+        return rewritten
+
     @staticmethod
     def _extract_json_payload(raw_text: str) -> dict:
         # 모델이 코드블록/여분 텍스트를 섞어도 첫 JSON object를 복원한다.
@@ -185,7 +300,7 @@ def on_startup() -> None:
 
     logger.info("AI 모델 적재 시작")
     encoders.load()
-    rewriter.load()
+    rewriter.preload_in_background()
     
     # 별도로 YOLO 모델 탑재 (별도 스레드/프로세스처럼 독립적)
     yolo_detector.load()
@@ -197,7 +312,9 @@ def on_startup() -> None:
         sbert_field="text_vector",
         # ML 점수 키를 product_code로 고정해 FastAPI의 DB hydration(model_code)과 맞춘다.
         id_field=os.getenv("ML_ID_FIELD", "product_code"),
-        final_k=6,
+        # ML은 후보를 넉넉히 반환하고, 최종 노출 개수(6개)는 FastAPI 백엔드에서 제한한다.
+        # dedupe/hydration 단계에서 후보가 줄어드는 경우를 대비하기 위함.
+        final_k=int(os.getenv("ML_CANDIDATE_K", "24")),
         w_clip=0.7,
         w_sbert=0.3,
         fusion_method="rrf",
@@ -206,7 +323,8 @@ def on_startup() -> None:
         config=cfg,
         clip_image_encoder=encoders.encode_image_clip,
         sbert_text_encoder=encoders.encode_text_sbert,
-        query_rewriter=rewriter.rewrite,
+        # rewrite는 엔드포인트 레벨 조건으로 제어한다.
+        query_rewriter=None,
     )
     logger.info("AI 모델 적재 완료")
 
@@ -238,8 +356,15 @@ async def search(
 
     category_value = _parse_category(category)
     gender_value = _parse_category(gender)
+    text_value = text
+    if text_value is not None:
+        text_value = rewriter.rewrite_if_needed(
+            text=text_value,
+            has_image=pil_img is not None,
+            category=category_value,
+        )
     try:
-        results = service.search(image=pil_img, text=text, category=category_value, gender=gender_value)
+        results = service.search(image=pil_img, text=text_value, category=category_value, gender=gender_value)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:

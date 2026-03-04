@@ -160,12 +160,9 @@ class SearchService:
         filters: List[Dict[str, Any]] = []
 
         if category is not None:
-            if isinstance(category, str):
-                filters.append({"term": {"category": category}})
-            else:
-                values = [c for c in category if c]
-                if values:
-                    filters.append({"terms": {"category": values}})
+            values = self._expand_category_values(category)
+            if values:
+                filters.append({"terms": {"category": values}})
                     
         if gender is not None:
             if isinstance(gender, str):
@@ -176,6 +173,40 @@ class SearchService:
                     filters.append({"terms": {"gender": values}})
 
         return filters
+
+    @staticmethod
+    def _expand_category_values(category: str | Sequence[str]) -> List[str]:
+        """
+        category 필터를 데이터 저장 형태(Top/Bottom/Outer)와
+        프론트 전송값(top/bottom/outer, 한글)을 함께 매칭하도록 확장한다.
+        """
+        if isinstance(category, str):
+            raw_values = [category]
+        else:
+            raw_values = [c for c in category if c]
+
+        variants: List[str] = []
+        seen = set()
+        alias_map = {
+            "top": ["top", "Top", "상의"],
+            "bottom": ["bottom", "Bottom", "하의"],
+            "outer": ["outer", "Outer", "아우터"],
+            "상의": ["상의", "top", "Top"],
+            "하의": ["하의", "bottom", "Bottom"],
+            "아우터": ["아우터", "outer", "Outer"],
+        }
+
+        for v in raw_values:
+            key = v.strip()
+            if not key:
+                continue
+            candidates = alias_map.get(key.lower(), [key, key.lower(), key.capitalize()])
+            for c in candidates:
+                if c not in seen:
+                    seen.add(c)
+                    variants.append(c)
+
+        return variants
 
     def _knn_search(
         self,
@@ -194,6 +225,9 @@ class SearchService:
         }
 
         all_filters = list(filters)
+        # 검색 대상 벡터 필드가 없는 문서는 제외한다.
+        # (예: text_vector가 없는 상품은 텍스트 검색에서 자동 제외)
+        all_filters.append({"exists": {"field": field}})
         if candidate_ids:
             # 2-stage에서 1차 후보 ID 집합으로 2차 검색 범위를 제한한다.
             all_filters.append({"terms": {self.cfg.id_field: candidate_ids}})
