@@ -37,9 +37,13 @@
                 </div>
                 <small class="text-muted" id="cpuDetail">-</small>
                 <div class="mt-2 pt-2 border-top">
-                    <small class="text-muted d-flex justify-content-between">
+                    <small class="text-muted d-flex justify-content-between mb-1">
                         <span>컨테이너 평균</span>
                         <span class="fw-bold text-primary" id="avgCpu">-</span>
+                    </small>
+                    <small class="text-muted d-flex justify-content-between">
+                        <span id="maxCpuDetail">최대 사용 서비스</span>
+                        <span class="fw-bold text-primary" id="maxCpuVal">-</span>
                     </small>
                 </div>
             </div>
@@ -58,9 +62,13 @@
                 </div>
                 <small class="text-muted" id="memoryDetail">-</small>
                 <div class="mt-2 pt-2 border-top">
-                    <small class="text-muted d-flex justify-content-between">
+                    <small class="text-muted d-flex justify-content-between mb-1">
                         <span>컨테이너 평균</span>
                         <span class="fw-bold text-success" id="avgMem">-</span>
+                    </small>
+                    <small class="text-muted d-flex justify-content-between">
+                        <span id="maxMemDetail">최대 사용 서비스</span>
+                        <span class="fw-bold text-success" id="maxMemVal">-</span>
                     </small>
                 </div>
             </div>
@@ -79,9 +87,13 @@
                 </div>
                 <small class="text-muted" id="diskDetail">-</small>
                 <div class="mt-2 pt-2 border-top">
+                    <small class="text-muted d-flex justify-content-between mb-1">
+                        <span>전체 용량</span>
+                        <span class="fw-bold text-warning" id="diskTotal">-</span>
+                    </small>
                     <small class="text-muted d-flex justify-content-between">
-                        <span>최대 메모리</span>
-                        <span class="fw-bold text-warning" id="maxMemVal">-</span>
+                        <span>여유 공간</span>
+                        <span class="fw-bold text-warning" id="diskFree">-</span>
                     </small>
                 </div>
             </div>
@@ -95,11 +107,15 @@
                     <i class="fas fa-clock text-info"></i>
                 </div>
                 <h3 class="mb-1" id="uptime">-</h3>
-                <small class="text-muted">시스템 가동 시간</small>
+                <small class="text-muted" style="display: block; margin-bottom: 7px;">시스템 가동 시간</small>
                 <div class="mt-2 pt-2 border-top">
+                    <small class="text-muted d-flex justify-content-between mb-1">
+                        <span>운영체제</span>
+                        <span class="fw-bold text-info">Linux</span>
+                    </small>
                     <small class="text-muted d-flex justify-content-between">
-                        <span>최대 사용 서비스</span>
-                        <span class="fw-bold text-info" id="maxMemDetail">-</span>
+                        <span>상태</span>
+                        <span class="fw-bold text-info">정상</span>
                     </small>
                 </div>
             </div>
@@ -474,10 +490,13 @@
         // 디스크
         const diskUsedGB = (data.disk_used / 1024 / 1024 / 1024).toFixed(1);
         const diskTotalGB = (data.disk_total / 1024 / 1024 / 1024).toFixed(1);
+        const diskFreeGB = ((data.disk_total - data.disk_used) / 1024 / 1024 / 1024).toFixed(1);
         document.getElementById('diskPercent').textContent = `${data.disk_percent.toFixed(1)}%`;
         document.getElementById('diskProgress').style.width = `${data.disk_percent}%`;
         document.getElementById('diskProgress').className = `progress-bar ${getProgressColor(data.disk_percent)}`;
         document.getElementById('diskDetail').textContent = `${diskUsedGB}GB / ${diskTotalGB}GB`;
+        document.getElementById('diskTotal').textContent = `${diskTotalGB} GB`;
+        document.getElementById('diskFree').textContent = `${diskFreeGB} GB`;
 
         // 업타임
         const days = Math.floor(data.uptime_seconds / 86400);
@@ -547,6 +566,7 @@
 
             let totalCpu = 0, totalMem = 0, count = 0;
             let maxMem = 0, maxMemService = '-';
+            let maxCpu = 0, maxCpuService = '-';
 
             for (const [svc, stats] of Object.entries(data)) {
                 totalCpu += stats.avg_cpu;
@@ -557,13 +577,25 @@
                     maxMem = stats.max_mem_mb;
                     maxMemService = svc;
                 }
+
+                let cpuVal = stats.max_cpu || stats.avg_cpu;
+                if (cpuVal > maxCpu) {
+                    maxCpu = cpuVal;
+                    maxCpuService = svc;
+                }
             }
 
             if (count > 0) {
                 document.getElementById('avgCpu').innerText = (totalCpu / count).toFixed(1) + '%';
                 document.getElementById('avgMem').innerText = (totalMem / count).toFixed(1) + '%';
+
                 document.getElementById('maxMemVal').innerText = maxMem.toFixed(0) + ' MB';
-                document.getElementById('maxMemDetail').innerText = maxMemService;
+                document.getElementById('maxMemDetail').innerText = '사용 1위: ' + maxMemService;
+
+                if (document.getElementById('maxCpuVal')) {
+                    document.getElementById('maxCpuVal').innerText = maxCpu.toFixed(1) + '%';
+                    document.getElementById('maxCpuDetail').innerText = '사용 1위: ' + maxCpuService;
+                }
             }
         } catch (e) {
             console.error("Stats error", e);
