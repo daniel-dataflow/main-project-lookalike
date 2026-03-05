@@ -1,21 +1,20 @@
 networks:
   main-network:
     driver: bridge
-    # name: main-project-network
 
 volumes:
-  postgres_data: { name: main_postgres_data }
-  mongo_data: { name: main_mongo_data }
-  redis_data: { name: main_redis_data }
-  es_data: { name: main_es_data }
-  zookeeper_data: { name: main_zookeeper_data }
-  zookeeper_logs: { name: main_zookeeper_logs }
-  kafka_data: { name: main_kafka_data }
-  namenode_data: { name: main_namenode_data }
-  datanode_data: { name: main_datanode_data }
-  spark_logs: { name: main_spark_logs }
-  spark_work: { name: main_spark_work }
-  airflow_logs: { name: main_airflow_logs }
+  postgres_data:   { name: main_postgres_data }
+  mongo_data:      { name: main_mongo_data }
+  redis_data:      { name: main_redis_data }
+  es_data:         { name: main_es_data }
+  zookeeper_data:  { name: main_zookeeper_data }
+  zookeeper_logs:  { name: main_zookeeper_logs }
+  kafka_data:      { name: main_kafka_data }
+  namenode_data:   { name: main_namenode_data }
+  datanode_data:   { name: main_datanode_data }
+  spark_logs:      { name: main_spark_logs }
+  spark_work:      { name: main_spark_work }
+  airflow_logs:    { name: main_airflow_logs }
   airflow_plugins: { name: main_airflow_plugins }
 
 services:
@@ -27,25 +26,24 @@ services:
     image: postgres:15-alpine
     container_name: postgres-main
     hostname: postgresql
-    env_file: [ .env ]
+    env_file: [.env]
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_USER:     ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
-      TZ: ${TZ}
+      POSTGRES_DB:       ${POSTGRES_DB}
+      TZ:                ${TZ}
     ports:
       - "${EXTERNAL_POSTGRES_PORT}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    networks: [ main-network ]
+    networks: [main-network]
     restart: unless-stopped
     deploy:
       resources:
-        limits: { memory: 1G }
+        limits:       { memory: 1G }
         reservations: { memory: 512M }
     healthcheck:
-      # ✅ FIX ①: $${} → ${} — env_file 변수는 컨테이너 내부에서 $VAR 으로 참조
-      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -59,18 +57,18 @@ services:
     container_name: init-db-main
     depends_on:
       postgresql: { condition: service_healthy }
-    env_file: [ .env ]
+    env_file: [.env]
     environment:
-      PGPASSWORD: ${POSTGRES_PASSWORD}
+      PGPASSWORD:    ${POSTGRES_PASSWORD}
       POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_DB: ${POSTGRES_DB}
-      AIRFLOW_DB: ${AIRFLOW_DB}
+      POSTGRES_DB:   ${POSTGRES_DB}
+      AIRFLOW_DB:    ${AIRFLOW_DB}
     volumes:
       - ./.env:/app/.env:ro
       - ./scripts:/app/scripts:ro
       - ./scripts/init-db.sh:/init-db.sh:ro
-    command: [ "sh", "/init-db.sh" ]
-    networks: [ main-network ]
+    command: ["sh", "/init-db.sh"]
+    networks: [main-network]
     restart: "no"
 
   # ============================================================
@@ -88,14 +86,14 @@ services:
       - "${EXTERNAL_MONGODB_PORT}:27017"
     volumes:
       - mongo_data:/data/db
-    networks: [ main-network ]
+    networks: [main-network]
     restart: unless-stopped
     deploy:
       resources:
-        limits: { memory: 1G }
+        limits:       { memory: 1G }
         reservations: { memory: 512M }
     healthcheck:
-      test: [ "CMD-SHELL", "mongosh --eval \"db.adminCommand('ping')\" --quiet" ]
+      test: ["CMD-SHELL", "mongosh --eval \"db.adminCommand('ping')\" --quiet"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -115,22 +113,21 @@ services:
       - "${EXTERNAL_REDIS_PORT}:6379"
     volumes:
       - redis_data:/data
-    networks: [ main-network ]
+    networks: [main-network]
     restart: unless-stopped
     deploy:
       resources:
-        limits: { memory: 512M }
+        limits:       { memory: 512M }
         reservations: { memory: 256M }
     healthcheck:
-      # ✅ FIX ①: $${REDIS_PASSWORD} → ${REDIS_PASSWORD}
-      test: [ "CMD-SHELL", "redis-cli -a ${REDIS_PASSWORD} ping | grep PONG" ]
+      test: ["CMD-SHELL", "redis-cli -a ${REDIS_PASSWORD} ping | grep PONG"]
       interval: 5s
       timeout: 5s
       retries: 5
       start_period: 5s
 
   # ============================================================
-  # 4. Elasticsearch 8.11.0
+  # 4. Elasticsearch 8.11.0 & Kibana
   # ============================================================
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
@@ -146,18 +143,30 @@ services:
       - "9300:9300"
     volumes:
       - es_data:/usr/share/elasticsearch/data
-    networks: [ main-network ]
+    networks: [main-network]
     restart: unless-stopped
     deploy:
       resources:
-        limits: { memory: 2G }
+        limits:       { memory: 2G }
         reservations: { memory: 1G }
     healthcheck:
-      test: [ "CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health | grep -qE '\"status\":\"(green|yellow)\"'" ]
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health | grep -qE '\"status\":\"(green|yellow)\"'"]
       interval: 10s
       timeout: 10s
       retries: 5
       start_period: 30s
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    container_name: kibana-main
+    environment:
+      ELASTICSEARCH_HOSTS: http://elasticsearch:9200
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+    networks: [main-network]
+    restart: unless-stopped
 
   # ============================================================
   # 5. Zookeeper (Confluent 7.5.0)
@@ -167,10 +176,10 @@ services:
     container_name: zookeeper-main
     hostname: zookeeper
     environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
-      ZOOKEEPER_INIT_LIMIT: 5
-      ZOOKEEPER_SYNC_LIMIT: 2
+      ZOOKEEPER_CLIENT_PORT:      2181
+      ZOOKEEPER_TICK_TIME:        2000
+      ZOOKEEPER_INIT_LIMIT:       5
+      ZOOKEEPER_SYNC_LIMIT:       2
       ZOOKEEPER_MAX_CLIENT_CNXNS: 60
       TZ: ${TZ}
     ports:
@@ -178,11 +187,11 @@ services:
     volumes:
       - zookeeper_data:/var/lib/zookeeper/data
       - zookeeper_logs:/var/lib/zookeeper/log
-    networks: [ main-network ]
+    networks: [main-network]
     restart: unless-stopped
     deploy:
       resources:
-        limits: { memory: 512M }
+        limits:       { memory: 512M }
         reservations: { memory: 256M }
     healthcheck:
       test: [ "CMD-SHELL", "echo stat | nc localhost 2181" ]
@@ -193,9 +202,6 @@ services:
 
   # ============================================================
   # 6. Kafka (Confluent 7.5.0)
-  #    내/외부 리스너 분리
-  #    · INTERNAL://kafka:9092  — 컨테이너 간 통신
-  #    · EXTERNAL://localhost:${KAFKA_PORT}  — 호스트 직접 접근
   # ============================================================
   kafka:
     image: confluentinc/cp-kafka:7.5.0
@@ -204,29 +210,29 @@ services:
     depends_on:
       zookeeper: { condition: service_healthy }
     environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
-      KAFKA_LISTENERS: INTERNAL://0.0.0.0:9092,EXTERNAL://0.0.0.0:9093
-      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://localhost:${KAFKA_PORT}
-      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
-      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_BROKER_ID:                                1
+      KAFKA_ZOOKEEPER_CONNECT:                        zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP:           INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_LISTENERS:                                INTERNAL://0.0.0.0:9092,EXTERNAL://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS:                     INTERNAL://kafka:9092,EXTERNAL://localhost:${KAFKA_PORT}
+      KAFKA_INTER_BROKER_LISTENER_NAME:               INTERNAL
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR:         1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR:            1
       KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
-      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE:                "true"
       TZ: ${TZ}
     ports:
       - "${KAFKA_PORT}:9093"
     volumes:
       - kafka_data:/var/lib/kafka/data
-    networks: [ main-network ]
+    networks: [main-network]
     restart: unless-stopped
     deploy:
       resources:
-        limits: { memory: 1G }
+        limits:       { memory: 1G }
         reservations: { memory: 512M }
     healthcheck:
-      test: [ "CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092 > /dev/null 2>&1" ]
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092 > /dev/null 2>&1"]
       interval: 10s
       timeout: 10s
       retries: 5
@@ -234,10 +240,6 @@ services:
 
   # ============================================================
   # 7. Hadoop NameNode — apache/hadoop:3.3.6
-  #
-  # ✅ FIX ④: conf 파일 마운트 제거 → command에서 직접 XML 생성
-  #    이유: conf 파일이 없으면 Docker가 빈 디렉토리로 마운트해
-  #          /opt/hadoop/etc/hadoop/core-site.xml 이 디렉토리가 돼버림
   # ============================================================
   namenode:
     image: apache/hadoop:3.3.6
@@ -251,7 +253,7 @@ services:
       - "${HDFS_NAMENODE_PORT}:9000"
     volumes:
       - namenode_data:/hadoop/dfs/name
-    networks: [ main-network ]
+    networks: [main-network]
     restart: unless-stopped
     deploy:
       resources:
@@ -259,9 +261,7 @@ services:
     command: >
       bash -c "
         mkdir -p /opt/hadoop/etc/hadoop
-
         echo '<?xml version=\"1.0\"?><configuration><property><name>fs.defaultFS</name><value>hdfs://namenode:9000</value></property><property><name>hadoop.http.staticuser.user</name><value>root</value></property></configuration>' > /opt/hadoop/etc/hadoop/core-site.xml
-        
         echo '<?xml version=\"1.0\"?><configuration><property><name>dfs.namenode.name.dir</name><value>/hadoop/dfs/name</value></property><property><name>dfs.replication</name><value>1</value></property><property><name>dfs.permissions.enabled</name><value>false</value></property><property><name>dfs.webhdfs.enabled</name><value>true</value></property><property><name>dfs.namenode.datanode.registration.ip-hostname-check</name><value>false</value></property></configuration>' > /opt/hadoop/etc/hadoop/hdfs-site.xml
 
         if [ ! -d \"/hadoop/dfs/name/current\" ]; then
@@ -274,8 +274,7 @@ services:
         hdfs namenode
       "
     healthcheck:
-      # curl 대신 bash 내장 기능으로 9870 포트 확인
-      test: [ "CMD-SHELL", "bash -c '</dev/tcp/localhost/9870'" ]
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/9870'"]
       interval: 10s
       timeout: 10s
       retries: 5
@@ -295,9 +294,10 @@ services:
       - TZ=${TZ}
     ports:
       - "${HADOOP_DATANODE_WEBUI_PORT}:9864"
+      - "9864:9864"
     volumes:
       - datanode_data:/hadoop/dfs/data
-    networks: [ main-network ]
+    networks: [main-network]
     restart: unless-stopped
     deploy:
       resources:
@@ -305,27 +305,22 @@ services:
     command: >
       bash -c "
         mkdir -p /opt/hadoop/etc/hadoop
-        echo '<?xml version=\"1.0\"?><configuration><property><name>fs.defaultFS</name><value>hdfs://namenode:9000</value></property><property><name>hadoop.http.staticuser.user</name><value>root</value></property></configuration>' > /opt/hadoop/etc/hadoop/core-site.xml       
+        echo '<?xml version=\"1.0\"?><configuration><property><name>fs.defaultFS</name><value>hdfs://namenode:9000</value></property><property><name>hadoop.http.staticuser.user</name><value>root</value></property></configuration>' > /opt/hadoop/etc/hadoop/core-site.xml        
         echo '<?xml version=\"1.0\"?><configuration><property><name>dfs.datanode.data.dir</name><value>/hadoop/dfs/data</value></property><property><name>dfs.replication</name><value>1</value></property><property><name>dfs.permissions.enabled</name><value>false</value></property></configuration>' > /opt/hadoop/etc/hadoop/hdfs-site.xml
         hdfs datanode
       "
     healthcheck:
-      # 9864 포트 확인
-      test: [ "CMD-SHELL", "bash -c '</dev/tcp/localhost/9864'" ]
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/9864'"]
       interval: 10s
       timeout: 10s
       retries: 5
       start_period: 30s
 
   # ============================================================
-  # 9. Spark Master — apache/spark:3.5.3
-  #
-  # ✅ FIX ③⑤: SPARK_MODE 제거 + spark-defaults.conf 마운트 제거
-  #    apache/spark 공식 이미지는 SPARK_MODE 환경변수 미지원 (Bitnami 전용)
-  #    spark.hadoop.fs.defaultFS 는 environment로 직접 전달
+  # 9. Spark Master 
   # ============================================================
   spark-master:
-    image: apache/spark:3.5.3
+    build: ./spark
     container_name: spark-master-main
     hostname: spark-master
     depends_on:
@@ -340,11 +335,11 @@ services:
     volumes:
       - ./data-pipeline/spark/jobs:/opt/spark/work-dir/jobs
       - spark_logs:/opt/spark/logs
-    networks: [ main-network ]
+    networks: [main-network]
     restart: unless-stopped
     deploy:
       resources:
-        limits: { memory: 1G }
+        limits:       { memory: 1G }
         reservations: { memory: 512M }
     command: >
       bash -c "
@@ -359,20 +354,20 @@ services:
         /opt/spark/bin/spark-class org.apache.spark.deploy.master.Master
       "
     healthcheck:
-      # 8080 포트 확인
-      test: [ "CMD-SHELL", "bash -c '</dev/tcp/localhost/8080'" ]
+      test: ["CMD-SHELL", "bash -c '</dev/tcp/localhost/8080'"]
       interval: 10s
       timeout: 10s
       retries: 5
       start_period: 20s
 
   # ============================================================
-  # 10. Spark Worker — apache/spark:3.5.3
+  # 10. Spark Worker 
   # ============================================================
   spark-worker-1:
-    image: apache/spark:3.5.3
+    build: ./spark
     container_name: spark-worker-1-main
     hostname: spark-worker-1
+    user: root
     depends_on:
       spark-master: { condition: service_healthy }
     environment:
@@ -383,20 +378,23 @@ services:
     volumes:
       - ./data-pipeline/spark/jobs:/opt/spark/work-dir/jobs
       - spark_work:/opt/spark/work
-    networks: [ main-network ]
+    networks: [main-network]
     restart: unless-stopped
     deploy:
       resources:
-        limits: { memory: 2G }
+        limits:       { memory: 2G }
         reservations: { memory: 1G }
     command: >
       bash -c "
-        mkdir -p /opt/spark/conf
+        echo '작업 폴더 권한 부여 중...' &&
+        mkdir -p /opt/spark/work &&
+        chmod -R 777 /opt/spark/work &&
         
-        echo 'spark.master spark://spark-master:7077' > /opt/spark/conf/spark-defaults.conf
-        echo 'spark.hadoop.fs.defaultFS hdfs://namenode:9000' >> /opt/spark/conf/spark-defaults.conf
-
-        /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker --cores 2 --memory 2g --webui-port 8081 spark://spark-master:7077
+        mkdir -p /opt/spark/conf &&
+        echo 'spark.master spark://spark-master:7077' > /opt/spark/conf/spark-defaults.conf &&
+        echo 'spark.hadoop.fs.defaultFS hdfs://namenode:9000' >> /opt/spark/conf/spark-defaults.conf &&
+        
+        /opt/spark/bin/spark-class org.apache.spark.deploy.worker.Worker --cores 2 --memory 1536m --webui-port 8081 spark://spark-master:7077
       "
 
   # ============================================================
@@ -410,9 +408,9 @@ services:
     hostname: fastapi
     depends_on:
       postgresql: { condition: service_healthy }
-      mongodb: { condition: service_healthy }
-      redis: { condition: service_healthy }
-    env_file: [ .env ]
+      mongodb:    { condition: service_healthy }
+      redis:      { condition: service_healthy }
+    env_file: [.env]
     environment:
       - APP_ENV=${APP_ENV}
       - APP_BASE_URL_LOCAL=${APP_BASE_URL_LOCAL}
@@ -434,17 +432,17 @@ services:
       - "${FASTAPI_PORT}:8900"
     volumes:
       - .:/app
-      - /var/run/docker.sock:/var/run/docker.sock # Docker 모니터링용
-    networks: [ main-network ]
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks: [main-network]
     restart: unless-stopped
     deploy:
       resources:
-        limits: { memory: 1G }
+        limits:       { memory: 1G }
         reservations: { memory: 512M }
     command: >
       bash -c "python -m uvicorn web.backend.app.main:app --host 0.0.0.0 --port 8900 --reload"
     healthcheck:
-      test: [ "CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8900/health\")'" ]
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8900/health\")'"]
       interval: 15s
       timeout: 5s
       retries: 3
@@ -486,17 +484,21 @@ services:
       dockerfile: Dockerfile.airflow
     container_name: airflow-webserver-main
     hostname: airflow-webserver
-    user: "50000:0"
+    user: "0:0"
     depends_on:
       init-db: { condition: service_completed_successfully }
     environment:
       - AIRFLOW_HOME=/opt/airflow
       - AIRFLOW__CORE__EXECUTOR=LocalExecutor
       - AIRFLOW__CORE__LOAD_EXAMPLES=False
-      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgresql:5432/${AIRFLOW_DB}
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres-main:5432/${AIRFLOW_DB}
       - AIRFLOW__CORE__FERNET_KEY=${AIRFLOW_FERNET_KEY}
       - AIRFLOW__WEBSERVER__SECRET_KEY=${AIRFLOW_WEBSERVER_SECRET_KEY}
       - AIRFLOW__WEBSERVER__EXPOSE_CONFIG=True
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+      - AIRFLOW_VAR_MONGO_URI="mongodb://datauser:DataPass2026!@mongodb:27017"
+      - PLAYWRIGHT_BROWSERS_PATH=/home/airflow/.cache/ms-playwright
+      - DOCKER_API_VERSION=1.44
       - AIRFLOW_CONN_SPARK_DEFAULT=spark://spark-master:7077
       - AIRFLOW_CONN_POSTGRES_DEFAULT=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgresql:5432/${POSTGRES_DB}
       - TZ=${TZ}
@@ -505,31 +507,35 @@ services:
     volumes:
       - ./data-pipeline/airflow/dags:/opt/airflow/dags
       - ./data-pipeline/airflow/plugins:/opt/airflow/plugins
+      - ./data-pipeline:/opt/airflow/data-pipeline
       - airflow_logs:/opt/airflow/logs
-    networks: [ main-network ]
+      - ./data:/opt/airflow/data
+      - ./data-pipeline/spark/jobs:/opt/airflow/data-pipeline/spark/jobs
+      - ./best.pt:/opt/airflow/model/best.pt:ro  # ✅ YOLO 모델 마운트
+    networks: [main-network]
     restart: unless-stopped
     deploy:
       resources:
-        limits: { memory: 2G }
-        reservations: { memory: 1G }
+        limits:       { memory: 6G }  # 설치 및 Yolo 구동을 위해 메모리 넉넉하게
+        reservations: { memory: 2G }
     command: >
       bash -c "
         echo 'DB 마이그레이션 중...' &&
         airflow db migrate &&
-        echo 'Admin 계정 생성 중...' &&
+        echo '2. Admin 계정 생성...' &&
         airflow users create --username admin --firstname Admin --lastname User --role Admin --email admin@example.com --password '${AIRFLOW_ADMIN_PASSWORD}' || true &&
-        echo '웹서버 시작!' &&
-        airflow webserver
+        echo '3. 웹서버 시작!' &&
+        exec airflow webserver
       "
     healthcheck:
-      test: [ "CMD-SHELL", "python -c 'import urllib.request; resp = urllib.request.urlopen(\"http://localhost:8080/health\"); exit(0 if b\"healthy\" in resp.read() else 1)'" ]
+      test: ["CMD-SHELL", "python -c 'import urllib.request; resp = urllib.request.urlopen(\"http://localhost:8080/health\"); exit(0 if b\"healthy\" in resp.read() else 1)'"]
       interval: 30s
       timeout: 10s
-      retries: 5
-      start_period: 180s
+      retries: 10
+      start_period: 600s  # 설치 시간을 고려해 10분 대기
 
   # ============================================================
-  # 13. Airflow Scheduler — apache/airflow:2.10.4-python3.11
+  # 13. Airflow Scheduler (NVIDIA GPU 유지, 커스텀 빌드 적용)
   # ============================================================
   airflow-scheduler:
     build:
@@ -537,37 +543,50 @@ services:
       dockerfile: Dockerfile.airflow
     container_name: airflow-scheduler-main
     hostname: airflow-scheduler
-    user: "50000:0"
+    user: "0:0"
     depends_on:
       airflow-webserver: { condition: service_healthy }
+    env_file: [.env]
     environment:
       - AIRFLOW_HOME=/opt/airflow
       - AIRFLOW__CORE__EXECUTOR=LocalExecutor
       - AIRFLOW__CORE__LOAD_EXAMPLES=False
-      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgresql:5432/${AIRFLOW_DB}
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres-main:5432/${AIRFLOW_DB}
       - AIRFLOW__CORE__FERNET_KEY=${AIRFLOW_FERNET_KEY}
+      - AIRFLOW__WEBSERVER__SECRET_KEY=${AIRFLOW_WEBSERVER_SECRET_KEY}
+      - AIRFLOW_VAR_MONGO_URI="mongodb://datauser:DataPass2026!@mongodb:27017"
+      - PLAYWRIGHT_BROWSERS_PATH=/home/airflow/.cache/ms-playwright
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+      - DOCKER_API_VERSION=1.44
       - AIRFLOW_CONN_SPARK_DEFAULT=spark://spark-master:7077
       - AIRFLOW_CONN_POSTGRES_DEFAULT=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgresql:5432/${POSTGRES_DB}
       - TZ=${TZ}
     volumes:
       - ./data-pipeline/airflow/dags:/opt/airflow/dags
       - ./data-pipeline/airflow/plugins:/opt/airflow/plugins
+      - ./data-pipeline:/opt/airflow/data-pipeline
       - airflow_logs:/opt/airflow/logs
-    networks: [ main-network ]
+      - ./data-pipeline/spark/jobs:/opt/airflow/data-pipeline/spark/jobs
+      - ./best.pt:/opt/airflow/model/best.pt:ro  # ✅ YOLO 모델 마운트
+      - ./data:/opt/airflow/data
+    networks: [main-network]
     restart: unless-stopped
     deploy:
       resources:
-        limits: { memory: 2G }
-        reservations: { memory: 1G }
-    command: >
-      bash -c "
-        airflow scheduler
-      "
+        limits:
+          memory: 4G
+        reservations:
+          memory: 2G
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    command: bash -c "exec airflow scheduler"
     healthcheck:
-      test: [ "CMD-SHELL", "airflow jobs check --job-type SchedulerJob --hostname \"$$HOSTNAME\"" ]
+      test: ["CMD-SHELL", "airflow jobs check --job-type SchedulerJob --hostname \"$$HOSTNAME\""]
       interval: 30s
-      timeout: 10s
-      retries: 5
+      timeout: 30s
+      retries: 10
       start_period: 180s
   # ================================================================
   #  .env 필수 추가 항목 (start_all.sh가 자동 생성)
