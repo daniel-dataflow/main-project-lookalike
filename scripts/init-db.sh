@@ -69,7 +69,7 @@ psql -h postgresql -U "$POSTGRES_USER" -d "$POSTGRES_DB" <<-EOSQL
 
     -- Products 테이블
     CREATE TABLE IF NOT EXISTS products (
-        product_id BIGSERIAL PRIMARY KEY,
+        product_id VARCHAR(20) PRIMARY KEY,
         model_code VARCHAR(50),
         brand_name VARCHAR(50),
         prod_name VARCHAR(512),
@@ -85,7 +85,7 @@ psql -h postgresql -U "$POSTGRES_USER" -d "$POSTGRES_DB" <<-EOSQL
     -- Naver Prices 테이블
     CREATE TABLE IF NOT EXISTS naver_prices (
         nprice_id BIGSERIAL PRIMARY KEY,
-        product_id BIGINT REFERENCES products(product_id),
+        product_id VARCHAR(20) REFERENCES products(product_id),
         rank SMALLINT,
         price INTEGER,
         mall_name VARCHAR(100),
@@ -100,7 +100,7 @@ psql -h postgresql -U "$POSTGRES_USER" -d "$POSTGRES_DB" <<-EOSQL
 
     -- Product Features 테이블
     CREATE TABLE IF NOT EXISTS product_features (
-        product_id BIGINT PRIMARY KEY REFERENCES products(product_id),
+        product_id VARCHAR(20) PRIMARY KEY REFERENCES products(product_id),
         detected_desc VARCHAR(1000),
         crop_path VARCHAR(512),
         create_dt TIMESTAMP DEFAULT NOW()

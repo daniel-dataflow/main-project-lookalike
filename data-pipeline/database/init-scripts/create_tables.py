@@ -99,7 +99,7 @@ def init_postgresql():
             # Products (brand_name, gender, origin_url 추가, origine_prod_id 제거)
             """
             CREATE TABLE products (
-                product_id BIGSERIAL PRIMARY KEY,
+                product_id VARCHAR(20) PRIMARY KEY,
                 model_code VARCHAR(50),
                 prod_name VARCHAR(50),
                 base_price INTEGER,
@@ -117,7 +117,7 @@ def init_postgresql():
             """
             CREATE TABLE naver_prices (
                 nprice_id BIGSERIAL PRIMARY KEY,
-                product_id BIGINT REFERENCES products(product_id),
+                product_id VARCHAR(20) REFERENCES products(product_id),
                 rank SMALLINT,
                 price INTEGER,
                 mall_name VARCHAR(100),
@@ -131,7 +131,7 @@ def init_postgresql():
             # Product Features
             """
             CREATE TABLE product_features (
-                product_id BIGINT PRIMARY KEY REFERENCES products(product_id),
+                product_id VARCHAR(20) PRIMARY KEY REFERENCES products(product_id),
                 detected_desc VARCHAR(1000),
                 create_dt TIMESTAMP DEFAULT NOW()
             );
@@ -208,9 +208,8 @@ def init_mongodb():
             db.product_details.drop()
             print("🗑️ MongoDB collection dropped: product_details")
 
-        # 2. 최신 설계 반영 (fabric_info 제거, detail_desc 집중)
         db.product_details.insert_one({
-            "product_id": -1,                # PostgreSQL의 product_id와 매칭용
+            "product_id": "-1",                # PostgreSQL의 product_id와 매칭용
             "detail_desc": "INITIAL DUMMY: 원문 상세 설명이 여기에 통째로 들어갑니다.", 
             "create_dt": datetime.utcnow(),  # 데이터 수집 시점
             "is_dummy": True
@@ -236,7 +235,7 @@ def init_elasticsearch():
 
     mappings = {
         "properties": {
-            "product_id": {"type": "long"},
+            "product_id": {"type": "keyword"},
             "log_id": {"type": "long"},
             "image_vector": {
                 "type": "dense_vector",
