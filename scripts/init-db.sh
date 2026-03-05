@@ -19,7 +19,7 @@ psql -h postgresql -U "$POSTGRES_USER" -d "$POSTGRES_DB" <<-EOSQL
     CREATE TABLE IF NOT EXISTS users (
         user_id VARCHAR(50) PRIMARY KEY,
         password VARCHAR(255),
-        name VARCHAR(50),
+        user_name VARCHAR(50),
         email VARCHAR(100) UNIQUE,
         role VARCHAR(20) DEFAULT 'USER',
         provider VARCHAR(20) DEFAULT 'email',
@@ -61,15 +61,23 @@ psql -h postgresql -U "$POSTGRES_USER" -d "$POSTGRES_DB" <<-EOSQL
     CREATE INDEX IF NOT EXISTS idx_comments_inquiry_board_id 
         ON comments(inquiry_board_id);
 
+    -- Brand Sequences (Product ID Numbering)
+    CREATE TABLE IF NOT EXISTS brand_sequences (
+        brand_name VARCHAR(50) PRIMARY KEY,
+        last_seq INTEGER DEFAULT 0
+    );
+
     -- Products 테이블
     CREATE TABLE IF NOT EXISTS products (
         product_id BIGSERIAL PRIMARY KEY,
-        origine_prod_id VARCHAR(50),
         model_code VARCHAR(50),
-        prod_name VARCHAR(50),
+        brand_name VARCHAR(50),
+        prod_name VARCHAR(512),
         base_price INTEGER,
+        gender VARCHAR(10),
         category_code VARCHAR(50),
         img_hdfs_path VARCHAR(512),
+        origin_url VARCHAR(512),
         create_dt TIMESTAMP DEFAULT NOW(),
         update_dt TIMESTAMP DEFAULT NOW()
     );
@@ -81,8 +89,10 @@ psql -h postgresql -U "$POSTGRES_USER" -d "$POSTGRES_DB" <<-EOSQL
         rank SMALLINT,
         price INTEGER,
         mall_name VARCHAR(100),
-        mall_url VARCHAR(500),
-        create_dt TIMESTAMP DEFAULT NOW()
+        mall_url VARCHAR(512),
+        image_url VARCHAR(512),
+        create_dt TIMESTAMP DEFAULT NOW(),
+        update_dt TIMESTAMP DEFAULT NOW()
     );
 
     CREATE INDEX IF NOT EXISTS idx_naver_prices_product_id 
@@ -92,6 +102,7 @@ psql -h postgresql -U "$POSTGRES_USER" -d "$POSTGRES_DB" <<-EOSQL
     CREATE TABLE IF NOT EXISTS product_features (
         product_id BIGINT PRIMARY KEY REFERENCES products(product_id),
         detected_desc VARCHAR(1000),
+        crop_path VARCHAR(512),
         create_dt TIMESTAMP DEFAULT NOW()
     );
 
@@ -100,9 +111,17 @@ psql -h postgresql -U "$POSTGRES_USER" -d "$POSTGRES_DB" <<-EOSQL
         log_id BIGSERIAL PRIMARY KEY,
         user_id VARCHAR(50) REFERENCES users(user_id),
         input_img_path VARCHAR(512),
+        thumbnail_path VARCHAR(512),
         input_text TEXT,
         applied_category VARCHAR(50),
+        image_size INTEGER,
+        image_width INTEGER,
+        image_height INTEGER,
+        search_status VARCHAR(20) DEFAULT 'pending',
+        search_result JSON,
+        result_count INTEGER DEFAULT 0,
         nprice_id BIGINT REFERENCES naver_prices(nprice_id),
+        gender VARCHAR(10),
         create_dt TIMESTAMP DEFAULT NOW(),
         update_dt TIMESTAMP DEFAULT NOW()
     );
@@ -116,5 +135,12 @@ psql -h postgresql -U "$POSTGRES_USER" -d "$POSTGRES_DB" <<-EOSQL
 EOSQL
 
 echo '✅ 프로젝트 테이블 초기화 완료'
-echo '🚀 DB 초기화 완료!'
+
+echo '🔄 스키마 마이그레이션(apply_db_changes.sh) 적용 시작...'
+bash /app/scripts/apply_db_changes.sh || {
+    echo "❌ apply_db_changes.sh 실행 중 오류 발생. 로그를 확인하세요."
+    exit 1
+}
+
+echo '🚀 DB 초기화 및 마이그레이션 완료!'
 

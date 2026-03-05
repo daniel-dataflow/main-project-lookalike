@@ -64,6 +64,8 @@ services:
       POSTGRES_DB:   ${POSTGRES_DB}
       AIRFLOW_DB:    ${AIRFLOW_DB}
     volumes:
+      - ./.env:/app/.env:ro
+      - ./scripts:/app/scripts:ro
       - ./scripts/init-db.sh:/init-db.sh:ro
     command: ["sh", "/init-db.sh"]
     networks: [main-network]
@@ -191,6 +193,12 @@ services:
       resources:
         limits:       { memory: 512M }
         reservations: { memory: 256M }
+    healthcheck:
+      test: [ "CMD-SHELL", "echo stat | nc localhost 2181" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   # ============================================================
   # 6. Kafka (Confluent 7.5.0)
@@ -200,7 +208,7 @@ services:
     container_name: kafka-main
     hostname: kafka
     depends_on:
-      - zookeeper
+      zookeeper: { condition: service_healthy }
     environment:
       KAFKA_BROKER_ID:                                1
       KAFKA_ZOOKEEPER_CONNECT:                        zookeeper:2181
@@ -255,10 +263,12 @@ services:
         mkdir -p /opt/hadoop/etc/hadoop
         echo '<?xml version=\"1.0\"?><configuration><property><name>fs.defaultFS</name><value>hdfs://namenode:9000</value></property><property><name>hadoop.http.staticuser.user</name><value>root</value></property></configuration>' > /opt/hadoop/etc/hadoop/core-site.xml
         echo '<?xml version=\"1.0\"?><configuration><property><name>dfs.namenode.name.dir</name><value>/hadoop/dfs/name</value></property><property><name>dfs.replication</name><value>1</value></property><property><name>dfs.permissions.enabled</name><value>false</value></property><property><name>dfs.webhdfs.enabled</name><value>true</value></property><property><name>dfs.namenode.datanode.registration.ip-hostname-check</name><value>false</value></property></configuration>' > /opt/hadoop/etc/hadoop/hdfs-site.xml
-      
-        if [ ! -d /hadoop/dfs/name/current ]; then
-          echo 'First time execution: Formatting NameNode...'
-          hdfs namenode -format -nonInteractive
+
+        if [ ! -d \"/hadoop/dfs/name/current\" ]; then
+          echo \"HDFS Namenode formatting..\"
+          hdfs namenode -format -nonInteractive -force 2>/dev/null || true
+        else
+          echo \"HDFS Namenode already formatted, skipping format.\"
         fi
         
         hdfs namenode
@@ -391,7 +401,9 @@ services:
   # 11. FastAPI
   # ============================================================
   fastapi:
-    image: python:3.11-slim
+    build:
+      context: .
+      dockerfile: Dockerfile.fastapi
     container_name: fastapi-main
     hostname: fastapi
     depends_on:
@@ -428,8 +440,7 @@ services:
         limits:       { memory: 1G }
         reservations: { memory: 512M }
     command: >
-      bash -c "pip install --no-cache-dir -r web/backend/requirements.txt &&
-               python -m uvicorn web.backend.app.main:app --host 0.0.0.0 --port 8900 --reload"
+      bash -c "python -m uvicorn web.backend.app.main:app --host 0.0.0.0 --port 8900 --reload"
     healthcheck:
       test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://localhost:8900/health\")'"]
       interval: 15s
@@ -438,12 +449,39 @@ services:
       start_period: 60s
 
   # ============================================================
-  # 12. Airflow Webserver (커스텀 빌드 및 모델 마운트 추가됨)
+  # 11-1. ML Engine (FastAPI for Inference)
+  # ============================================================
+  ml-engine:
+    build:
+      context: .
+      dockerfile: Dockerfile.ml.fastapi
+    container_name: ml-engine-main
+    hostname: ml-engine
+    env_file: [ .env ]  # rewrite 기능 관련 파라미터 읽어오기
+    environment:
+      - PYTHONUNBUFFERED=1
+    working_dir: /app/ml-models/api
+    ports:
+      - "8914:8914"
+    volumes:
+      - ./ml-models/api:/app/ml-models/api
+      - ./ml-models/weights:/app/ml-models/weights:ro
+    networks: [ main-network ]
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits: { memory: 2G }
+        reservations: { memory: 1G }
+    command: >
+      bash -c "python -m uvicorn main:app --host 0.0.0.0 --port 8914 --reload"
+
+  # ============================================================
+  # 12. Airflow Webserver — apache/airflow:2.10.4-python3.11
   # ============================================================
   airflow-webserver:
-    build: 
+    build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.airflow
     container_name: airflow-webserver-main
     hostname: airflow-webserver
     user: "0:0"
@@ -457,11 +495,12 @@ services:
       - AIRFLOW__CORE__FERNET_KEY=${AIRFLOW_FERNET_KEY}
       - AIRFLOW__WEBSERVER__SECRET_KEY=${AIRFLOW_WEBSERVER_SECRET_KEY}
       - AIRFLOW__WEBSERVER__EXPOSE_CONFIG=True
-      - AIRFLOW__CONN__SPARK_DEFAULT=spark://spark-master:7077
       - ELASTICSEARCH_URL=http://elasticsearch:9200
       - AIRFLOW_VAR_MONGO_URI="mongodb://datauser:DataPass2026!@mongodb:27017"
       - PLAYWRIGHT_BROWSERS_PATH=/home/airflow/.cache/ms-playwright
       - DOCKER_API_VERSION=1.44
+      - AIRFLOW_CONN_SPARK_DEFAULT=spark://spark-master:7077
+      - AIRFLOW_CONN_POSTGRES_DEFAULT=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgresql:5432/${POSTGRES_DB}
       - TZ=${TZ}
     ports:
       - "${AIRFLOW_WEBSERVER_PORT}:8080"
@@ -481,7 +520,7 @@ services:
         reservations: { memory: 2G }
     command: >
       bash -c "
-        echo '1. DB 마이그레이션(초기화) 시작...' &&
+        echo 'DB 마이그레이션 중...' &&
         airflow db migrate &&
         echo '2. Admin 계정 생성...' &&
         airflow users create --username admin --firstname Admin --lastname User --role Admin --email admin@example.com --password '${AIRFLOW_ADMIN_PASSWORD}' || true &&
@@ -499,9 +538,9 @@ services:
   # 13. Airflow Scheduler (NVIDIA GPU 유지, 커스텀 빌드 적용)
   # ============================================================
   airflow-scheduler:
-    build: 
+    build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.airflow
     container_name: airflow-scheduler-main
     hostname: airflow-scheduler
     user: "0:0"
@@ -515,11 +554,12 @@ services:
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres-main:5432/${AIRFLOW_DB}
       - AIRFLOW__CORE__FERNET_KEY=${AIRFLOW_FERNET_KEY}
       - AIRFLOW__WEBSERVER__SECRET_KEY=${AIRFLOW_WEBSERVER_SECRET_KEY}
-      - AIRFLOW__CONN__SPARK_DEFAULT=spark://spark-master:7077
       - AIRFLOW_VAR_MONGO_URI="mongodb://datauser:DataPass2026!@mongodb:27017"
       - PLAYWRIGHT_BROWSERS_PATH=/home/airflow/.cache/ms-playwright
       - ELASTICSEARCH_URL=http://elasticsearch:9200
       - DOCKER_API_VERSION=1.44
+      - AIRFLOW_CONN_SPARK_DEFAULT=spark://spark-master:7077
+      - AIRFLOW_CONN_POSTGRES_DEFAULT=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgresql:5432/${POSTGRES_DB}
       - TZ=${TZ}
     volumes:
       - ./data-pipeline/airflow/dags:/opt/airflow/dags
@@ -534,7 +574,7 @@ services:
     deploy:
       resources:
         limits:
-          memory: 6G
+          memory: 4G
         reservations:
           memory: 2G
           devices:
@@ -548,3 +588,22 @@ services:
       timeout: 30s
       retries: 10
       start_period: 180s
+  # ================================================================
+  #  .env 필수 추가 항목 (start_all.sh가 자동 생성)
+  # ================================================================
+  #  AIRFLOW_FERNET_KEY=<자동생성>
+  #  AIRFLOW_WEBSERVER_SECRET_KEY=<자동생성>
+  #  AIRFLOW_ADMIN_PASSWORD=${ADMIN_PASSWORD}   ← .env의 ADMIN_PASSWORD에서 자동 설정
+  #  AIRFLOW_DB=airflowdb          ← 기존 .env에 이미 존재
+
+  # ================================================================
+  #  서비스 기동 순서 (의존성 체인)
+  # ================================================================
+  #
+  #  postgresql ──→ init-db ──→ airflow-webserver ──→ airflow-scheduler
+  #  postgresql ──→ fastapi
+  #  mongodb    ──→ fastapi
+  #  redis      ──→ fastapi
+  #  zookeeper  ──→ kafka
+  #  namenode   ──→ datanode
+  #  namenode   ──→ spark-master ──→ spark-worker-1

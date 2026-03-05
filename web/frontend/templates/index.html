@@ -3,88 +3,159 @@
 {% block title %}Lookalike - 홈{% endblock %}
 
 {% block content %}
-<div class="text-center mb-4">
-    <h4 class="fw-bold mb-1">어떤 상품을 찾아 드릴까요?</h4>
-    <p class="text-muted small">이미지를 업로드하고 유사한 상품을 검색해보세요</p>
-</div>
+<div class="mx-auto" style="max-width: 900px;">
+    <div class="text-center mb-3">
+        <h4 class="fw-bold mb-1">어떤 상품을 찾아 드릴까요?</h4>
+        <p class="text-muted small mb-0">이미지를 업로드하고 유사한 상품을 검색해보세요</p>
+    </div>
 
-<!-- Image Upload Area -->
-<div class="card bg-white border-0 shadow-sm mb-4">
-    <div class="card-body p-4">
-        <h6 class="fw-bold mb-3">상품 이미지 업로드</h6>
-        <div class="upload-area rounded d-flex flex-column align-items-center justify-content-center p-5 text-center"
-            id="uploadArea"
-            style="border: 2px dashed #dee2e6; background-color: #f8f9fa; cursor: pointer; min-height: 300px; transition: all 0.3s ease;">
-            <!-- 기본 상태 -->
-            <div id="uploadPlaceholder">
-                <i class="fas fa-file-upload text-secondary mb-3" style="font-size: 2rem;"></i>
-                <p class="text-secondary mb-1 fw-medium">이미지를 드래그하거나 클릭하여 업로드</p>
-                <p class="text-muted small">JPG, PNG 지원 (최대 10MB)</p>
-            </div>
-            <!-- 이미지 미리보기 (업로드 후) -->
-            <div id="uploadPreview" class="d-none text-center">
-                <div class="position-relative d-inline-block">
-                    <img id="previewImage" src="" alt="Preview" class="img-fluid rounded shadow-sm mb-2"
-                        style="max-height: 200px;">
-                    <button type="button" id="removeImageBtn"
-                        class="btn btn-danger btn-sm position-absolute top-0 end-0 m-2 rounded-circle"
-                        style="width: 32px; height: 32px; padding: 0;">
-                        <i class="fas fa-times"></i>
-                    </button>
+    <!-- 통합 검색 카드 -->
+    <div class="card bg-white border-0 shadow-sm mb-3 hover-bounce">
+        <div class="card-body p-3 pb-2">
+
+            <!-- ① 카테고리 선택 (맨 위) -->
+            <div class="mb-3">
+                <div class="d-flex align-items-center mb-2">
+                    <h6 class="fw-bold mb-0"><i class="fas fa-sliders-h text-secondary me-2"></i>카테고리 선택 <span
+                            class="text-muted fw-normal small">(선택)</span></h6>
                 </div>
-                <p id="previewFileName" class="text-muted small mb-0"></p>
+                <!-- 성별 -->
+                <div class="d-flex align-items-center mb-2">
+                    <span class="text-muted small fw-medium" style="min-width: 36px;">성별</span>
+                    <div class="d-flex gap-2" id="genderBtns">
+                        <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 gender-btn"
+                            data-gender="men">남자</button>
+                        <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 gender-btn"
+                            data-gender="women">여자</button>
+                    </div>
+                </div>
+                <!-- 종류 -->
+                <div class="d-flex align-items-center">
+                    <span class="text-muted small fw-medium" style="min-width: 36px;">종류</span>
+                    <div class="d-flex gap-2" id="categoryBtns">
+                        <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 category-btn"
+                            data-category="outer">아우터</button>
+                        <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 category-btn"
+                            data-category="top">상의</button>
+                        <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 category-btn"
+                            data-category="bottom">하의</button>
+                    </div>
+                </div>
+                <div id="categoryError" class="d-none mt-1" style="color: #dc3545; font-size: 0.82rem;">
+                    <i class="fas fa-exclamation-circle me-1"></i>성별과 옷 종류를 모두 선택해주세요.
+                </div>
             </div>
-            <input type="file" id="imageUpload" class="d-none" accept="image/jpeg,image/png,image/jpg">
+
+            <hr class="my-2">
+
+            <!-- ② 이미지 업로드 영역 -->
+            <div class="mb-3">
+                <div class="d-flex align-items-center mb-2">
+                    <h6 class="fw-bold mb-0"><i class="fas fa-camera text-primary me-2"></i>상품 이미지</h6>
+                </div>
+                <div class="mx-auto upload-wrapper">
+                    <div class="upload-area rounded d-flex flex-column align-items-center justify-content-center text-center position-relative"
+                        id="uploadArea" class="hover-bounce"
+                        style="border: 2px dashed #dee2e6; background-color: #f8f9fa; cursor: pointer; width: 100%; aspect-ratio: 1 / 1; transition: all 0.3s ease; overflow: hidden;">
+                        <!-- 기본 상태: 정사각형 -->
+                        <div id="uploadPlaceholder"
+                            class="position-absolute top-50 start-50 translate-middle w-100 px-3">
+                            <i class="fas fa-cloud-upload-alt text-secondary mb-2" style="font-size: 2rem;"></i>
+                            <p class="text-secondary mb-1 small fw-medium">이미지를 드래그하거나 클릭하여 업로드</p>
+                            <p class="text-muted mb-0" style="font-size: 0.75rem;">JPG, PNG 지원 (최대 10MB)</p>
+                        </div>
+                        <!-- 이미지 미리보기 (업로드 후 확장) -->
+                        <div id="uploadPreview" class="d-none text-center w-100 h-100 d-flex flex-column p-2">
+                            <div class="mb-2 d-flex justify-content-center gap-3" style="z-index: 5;">
+                                <div class="form-check form-check-inline mx-0">
+                                    <input class="form-check-input" type="radio" name="cropMode" id="modeAuto"
+                                        value="auto" checked>
+                                    <label class="form-check-label text-primary fw-bold small" for="modeAuto">
+                                        <i class="fas fa-magic me-1"></i>YOLO 탐지
+                                    </label>
+                                </div>
+                                <div class="form-check form-check-inline mx-0">
+                                    <input class="form-check-input" type="radio" name="cropMode" id="modeManual"
+                                        value="manual">
+                                    <label class="form-check-label text-danger fw-bold small" for="modeManual">
+                                        <i class="fas fa-crop-alt me-1"></i>수동 지정
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="position-relative d-inline-block mx-auto flex-grow-1 d-flex align-items-center justify-content-center"
+                                id="imageWrapper" style="width: 100%; height: 0; min-height: 0;">
+                                <img id="previewImage" src="" alt="Preview" class="img-fluid rounded shadow-sm"
+                                    style="max-width: 100%; max-height: 100%; object-fit: contain;" draggable="false">
+
+                                <!-- 바운딩 박스 컨테이너 (자동) -->
+                                <div id="bboxContainer" class="position-absolute top-0 start-0 w-100 h-100"
+                                    style="pointer-events: none;"></div>
+
+                                <!-- 수동 박스 그리기 컨테이너 (드래그) -->
+                                <div id="manualBboxContainer" class="position-absolute top-0 start-0 w-100 h-100 d-none"
+                                    style="pointer-events: auto; cursor: crosshair;">
+                                    <div id="manualBox" class="position-absolute d-none"
+                                        style="border: 2px dashed #dc3545; background-color: rgba(220, 53, 69, 0.2);">
+                                    </div>
+                                </div>
+
+                                <!-- 로딩 오버레이 -->
+                                <div id="detectLoading"
+                                    class="position-absolute top-50 start-50 translate-middle d-none bg-dark text-white p-2 rounded bg-opacity-75"
+                                    style="z-index: 50;">
+                                    <span class="spinner-border spinner-border-sm me-1"></span> 의류 자동 인식 중...
+                                </div>
+
+                                <button type="button" id="removeImageBtn"
+                                    class="btn btn-danger btn-sm position-absolute top-0 end-0 m-2 rounded-circle"
+                                    style="width: 30px; height: 30px; padding: 0; z-index: 10;">
+                                    <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+
+                            <canvas id="cropCanvas" class="d-none"></canvas>
+                            <div class="mt-auto pt-1" style="z-index: 5;">
+                                <p id="previewFileName" class="text-muted small mb-0 text-truncate px-2"></p>
+                                <p id="bboxInstruction" class="text-primary small mb-0 d-none mt-1 fw-bold">
+                                    <i class="fas fa-hand-pointer"></i> 네모를 클릭하여 검색 부위 지정!
+                                </p>
+                            </div>
+                        </div>
+                        <input type="file" id="imageUpload" class="d-none" accept="image/jpeg,image/png,image/jpg">
+                    </div>
+                </div>
+            </div>
+
+            <hr class="my-2">
+
+            <!-- ③ 텍스트 검색 -->
+            <div class="mb-2">
+                <div class="d-flex align-items-center mb-2">
+                    <h6 class="fw-bold mb-0"><i class="fas fa-keyboard text-secondary me-2"></i>텍스트 검색 <span
+                            class="text-muted fw-normal small">(선택)</span></h6>
+                </div>
+                <div class="input-group">
+                    <span class="input-group-text bg-light border-end-0 px-3 py-2"><i
+                            class="fas fa-search text-muted"></i></span>
+                    <input type="text" class="form-control border-start-0 ps-0 py-2" style="font-size: 1rem;"
+                        placeholder="추가 검색어: 면접 복장, 하객룩으로 입기 좋은 자켓..." id="searchInput">
+                </div>
+                <p class="text-muted text-center mt-2 mb-0" style="font-size: 1rem;">
+                    <i class="far fa-lightbulb text-warning me-1"></i>
+                    이미지만으로도 검색 가능하며, 카테고리와 텍스트를 추가하면 더 정확한 결과를 얻을 수 있습니다.
+                </p>
+            </div>
+
         </div>
     </div>
-</div>
 
-<!-- Search Input -->
-<div class="card bg-white border-0 shadow-sm mb-4">
-    <div class="card-body">
-        <label class="form-label fw-bold">검색어 입력 (선택)</label>
-        <div class="input-group mb-3">
-            <input type="text" class="form-control border-end-0" placeholder="예: 린넨 셔츠, 트렌치 코트..." id="searchInput">
-            <button class="btn btn-dark border-start-0 ps-3 pe-3" id="searchBtn">
-                <i class="fas fa-search"></i> 검색
-            </button>
-        </div>
-
-        <label class="form-label fw-bold small">카테고리 선택</label>
-
-        <!-- 성별 선택 -->
-        <div class="mb-2">
-            <span class="text-muted small me-2">성별</span>
-            <div class="d-flex gap-2 flex-wrap" id="genderBtns">
-                <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 gender-btn"
-                    data-gender="남자">남자</button>
-                <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 gender-btn"
-                    data-gender="여자">여자</button>
-            </div>
-        </div>
-
-        <!-- 옷 카테고리 선택 -->
-        <div class="mb-1">
-            <span class="text-muted small me-2">종류</span>
-            <div class="d-flex gap-2 flex-wrap" id="categoryBtns">
-                <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 category-btn"
-                    data-category="상의">상의</button>
-                <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 category-btn"
-                    data-category="하의">하의</button>
-                <button class="btn btn-outline-secondary btn-sm rounded-pill px-3 category-btn"
-                    data-category="아우터">아우터</button>
-            </div>
-        </div>
-
-        <!-- 미선택 경고 -->
-        <div id="categoryError" class="d-none mt-1" style="color: #dc3545; font-size: 0.82rem;">
-            <i class="fas fa-exclamation-circle me-1"></i>성별과 옷 종류를 모두 선택해주세요.
-        </div>
-
-        <div class="mt-3 text-muted" style="font-size: 0.75rem;">
-            <i class="far fa-lightbulb text-warning me-1"></i>
-            이미지만으로도 검색 가능하며, 텍스트와 카테고리를 추가하면 더 정확한 결과를 얻을 수 있습니다.
-        </div>
+    <!-- 검색 버튼 -->
+    <div class="text-center mb-4">
+        <button class="btn btn-dark btn-lg shadow-sm w-100 py-3 rounded-pill fw-bold" id="searchBtn"
+            class="search-btn-bounce" style="max-width: 600px; font-size: 1.15rem;">
+            <i class="fas fa-search me-2"></i>검색 시작하기
+        </button>
     </div>
 </div>
 
@@ -107,7 +178,7 @@
         <h5 class="fw-bold m-0">검색 결과</h5>
     </div>
     <p class="text-muted small mb-3">유사도 기준으로 정렬한 검색 결과입니다.</p>
-    <div id="resultsContainer" class="row row-cols-1 row-cols-md-2 g-3"></div>
+    <div id="resultsContainer" class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3"></div>
 </div>
 
 <script>
@@ -138,18 +209,57 @@
         let selectedFile = null;
         let selectedGender = null;
         let selectedClothes = null;
+        let selectedBbox = null;    // 현재 선택된 박스 좌표
+        let hasBboxes = false;      // 자동 탐지에서 박스가 나왔는지
+        let currentMode = 'auto';   // 'auto' or 'manual'
+        let originalImageSize = { w: 0, h: 0 };
+        let originalImageObj = null;
+
+        // YOLO 라벨을 검색 category 값으로 정규화한다.
+        function mapYoloLabelToCategory(label) {
+            const normalized = String(label || '').trim().toLowerCase();
+            if (!normalized) return null;
+            if (normalized === 'top' || normalized === '상의') return 'top';
+            if (normalized === 'bottom' || normalized === '하의') return 'bottom';
+            if (normalized === 'outer' || normalized === '아우터') return 'outer';
+            return null;
+        }
+
+        function applyCategorySelection(categoryValue) {
+            if (!categoryValue) return;
+            selectedClothes = categoryValue;
+            categoryBtns.forEach(b => {
+                const isTarget = b.dataset.category === categoryValue;
+                b.classList.toggle('active', isTarget);
+                b.classList.toggle('btn-primary', isTarget);
+                b.classList.toggle('btn-outline-secondary', !isTarget);
+            });
+            document.getElementById('categoryError').classList.add('d-none');
+            console.log('[YOLO->CATEGORY] applyCategorySelection:', {
+                categoryValue,
+                selectedClothes
+            });
+        }
 
         // 성별 선택
         const genderBtns = document.querySelectorAll('.gender-btn');
         genderBtns.forEach(btn => {
             btn.addEventListener('click', function () {
-                genderBtns.forEach(b => {
-                    b.classList.remove('active', 'btn-primary');
-                    b.classList.add('btn-outline-secondary');
-                });
-                this.classList.add('active', 'btn-primary');
-                this.classList.remove('btn-outline-secondary');
-                selectedGender = this.dataset.gender;
+                if (selectedGender === this.dataset.gender) {
+                    // 이미 선택된 버튼 클릭 시 해제
+                    this.classList.remove('active', 'btn-primary');
+                    this.classList.add('btn-outline-secondary');
+                    selectedGender = null;
+                } else {
+                    // 다른 버튼 선택 시
+                    genderBtns.forEach(b => {
+                        b.classList.remove('active', 'btn-primary');
+                        b.classList.add('btn-outline-secondary');
+                    });
+                    this.classList.add('active', 'btn-primary');
+                    this.classList.remove('btn-outline-secondary');
+                    selectedGender = this.dataset.gender;
+                }
                 document.getElementById('categoryError').classList.add('d-none');
             });
         });
@@ -158,13 +268,21 @@
         const categoryBtns = document.querySelectorAll('.category-btn');
         categoryBtns.forEach(btn => {
             btn.addEventListener('click', function () {
-                categoryBtns.forEach(b => {
-                    b.classList.remove('active', 'btn-primary');
-                    b.classList.add('btn-outline-secondary');
-                });
-                this.classList.add('active', 'btn-primary');
-                this.classList.remove('btn-outline-secondary');
-                selectedClothes = this.dataset.category;
+                if (selectedClothes === this.dataset.category) {
+                    // 이미 선택된 버튼 클릭 시 해제
+                    this.classList.remove('active', 'btn-primary');
+                    this.classList.add('btn-outline-secondary');
+                    selectedClothes = null;
+                } else {
+                    // 다른 버튼 선택 시
+                    categoryBtns.forEach(b => {
+                        b.classList.remove('active', 'btn-primary');
+                        b.classList.add('btn-outline-secondary');
+                    });
+                    this.classList.add('active', 'btn-primary');
+                    this.classList.remove('btn-outline-secondary');
+                    selectedClothes = this.dataset.category;
+                }
                 document.getElementById('categoryError').classList.add('d-none');
             });
         });
@@ -177,8 +295,19 @@
             }
         });
 
-        // 업로드 영역 클릭
-        uploadArea.addEventListener('click', function () {
+        // 업로드 영역 클릭 (이미지가 없을 때만 파일 선택기 표시)
+        uploadArea.addEventListener('click', function (e) {
+            // 수동 모드로 드래그 중이거나 드래그가 끝난 직후면 무시
+            if (currentMode === 'manual' && e.target.closest('#manualBboxContainer')) {
+                return;
+            }
+
+            // 이미지가 이미 있고 (미리보기 화면 활성화), 클릭한 대상이 박스 지정/삭제 요소가 아니더라도 
+            // 이미지 자체나 내부를 누른 거면 무시하게 만들기
+            if (selectedFile && !e.target.closest('#uploadPlaceholder')) {
+                return;
+            }
+
             fileInput.click();
         });
 
@@ -208,18 +337,204 @@
             }
         });
 
+        const bboxContainer = document.getElementById('bboxContainer');
+        const manualBboxContainer = document.getElementById('manualBboxContainer');
+        const instruction = document.getElementById('bboxInstruction');
+
+        // 탐지 모드 전환 토글
+        document.querySelectorAll('input[name="cropMode"]').forEach(radio => {
+            radio.addEventListener('change', function () {
+                currentMode = this.value;
+                selectedBbox = null; // 모드 변경 시 박스 선택 초기화
+
+                if (currentMode === 'auto') {
+                    bboxContainer.classList.remove('d-none');
+                    manualBboxContainer.classList.add('d-none');
+
+                    // 기존 박스들 스타일 리셋
+                    document.querySelectorAll('.bbox-overlay').forEach(el => {
+                        el.style.border = '2px solid #0d6efd';
+                        el.style.backgroundColor = 'rgba(13, 110, 253, 0.1)';
+                        const l = el.querySelector('span');
+                        if (l) l.classList.replace('bg-success', 'bg-primary');
+                        if (l) l.innerText = l.dataset.originalText;
+                    });
+
+                    if (hasBboxes) {
+                        instruction.classList.remove('d-none');
+                        instruction.innerHTML = '<i class="fas fa-hand-pointer"></i> 네모 부분(옷)을 클릭하여 검색 부위를 지정하세요!';
+                    } else {
+                        instruction.classList.add('d-none');
+                    }
+                } else {
+                    bboxContainer.classList.add('d-none');
+                    manualBboxContainer.classList.remove('d-none');
+                    document.getElementById('manualBox').classList.add('d-none');
+
+                    instruction.classList.remove('d-none');
+                    instruction.innerHTML = '<i class="fas fa-mouse-pointer"></i> 이미지 위를 드래그하여 원하는 부위를 직접 상자로 지정하세요.';
+                }
+            });
+        });
+
+        // 이미지의 실제 렌더링 영역 좌표(offset)와 스케일(비율) 계산 유틸리티
+        function getRenderedImageRect() {
+            if (!originalImageObj) return null;
+
+            const wrapper = document.getElementById('imageWrapper');
+            const containerW = wrapper.clientWidth;
+            const containerH = wrapper.clientHeight;
+            const imgW = originalImageSize.w;
+            const imgH = originalImageSize.h;
+
+            // object-fit: contain의 경우 화면에 그려지는 비율 계산
+            const scaleBase = Math.min(containerW / imgW, containerH / imgH);
+            const scale = Math.min(scaleBase, 1.0); // 원본보다 커지지 않게 제한
+
+            const renderedW = imgW * scale;
+            const renderedH = imgH * scale;
+
+            // flex-center로 인해 가운데 정렬되므로 여백은 양분됨
+            const offsetX = (containerW - renderedW) / 2;
+            const offsetY = (containerH - renderedH) / 2;
+
+            return {
+                offsetX, offsetY, renderedW, renderedH, scale
+            };
+        }
+
+        // 수동 박스 드래그 영역 이벤트
+        let isDraggingBox = false;
+        let startX, startY;
+        const manualBox = document.getElementById('manualBox');
+
+        manualBboxContainer.addEventListener('mousedown', function (e) {
+            if (currentMode !== 'manual') return;
+            const rect = manualBboxContainer.getBoundingClientRect();
+            let clickX = e.clientX - rect.left;
+            let clickY = e.clientY - rect.top;
+
+            const imgRect = getRenderedImageRect();
+            if (!imgRect) return;
+
+            // 클릭위치가 실제 렌더링된 사진 범위를 벗어날 경우 제한
+            clickX = Math.max(imgRect.offsetX, Math.min(clickX, imgRect.offsetX + imgRect.renderedW));
+            clickY = Math.max(imgRect.offsetY, Math.min(clickY, imgRect.offsetY + imgRect.renderedH));
+
+            startX = clickX;
+            startY = clickY;
+
+            isDraggingBox = true;
+            manualBox.classList.remove('d-none');
+            manualBox.style.left = startX + 'px';
+            manualBox.style.top = startY + 'px';
+            manualBox.style.width = '0px';
+            manualBox.style.height = '0px';
+            selectedBbox = null;
+        });
+
+        manualBboxContainer.addEventListener('mousemove', function (e) {
+            if (!isDraggingBox || currentMode !== 'manual') return;
+            const rect = manualBboxContainer.getBoundingClientRect();
+            let currentX = e.clientX - rect.left;
+            let currentY = e.clientY - rect.top;
+
+            const imgRect = getRenderedImageRect();
+            if (!imgRect) return;
+
+            // 현재 커서도 사진 범위 내로 제한
+            currentX = Math.max(imgRect.offsetX, Math.min(currentX, imgRect.offsetX + imgRect.renderedW));
+            currentY = Math.max(imgRect.offsetY, Math.min(currentY, imgRect.offsetY + imgRect.renderedH));
+
+            const width = Math.abs(currentX - startX);
+            const height = Math.abs(currentY - startY);
+            const left = Math.min(currentX, startX);
+            const top = Math.min(currentY, startY);
+
+            manualBox.style.left = left + 'px';
+            manualBox.style.top = top + 'px';
+            manualBox.style.width = width + 'px';
+            manualBox.style.height = height + 'px';
+        });
+
+        manualBboxContainer.addEventListener('mouseup', function (e) {
+            if (!isDraggingBox || currentMode !== 'manual') return;
+            isDraggingBox = false;
+
+            const rect = manualBboxContainer.getBoundingClientRect();
+            let endX = e.clientX - rect.left;
+            let endY = e.clientY - rect.top;
+
+            const imgRect = getRenderedImageRect();
+            if (!imgRect) return;
+
+            endX = Math.max(imgRect.offsetX, Math.min(endX, imgRect.offsetX + imgRect.renderedW));
+            endY = Math.max(imgRect.offsetY, Math.min(endY, imgRect.offsetY + imgRect.renderedH));
+
+            const left = Math.min(endX, startX);
+            const top = Math.min(endY, startY);
+            const width = Math.abs(endX - startX);
+            const height = Math.abs(endY - startY);
+
+            // 박스가 너무 작으면 무시
+            if (width < 20 || height < 20) {
+                manualBox.classList.add('d-none');
+                selectedBbox = null;
+                return;
+            }
+
+            // 원본 이미지 기준의 실제 픽셀 좌표로 변환하여 저장
+            selectedBbox = {
+                x1: Math.floor((left - imgRect.offsetX) / imgRect.scale),
+                y1: Math.floor((top - imgRect.offsetY) / imgRect.scale),
+                w: Math.floor(width / imgRect.scale),
+                h: Math.floor(height / imgRect.scale)
+            };
+        });
+
+        // 박스 밖으로 드래그가 나갈 경우 취소 처리 
+        manualBboxContainer.addEventListener('mouseleave', function (e) {
+            if (isDraggingBox) {
+                isDraggingBox = false;
+                const w = parseFloat(manualBox.style.width);
+                const h = parseFloat(manualBox.style.height);
+                if (w < 20 || h < 20) {
+                    manualBox.classList.add('d-none');
+                    selectedBbox = null;
+                } else {
+                    const imgRect = getRenderedImageRect();
+                    const left = parseFloat(manualBox.style.left);
+                    const top = parseFloat(manualBox.style.top);
+
+                    selectedBbox = {
+                        x1: Math.floor((left - imgRect.offsetX) / imgRect.scale),
+                        y1: Math.floor((top - imgRect.offsetY) / imgRect.scale),
+                        w: Math.floor(w / imgRect.scale),
+                        h: Math.floor(h / imgRect.scale)
+                    };
+                }
+            }
+        });
+
         // 이미지 삭제 버튼
         removeImageBtn.addEventListener('click', function (e) {
             e.stopPropagation();
             selectedFile = null;
+            selectedBbox = null;
+            hasBboxes = false;
+            originalImageObj = null;
             fileInput.value = '';
+
             preview.classList.add('d-none');
             placeholder.classList.remove('d-none');
             uploadArea.style.borderColor = '#dee2e6';
             uploadArea.style.borderStyle = 'dashed';
+            uploadArea.style.aspectRatio = '1 / 1';
+            uploadArea.parentElement.classList.remove('expanded');
             previewImage.src = '';
             previewFileName.textContent = '';
-            // 검색 버튼은 활성화 유지 (텍스트 검색 가능)
+            document.getElementById('bboxContainer').innerHTML = '';
+            document.getElementById('bboxInstruction').classList.add('d-none');
         });
 
         function handleFileSelect(file) {
@@ -237,21 +552,171 @@
             }
 
             selectedFile = file;
+            selectedBbox = null;
+            hasBboxes = false;
 
             // 미리보기 표시
             const reader = new FileReader();
             reader.onload = function (e) {
-                previewImage.src = e.target.result;
-                previewFileName.textContent = file.name + ' (' + formatFileSize(file.size) + ')';
-                placeholder.classList.add('d-none');
-                preview.classList.remove('d-none');
-                uploadArea.style.borderColor = '#198754';
-                uploadArea.style.borderStyle = 'solid';
+                const img = new Image();
+                img.onload = function () {
+                    originalImageSize.w = img.naturalWidth;
+                    originalImageSize.h = img.naturalHeight;
+                    originalImageObj = img;
+
+                    previewImage.src = e.target.result;
+                    previewFileName.textContent = file.name + ' (' + formatFileSize(file.size) + ')';
+                    placeholder.classList.add('d-none');
+                    preview.classList.remove('d-none');
+                    uploadArea.style.borderColor = '#198754';
+                    uploadArea.style.borderStyle = 'solid';
+                    uploadArea.style.aspectRatio = '3 / 4';
+                    uploadArea.parentElement.classList.add('expanded');
+
+                    // ML Engine 객체 탐지 실행
+                    detectApparel(file);
+                };
+                img.src = e.target.result;
             };
             reader.readAsDataURL(file);
 
             // 검색 버튼 활성화
             searchBtn.disabled = false;
+        }
+
+        async function detectApparel(file) {
+            const formData = new FormData();
+            formData.append('image', file);
+
+            const loading = document.getElementById('detectLoading');
+            const bboxContainer = document.getElementById('bboxContainer');
+            const instruction = document.getElementById('bboxInstruction');
+
+            loading.classList.remove('d-none');
+            bboxContainer.innerHTML = '';
+            instruction.classList.add('d-none');
+
+            try {
+                const response = await fetch('/api/search/detect', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) throw new Error('객체 탐지 실패');
+
+                const data = await response.json();
+
+                if (data.success && data.boxes && data.boxes.length > 0) {
+                    hasBboxes = true;
+                    instruction.classList.remove('d-none');
+                    drawBboxes(data.boxes);
+                } else {
+                    hasBboxes = false;
+                }
+            } catch (e) {
+                console.error('객체 탐지 오류:', e);
+            } finally {
+                loading.classList.add('d-none');
+            }
+        }
+
+        function drawBboxes(boxes) {
+            const container = document.getElementById('bboxContainer');
+            container.innerHTML = '';
+            container.style.pointerEvents = 'auto'; // Make boxes clickable
+
+            const imgRect = getRenderedImageRect();
+            if (!imgRect) return;
+
+            boxes.forEach(box => {
+                // YOLO 라벨을 카테고리 값으로 미리 정규화해 둔다.
+                box.normalizedCategory = mapYoloLabelToCategory(box.label);
+
+                // 원래 좌표 자체의 한도 보정 (백엔드에서 이미지 밖 좌표를 준 경우 방어)
+                const originalX1 = Math.max(0, Math.min(box.x1, originalImageSize.w));
+                const originalY1 = Math.max(0, Math.min(box.y1, originalImageSize.h));
+
+                const originalMaxX = Math.min(box.x1 + box.w, originalImageSize.w);
+                const originalMaxY = Math.min(box.y1 + box.h, originalImageSize.h);
+                const originalW = originalMaxX - originalX1;
+                const originalH = originalMaxY - originalY1;
+
+                // 렌더링된 사진 공간 내에서의 위치(픽셀)로 변환
+                const leftPos = imgRect.offsetX + (originalX1 * imgRect.scale);
+                const topPos = imgRect.offsetY + (originalY1 * imgRect.scale);
+                const renderedWidth = originalW * imgRect.scale;
+                const renderedHeight = originalH * imgRect.scale;
+
+                // 퍼센트 단위로 변환 (컨테이너 전체 기준)
+                const wrapperW = document.getElementById('imageWrapper').clientWidth;
+                const wrapperH = document.getElementById('imageWrapper').clientHeight;
+
+                const leftPct = (leftPos / wrapperW) * 100;
+                const topPct = (topPos / wrapperH) * 100;
+                const widthPct = (renderedWidth / wrapperW) * 100;
+                const heightPct = (renderedHeight / wrapperH) * 100;
+
+                const div = document.createElement('div');
+                div.className = 'bbox-overlay';
+                div.style.position = 'absolute';
+                div.style.border = '2px solid #0d6efd';
+                div.style.backgroundColor = 'rgba(13, 110, 253, 0.1)';
+                div.style.cursor = 'pointer';
+                div.style.left = leftPct + '%';
+                div.style.top = topPct + '%';
+                div.style.width = widthPct + '%';
+                div.style.height = heightPct + '%';
+                div.style.transition = 'all 0.2s';
+
+                // 라벨 추가
+                const label = document.createElement('span');
+                label.className = 'badge bg-primary position-absolute';
+                label.style.top = '-20px';
+                label.style.left = '-2px';
+                label.innerText = box.label;
+                label.dataset.originalText = box.label; // 원래 텍스트 저장
+                div.appendChild(label);
+
+                div.addEventListener('mouseenter', () => {
+                    if (selectedBbox !== box) div.style.backgroundColor = 'rgba(13, 110, 253, 0.3)';
+                });
+                div.addEventListener('mouseleave', () => {
+                    if (selectedBbox !== box) div.style.backgroundColor = 'rgba(13, 110, 253, 0.1)';
+                });
+                div.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    // 선택 취소 및 새로운 거 선택
+                    if (selectedBbox === box) {
+                        selectedBbox = null;
+                        div.style.border = '2px solid #0d6efd';
+                        div.style.backgroundColor = 'rgba(13, 110, 253, 0.1)';
+                        label.classList.replace('bg-success', 'bg-primary');
+                    } else {
+                        selectedBbox = box;
+                        document.querySelectorAll('.bbox-overlay').forEach(el => {
+                            el.style.border = '2px solid #0d6efd';
+                            el.style.backgroundColor = 'rgba(13, 110, 253, 0.1)';
+                            const l = el.querySelector('span');
+                            if (l) l.classList.replace('bg-success', 'bg-primary');
+                        });
+                        div.style.border = '3px solid #198754';
+                        div.style.backgroundColor = 'rgba(25, 135, 84, 0.3)';
+                        label.classList.replace('bg-primary', 'bg-success');
+                        label.innerText = '선택됨';
+
+                        // YOLO 박스 선택은 해당 라벨의 카테고리 선택으로 간주한다.
+                        const mappedCategory = box.normalizedCategory || mapYoloLabelToCategory(label.dataset.originalText || box.label);
+                        console.log('[YOLO->CATEGORY] bbox click:', {
+                            rawLabel: box.label,
+                            normalizedCategory: box.normalizedCategory,
+                            mappedCategory
+                        });
+                        applyCategorySelection(mappedCategory);
+                    }
+                });
+
+                container.appendChild(div);
+            });
         }
 
         function formatFileSize(bytes) {
@@ -270,33 +735,85 @@
                 return;
             }
 
-            // 카테고리 검증: 성별, 옷 종류 모두 선택 필수
-            if (!selectedGender || !selectedClothes) {
-                document.getElementById('categoryError').classList.remove('d-none');
-                document.getElementById('categoryError').scrollIntoView({ behavior: 'smooth', block: 'center' });
-                return;
-            }
+            // 카테고리 검증: 선택사항으로 변경됨 (경고창 생략)
             document.getElementById('categoryError').classList.add('d-none');
 
             // 로딩 표시
             searchLoading.classList.remove('d-none');
             searchResults.classList.add('d-none');
             searchBtn.disabled = true;
-            searchBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> 검색 중...';
+            searchBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span> 검색 중...';
 
             try {
                 const formData = new FormData();
 
-                // 이미지가 있을 때만 추가
+                // 이미지가 있을 때만 추가 (크롭 여부 확인)
                 if (selectedFile) {
-                    formData.append('image', selectedFile);
+                    if (currentMode === 'auto') {
+                        // YOLO 자동 모드일 경우: 박스가 있는데 사용자가 아예 선택하지 않은 경우 방지
+                        if (hasBboxes && !selectedBbox) {
+                            alert('검색될 의류 영역(박스)을 선택해 주세요. (또는 수동 모드로 전환하여 직접 지정하세요)');
+                            searchLoading.classList.add('d-none');
+                            searchBtn.disabled = false;
+                            searchBtn.innerHTML = '<i class="fas fa-search me-2"></i> 검색 시작하기';
+                            return;
+                        }
+                    } else if (currentMode === 'manual') {
+                        // 수동 드래그 모드일 경우: 영역을 지정하지 않았다면 에러
+                        if (!selectedBbox) {
+                            alert('수동 드래그 모드입니다. 마우스로 드래그하여 옷 영역을 지정해 주세요.');
+                            searchLoading.classList.add('d-none');
+                            searchBtn.disabled = false;
+                            searchBtn.innerHTML = '<i class="fas fa-search me-2"></i> 검색 시작하기';
+                            return;
+                        }
+                    }
+
+                    if (selectedBbox && originalImageObj) {
+                        // 캔버스에 그 파트만 잘라서 Blob으로 만듦
+                        const canvas = document.getElementById('cropCanvas');
+                        canvas.width = selectedBbox.w;
+                        canvas.height = selectedBbox.h;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(originalImageObj,
+                            selectedBbox.x1, selectedBbox.y1, selectedBbox.w, selectedBbox.h,
+                            0, 0, selectedBbox.w, selectedBbox.h);
+
+                        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.95));
+                        formData.append('image', blob, 'cropped_' + selectedFile.name);
+                    } else {
+                        // 원본 전송
+                        formData.append('image', selectedFile);
+                    }
                 }
 
                 if (searchText) {
                     formData.append('search_text', searchText);
                 }
-                // 성별 + 옷종류 조합하여 카테고리로 전달
-                formData.append('category', `${selectedGender}_${selectedClothes}`);
+
+                // 성별, 옷종류 정보를 각각 전달
+                if (selectedGender) {
+                    formData.append('gender', selectedGender);
+                }
+                // category 우선순위:
+                // 1) 사용자가 직접 선택한 category 버튼
+                // 2) YOLO 자동 박스 선택 라벨(Top/Bottom/Outer) 매핑
+                if (selectedClothes) {
+                    formData.append('category', selectedClothes);
+                } else if (selectedBbox) {
+                    const mapped = selectedBbox.normalizedCategory || mapYoloLabelToCategory(selectedBbox.label);
+                    if (mapped) {
+                        applyCategorySelection(mapped); // UI도 동기화
+                        formData.append('category', mapped);
+                    }
+                }
+                console.log('[SEARCH REQUEST] payload states:', {
+                    currentMode,
+                    selectedClothes,
+                    selectedBbox,
+                    selectedGender,
+                    hasCategoryInFormData: formData.has('category')
+                });
 
                 const response = await fetch('/api/search/by-image', {
                     method: 'POST',
@@ -322,7 +839,7 @@
             } finally {
                 searchLoading.classList.add('d-none');
                 searchBtn.disabled = false;
-                searchBtn.innerHTML = '<i class="fas fa-search"></i> 검색';
+                searchBtn.innerHTML = '<i class="fas fa-search me-2"></i> 검색 시작하기';
             }
         });
 
@@ -348,7 +865,7 @@
                 <a href="/product/${item.product_id}" class="text-decoration-none">
                     <div class="card h-100 product-card position-relative overflow-hidden shadow-sm">
                         <img src="${item.image_url}" class="card-img-top" alt="${item.product_name}"
-                            style="height: 200px; object-fit: cover;" onerror="this.src='https://placehold.co/300x300?text=No+Image'">
+                            style="height: 350px; object-fit: cover; object-position: top;" onerror="this.src='https://placehold.co/300x400?text=No+Image'">
                         <div class="card-body">
                             <small class="text-muted d-block mb-1">${item.brand}</small>
                             <h6 class="card-title text-truncate fw-bold text-dark">${item.product_name}</h6>

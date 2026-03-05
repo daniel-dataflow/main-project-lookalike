@@ -29,6 +29,16 @@
         <i class="fas fa-redo"></i>
         <span class="d-none d-md-inline ms-1">새로고침</span>
     </button>
+    <button id="btnDownloadLogs" class="btn btn-outline-secondary btn-sm text-nowrap" onclick="downloadLogs()"
+        title="현재 조건으로 로그 다운로드">
+        <i class="fas fa-download"></i>
+        <span class="d-none d-md-inline ms-1">다운로드</span>
+    </button>
+    <button id="btnPurgeLogs" class="btn btn-outline-danger btn-sm text-nowrap ms-1" onclick="purgeAllLogs()"
+        title="과거 모든 에러 로그 삭제 (초기화)">
+        <i class="fas fa-trash-alt"></i>
+        <span class="d-none d-md-inline ms-1">초기화</span>
+    </button>
 </div>
 {% endblock %}
 
@@ -384,24 +394,28 @@
             <label class="form-label small fw-bold">알림 제외 서비스</label>
             <div class="d-flex flex-wrap gap-2" id="excludeServicesGroup">
                 <div class="form-check form-check-inline">
-                    <input class="form-check-input" type="checkbox" id="excl_database" value="database">
-                    <label class="form-check-label small" for="excl_database">database</label>
+                    <input class="form-check-input" type="checkbox" id="excl_DB" value="DB">
+                    <label class="form-check-label small" for="excl_DB">DB</label>
                 </div>
                 <div class="form-check form-check-inline">
-                    <input class="form-check-input" type="checkbox" id="excl_kafka" value="kafka">
-                    <label class="form-check-label small" for="excl_kafka">kafka</label>
+                    <input class="form-check-input" type="checkbox" id="excl_Kafka" value="Kafka">
+                    <label class="form-check-label small" for="excl_Kafka">Kafka</label>
                 </div>
                 <div class="form-check form-check-inline">
-                    <input class="form-check-input" type="checkbox" id="excl_search" value="search">
-                    <label class="form-check-label small" for="excl_search">search</label>
+                    <input class="form-check-input" type="checkbox" id="excl_Elastic" value="Elastic">
+                    <label class="form-check-label small" for="excl_Elastic">Elastic</label>
                 </div>
                 <div class="form-check form-check-inline">
-                    <input class="form-check-input" type="checkbox" id="excl_airflow" value="airflow">
-                    <label class="form-check-label small" for="excl_airflow">airflow</label>
+                    <input class="form-check-input" type="checkbox" id="excl_Airflow" value="Airflow">
+                    <label class="form-check-label small" for="excl_Airflow">Airflow</label>
                 </div>
                 <div class="form-check form-check-inline">
-                    <input class="form-check-input" type="checkbox" id="excl_api" value="api">
-                    <label class="form-check-label small" for="excl_api">api</label>
+                    <input class="form-check-input" type="checkbox" id="excl_API_BE" value="API_BE">
+                    <label class="form-check-label small" for="excl_API_BE">API_BE</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="checkbox" id="excl_API_ML" value="API_ML">
+                    <label class="form-check-label small" for="excl_API_ML">API_ML</label>
                 </div>
             </div>
         </div>
@@ -468,18 +482,22 @@
             <div class="btn-group" role="group" id="serviceFilterGroup">
                 <input type="radio" class="btn-check" name="serviceFilter" id="svc_ALL" value="ALL" checked>
                 <label class="btn btn-outline-secondary btn-sm px-3" for="svc_ALL">전체</label>
-                <input type="radio" class="btn-check" name="serviceFilter" id="svc_airflow" value="airflow">
-                <label class="btn btn-outline-secondary btn-sm px-3" for="svc_airflow">Airflow</label>
-                <input type="radio" class="btn-check" name="serviceFilter" id="svc_spark" value="spark">
-                <label class="btn btn-outline-secondary btn-sm px-3" for="svc_spark">Spark</label>
-                <input type="radio" class="btn-check" name="serviceFilter" id="svc_hadoop" value="hadoop">
-                <label class="btn btn-outline-secondary btn-sm px-3" for="svc_hadoop">Hadoop</label>
-                <input type="radio" class="btn-check" name="serviceFilter" id="svc_kafka" value="kafka">
-                <label class="btn btn-outline-secondary btn-sm px-3" for="svc_kafka">Kafka</label>
-                <input type="radio" class="btn-check" name="serviceFilter" id="svc_database" value="database">
-                <label class="btn btn-outline-secondary btn-sm px-3" for="svc_database">DB</label>
-                <input type="radio" class="btn-check" name="serviceFilter" id="svc_api" value="api">
-                <label class="btn btn-outline-secondary btn-sm px-3" for="svc_api">API</label>
+                <input type="radio" class="btn-check" name="serviceFilter" id="svc_Airflow" value="Airflow">
+                <label class="btn btn-outline-secondary btn-sm px-3" for="svc_Airflow">Airflow</label>
+                <input type="radio" class="btn-check" name="serviceFilter" id="svc_Spark" value="Spark">
+                <label class="btn btn-outline-secondary btn-sm px-3" for="svc_Spark">Spark</label>
+                <input type="radio" class="btn-check" name="serviceFilter" id="svc_Hadoop" value="Hadoop">
+                <label class="btn btn-outline-secondary btn-sm px-3" for="svc_Hadoop">Hadoop</label>
+                <input type="radio" class="btn-check" name="serviceFilter" id="svc_Kafka" value="Kafka">
+                <label class="btn btn-outline-secondary btn-sm px-3" for="svc_Kafka">Kafka</label>
+                <input type="radio" class="btn-check" name="serviceFilter" id="svc_DB" value="DB">
+                <label class="btn btn-outline-secondary btn-sm px-3" for="svc_DB">DB</label>
+                <input type="radio" class="btn-check" name="serviceFilter" id="svc_Elastic" value="Elastic">
+                <label class="btn btn-outline-secondary btn-sm px-3" for="svc_Elastic">Elastic</label>
+                <input type="radio" class="btn-check" name="serviceFilter" id="svc_API_BE" value="API_BE">
+                <label class="btn btn-outline-secondary btn-sm px-3" for="svc_API_BE">API_BE</label>
+                <input type="radio" class="btn-check" name="serviceFilter" id="svc_API_ML" value="API_ML">
+                <label class="btn btn-outline-secondary btn-sm px-3" for="svc_API_ML">API_ML</label>
             </div>
         </div>
         <div class="level-search-row">
@@ -541,26 +559,52 @@
                 <h5 class="modal-title">Log Details</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
-                <div class="mb-3">
-                    <span class="badge" id="modalLevelBadge">INFO</span>
-                    <span class="text-muted ms-2 small" id="modalTimestamp"></span>
-                </div>
-                <div class="mb-3 row g-2">
-                    <div class="col-6">
-                        <span class="fw-bold d-block small text-secondary">Service</span>
-                        <span id="modalService">-</span>
+            <div class="modal-body p-0">
+                <!-- 메타데이터 헤더 구역 -->
+                <div class="bg-light p-3 border-bottom">
+                    <div class="row g-3 align-items-center">
+                        <div class="col-12 col-md-6 d-flex flex-column gap-1">
+                            <span class="fw-bold text-muted"
+                                style="font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.5px;">Level &
+                                Time</span>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="badge" id="modalLevelBadge">INFO</span>
+                                <span class="fw-bold text-dark small" id="modalTimestamp"></span>
+                            </div>
+                        </div>
+                        <div class="col-6 col-md-3 d-flex flex-column gap-1 border-start px-md-3">
+                            <span class="fw-bold text-muted"
+                                style="font-size: 0.75rem; text-transform: uppercase;">Service</span>
+                            <span class="fw-bold text-primary small" id="modalService">-</span>
+                        </div>
+                        <div class="col-6 col-md-3 d-flex flex-column gap-1 border-start px-md-3">
+                            <span class="fw-bold text-muted"
+                                style="font-size: 0.75rem; text-transform: uppercase;">Container</span>
+                            <span class="fw-bold text-secondary small text-truncate" id="modalContainer"
+                                title="Container">-</span>
+                        </div>
                     </div>
-                    <div class="col-6">
-                        <span class="fw-bold d-block small text-secondary">Container</span>
-                        <span id="modalContainer">-</span>
-                    </div>
                 </div>
-                <div class="p-3 bg-light rounded font-monospace small text-break" id="modalMessage"
-                    style="white-space: pre-wrap; max-height: 400px; overflow-y: auto;">-</div>
+
+                <!-- 로그 메시지 본문 구역 -->
+                <div class="p-0 bg-dark">
+                    <div
+                        class="p-2 py-1 bg-black border-bottom border-secondary d-flex justify-content-between align-items-center">
+                        <span class="text-secondary" style="font-size: 0.75rem; font-family: monospace;">Terminal
+                            Output</span>
+                        <i class="fas fa-terminal text-secondary" style="font-size: 0.8rem;"></i>
+                    </div>
+                    <div class="p-3 text-light font-monospace small text-break" id="modalMessage"
+                        style="white-space: pre-wrap; max-height: 400px; overflow-y: auto; line-height: 1.6; font-size: 0.85rem;">
+                        -</div>
+                </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary w-100" data-bs-dismiss="modal">Close</button>
+            <div class="modal-footer d-flex justify-content-between">
+                <button type="button" class="btn btn-outline-primary" onclick="copyLogDetail()">
+                    <i class="fas fa-copy me-1"></i>복사
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal"
+                    style="width:100px;">Close</button>
             </div>
         </div>
     </div>
@@ -1162,5 +1206,84 @@
     }
 
     window.addEventListener('beforeunload', () => { if (autoRefreshInterval) clearInterval(autoRefreshInterval); });
+    function saveRecoveryConfig() {
+        // ... (생략 없이 원래 코드 유지 - multi_replace의 경우 대체 구문만 수정하므로 EndLine에 맞게 앞뒤 맥락 포함) ...
+    }
+
+    // ─── 로그 복사 및 다운로드 기능 ───
+    async function copyLogDetail() {
+        const level = document.getElementById('modalLevelBadge').innerText;
+        const timestamp = document.getElementById('modalTimestamp').innerText;
+        const service = document.getElementById('modalService').innerText;
+        const container = document.getElementById('modalContainer').innerText;
+        const message = document.getElementById('modalMessage').innerText;
+
+        const copyText = `[${timestamp}] [${level}] [${service}] ${container}\n${message}`;
+
+        try {
+            await navigator.clipboard.writeText(copyText);
+            alert("로그 내용이 복사되었습니다.");
+        } catch (err) {
+            console.error('Failed to copy text: ', err);
+            alert("복사에 실패했습니다.");
+        }
+    }
+
+    function downloadLogs() {
+        const service = document.querySelector('input[name="serviceFilter"]:checked').value;
+        const level = document.querySelector('input[name="levelFilter"]:checked').value;
+        const keyword = document.getElementById('keywordSearch').value.trim();
+
+        let url = `/api/logs/download?size=10000`;
+        if (service !== 'ALL') url += `&service=${service}`;
+        if (level !== 'ALL') url += `&level=${level}`;
+        if (keyword) url += `&keyword=${encodeURIComponent(keyword)}`;
+
+        // 브라우저를 통해 스트리밍 텍스트 다운로드 실행
+        window.location.href = url;
+    }
+
+    // ─── 과거 에러 로그 강제 초기화 (Purge) ───
+    async function purgeAllLogs() {
+        if (!confirm("⚠️ 정말로 기록된 모든 컨테이너 에러 로그를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없으며 대시보드가 초기 상태로 돌아갑니다.")) {
+            return;
+        }
+
+        try {
+            const resp = await fetch('/api/logs/purge', {
+                method: 'DELETE'
+            });
+            const data = await resp.json();
+
+            if (resp.ok && data.success) {
+                alert(`✅ 초기화 완료!\n삭제된 로그 건수: ${data.deleted_count}건\n대시보드를 새로고침합니다.`);
+
+                // 프론트엔드 캐시 무효화 및 화면 0으로 리셋 처리
+                if (window.__preload) {
+                    window.__preload.logsDashboard = null;
+                }
+
+                // [성능] 애니메이션 없이 즉각 트렌드 차트 데이터를 통째로 날림
+                if (trendChart) {
+                    trendChart.data.labels = [];
+                    trendChart.data.datasets = [];
+                    trendChart.update('none');
+                }
+
+                // 캐시가 비워진 새로운 데이터를 가져오기 위해 0.5초 대기 후 강제 갱신
+                setTimeout(() => {
+                    refreshAll();
+                    fetchAlertStatus();
+                    fetchRecoveryStatus();
+                }, 500);
+            } else {
+                alert(`❌ 초기화 실패: ${data.detail || data.error || '알 수 없는 오류'}`);
+            }
+        } catch (err) {
+            console.error('Purge error:', err);
+            alert(`❌ 초기화 요청에 실패했습니다: ${err.message}`);
+        }
+    }
+
 </script>
 {% endblock %}

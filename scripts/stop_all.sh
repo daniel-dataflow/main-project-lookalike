@@ -18,11 +18,11 @@ docker compose stop spark-worker-1 spark-master kafka
 
 # 3. Hadoop 클러스터 안전 종료 (데이터 유실 방지)
 echo "3. Hadoop 노드 종료..."
-docker compose stop nodemanager resourcemanager datanode namenode
+docker compose stop datanode namenode
 
 # 4. 나머지 기반 인프라 종료
 echo "4. DB 및 모니터링 스택 종료..."
-docker compose stop zookeeper elasticsearch kibana filebeat postgresql mongodb redis
+docker compose stop zookeeper elasticsearch postgresql mongodb redis
 
 # 5. 모든 컨테이너 완전 제거 및 네트워크 정리
 echo "5. 모든 컨테이너 리소스 정리..."

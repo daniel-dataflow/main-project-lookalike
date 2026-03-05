@@ -2,6 +2,7 @@
 import asyncio
 import logging
 import hashlib
+import re
 from datetime import datetime
 import docker
 from docker.errors import DockerException
@@ -12,6 +13,14 @@ from .auto_recovery import get_auto_recovery
 import json
 
 logger = logging.getLogger(__name__)
+
+# 전역 상태: 마지막으로 Purge 기능이 호출된 시점 (UTC ISO 포맷 문자열)
+# 이 시점 이전의 도커 과거 로그들은 ES에 재수집되지 않고 즉각 버려집니다. (좀비 로그 부활 영구 차단)
+_GLOBAL_PURGE_TIMESTAMP = None
+
+def set_global_purge_time(iso_timestamp_str: str):
+    global _GLOBAL_PURGE_TIMESTAMP
+    _GLOBAL_PURGE_TIMESTAMP = iso_timestamp_str
 
 class LogCollector:
     def __init__(self):
@@ -26,13 +35,14 @@ class LogCollector:
         
         # 컨테이너 이름에 따른 서비스 매핑
         self.service_map = {
-            "airflow": ["airflow-webserver-main", "airflow-scheduler-main"],
-            "spark": ["spark-master-main", "spark-worker-1-main"],
-            "hadoop": ["namenode-main", "datanode-main"],
-            "kafka": ["kafka-main", "zookeeper-main"],
-            "database": ["postgres-main", "mongo-main", "redis-main"],
-            "search": ["elasticsearch-main"],
-            "api": ["fastapi-main"]
+            "Airflow": ["airflow-webserver-main", "airflow-scheduler-main"],
+            "Spark": ["spark-master-main", "spark-worker-1-main"],
+            "Hadoop": ["namenode-main", "datanode-main"],
+            "Kafka": ["kafka-main", "zookeeper-main"],
+            "DB": ["postgres-main", "mongo-main", "redis-main"],
+            "Elastic": ["elasticsearch-main"],
+            "API_BE": ["fastapi-main"],
+            "API_ML": ["ml-engine-main"]
         }
         
         # Slack 알림 서비스
@@ -51,8 +61,14 @@ class LogCollector:
 
 
 
+    import re
+
     def _determine_level(self, message: str) -> str:
         """메시지 내용을 기반으로 로그 레벨 결정"""
+        # (Fix) HTTP 2xx, 3xx 정상 통신 로그 예외 처리 (URL에 "ERROR"나 "CRITICAL"이 들어있더라도 INFO 처리)
+        if re.search(r'HTTP/1\.[01]" [23]\d{2}', message):
+            return "INFO"
+
         lower_msg = message.lower()
         if "error" in lower_msg or "exception" in lower_msg:
             return "ERROR"
@@ -125,6 +141,11 @@ class LogCollector:
 
                 service = self.container_to_service.get(container_name, "unknown")
                 
+                # [중요] 사용자가 대시보드에서 '초기화(Purge)'를 누른 시점보다
+                # 이전에 발생한 과거 찌꺼기 로그가 재수집되어 좀비처럼 살아나는 현상을 완벽 원천 차단
+                if _GLOBAL_PURGE_TIMESTAMP and timestamp < _GLOBAL_PURGE_TIMESTAMP:
+                    continue
+                
                 # 개선된 파싱 로직 적용
                 level, parsed_message = self._parse_log_line(message)
                 
@@ -169,7 +190,7 @@ class LogCollector:
         except Exception as e:
             logger.error(f"로그 벌크 인덱싱 실패: {e}")
 
-    async def run_collection_cycle(self):
+    def run_collection_cycle(self):
         """모든 모니터링 대상 컨테이너에 대해 수집 주기 실행"""
         all_logs = []
         for container_name in self.monitored_containers:
@@ -190,7 +211,7 @@ class LogCollector:
         logger.info("백그라운드 로그 수집 서비스 시작...")
         while True:
             try:
-                await self.run_collection_cycle()
+                await asyncio.to_thread(self.run_collection_cycle)
             except Exception as e:
                 logger.error(f"로그 수집 주기 중 오류: {e}")
             

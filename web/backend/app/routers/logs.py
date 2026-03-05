@@ -304,6 +304,65 @@ async def get_logs_stream(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Elasticsearch 조회 실패: {str(e)}")
 
+from fastapi.responses import StreamingResponse
+
+@router.get("/download")
+async def get_logs_download(
+    service: Optional[str] = None,
+    level: Optional[str] = None,
+    keyword: Optional[str] = None,
+    size: int = Query(10000, le=50000)
+):
+    """
+    로그 텍스트 추출 (다운로드용)
+    - size: 반환 개수 (기본 10000, 최대 50000)
+    """
+    must_conditions = []
+    
+    if service and service != "ALL":
+        must_conditions.append({"term": {"service": service}})
+    
+    if level and level != "ALL":
+        must_conditions.append({"term": {"level": level}})
+        
+    if keyword:
+        must_conditions.append({"match": {"message": keyword}})
+
+    query = {
+        "bool": {
+            "must": must_conditions
+        }
+    } if must_conditions else {"match_all": {}}
+
+    body = {
+        "query": query,
+        "sort": [{"timestamp": {"order": "desc"}}],
+        "size": size
+    }
+
+    try:
+        response = es_client.search(index=INDEX_NAME, body=body)
+        hits = response['hits']['hits']
+        
+        def iter_logs():
+            for hit in hits:
+                src = hit['_source']
+                ts = src.get('timestamp', '')[:19].replace('T', ' ')
+                lvl = src.get('level', 'INFO')
+                svc = src.get('service', 'unknown')
+                cnt = src.get('container', 'unknown')
+                msg = src.get('message', '').replace('\n', '  ')
+                yield f"[{ts}] [{lvl}] [{svc}] {cnt} - {msg}\n"
+                
+        headers = {
+            "Content-Disposition": f"attachment; filename=admin_logs_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.txt"
+        }
+        
+        return StreamingResponse(iter_logs(), media_type="text/plain", headers=headers)
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"로그 다운로드 중 오류 발생: {str(e)}")
+
 @router.get("/stats")
 async def get_log_stats():
     """
@@ -681,3 +740,44 @@ async def get_recovery_status():
     return recovery.get_status()
 
 
+# ──────────────────────────────────────
+# 과거 로그 일괄 초기화 (Purge)
+# ──────────────────────────────────────
+@router.delete("/purge")
+async def purge_all_logs():
+    """
+    Elasticsearch 내의 container-logs 인덱스 데이터를 모두 삭제합니다.
+    (과거의 에러들이 대시보드에 잔존하여 새 에러를 식별하기 어렵게 만드는 문제 해결용)
+    """
+    try:
+        # Match_all 쿼리로 인덱스 내의 모든 문서 삭제
+        response = es_client.delete_by_query(
+            index=INDEX_NAME,
+            body={
+                "query": {
+                    "match_all": {}
+                }
+            },
+            request_timeout=30.0,
+            # 강제로 즉시 Refresh 수행하여 UI 최신화 보장
+            refresh=True
+        )
+        
+        # [중요] 대시보드 메모리 캐시 강제 무효화
+        global _dashboard_cache, _dashboard_cache_time
+        _dashboard_cache = None
+        _dashboard_cache_time = 0
+        
+        # [중요 핵심부] 백그라운드 수집기가 과거 찌꺼기를 다시 퍼와서 10초 뒤 리스트에 부활시키는 좀비 현상 원천 차단
+        from ..services.log_collector import set_global_purge_time
+        purge_time_utc_str = datetime.utcnow().isoformat() + 'Z'
+        set_global_purge_time(purge_time_utc_str)
+        
+        return {
+            "success": True,
+            "deleted_count": response.get("deleted", 0),
+            "message": "모든 에러 로그 데이터가 성공적으로 초기화되었습니다."
+        }
+    except Exception as e:
+        print(f"Log Purge Error: {e}")
+        raise HTTPException(status_code=500, detail="로그 초기화 중 백엔드 오류가 발생했습니다.")

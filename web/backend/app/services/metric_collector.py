@@ -22,13 +22,14 @@ class MetricCollector:
         
         # Service mapping (same as LogCollector)
         self.service_map = {
-            "airflow": ["airflow-webserver-main", "airflow-scheduler-main"],
-            "spark": ["spark-master-main", "spark-worker-1-main"],
-            "hadoop": ["namenode-main", "datanode-main"],
-            "kafka": ["kafka-main", "zookeeper-main"],
-            "database": ["postgres-main", "mongo-main", "redis-main"],
-            "search": ["elasticsearch-main"],
-            "api": ["fastapi-main"]
+            "Airflow": ["airflow-webserver-main", "airflow-scheduler-main"],
+            "Spark": ["spark-master-main", "spark-worker-1-main"],
+            "Hadoop": ["namenode-main", "datanode-main"],
+            "Kafka": ["kafka-main", "zookeeper-main"],
+            "DB": ["postgres-main", "mongo-main", "redis-main"],
+            "Elastic": ["elasticsearch-main"],
+            "API_BE": ["fastapi-main"],
+            "API_ML": ["ml-engine-main"]
         }
         self.container_to_service = {}
         for service, containers in self.service_map.items():
@@ -53,9 +54,7 @@ class MetricCollector:
                 system_delta = system_cpu_usage - system_precpu_usage
                 
                 if system_delta > 0 and cpu_delta > 0:
-                    # number of cpus (online_cpus might be available)
-                    online_cpus = cpu_stats.get("online_cpus", 1)
-                    return (cpu_delta / system_delta) * online_cpus * 100.0
+                    return (cpu_delta / system_delta) * 100.0
         except Exception:
             pass
         return 0.0
@@ -75,6 +74,9 @@ class MetricCollector:
     def _get_memory_usage(self, stats) -> int:
         return stats.get("memory_stats", {}).get("usage", 0)
 
+    def _get_memory_limit(self, stats) -> int:
+        return stats.get("memory_stats", {}).get("limit", 0)
+
     def collect_metrics(self):
         if not self.docker_client:
             return
@@ -88,6 +90,7 @@ class MetricCollector:
                 cpu_pct = self._get_cpu_percent(stats)
                 mem_pct = self._get_memory_percent(stats)
                 mem_usage = self._get_memory_usage(stats)
+                mem_limit = self._get_memory_limit(stats)
                 
                 metric_data = {
                     "timestamp": datetime.utcnow().isoformat(),
@@ -95,7 +98,8 @@ class MetricCollector:
                     "service": service,
                     "cpu_percent": round(cpu_pct, 2),
                     "memory_percent": round(mem_pct, 2),
-                    "memory_usage": mem_usage
+                    "memory_usage": mem_usage,
+                    "memory_limit": mem_limit
                 }
                 
                 self._publish_to_kafka(metric_data)
@@ -125,8 +129,8 @@ class MetricCollector:
         logger.info("Starting Background Metric Collector...")
         while True:
             try:
-                self.collect_metrics()
+                await asyncio.to_thread(self.collect_metrics)
             except Exception as e:
                 logger.error(f"Metric collection error: {e}")
             
-            await asyncio.sleep(15) # Collect every 5 seconds
+            await asyncio.sleep(15) # Collect every 15 seconds

@@ -106,6 +106,67 @@ def _delete_session(request: Request, response: Response):
     response.delete_cookie(key="session_token", path="/")
 
 
+# ──────────────────────────────────────
+# Admin 전용 Redis 세션 관리
+# ──────────────────────────────────────
+def _create_admin_session(response: Response, user_data: dict) -> str:
+    """Redis에 어드민 세션을 생성하고 쿠키에 토큰을 설정"""
+    settings = get_settings()
+    token = str(uuid.uuid4())
+    session_data = json.dumps(user_data, default=str, ensure_ascii=False)
+
+    try:
+        redis_client = get_redis()
+        redis_client.setex(
+            f"admin_session:{token}",
+            settings.SESSION_EXPIRE_HOURS * 3600,
+            session_data,
+        )
+    except Exception as e:
+        logger.warning(f"Redis 어드민 세션 저장 실패: {e}")
+        raise HTTPException(status_code=500, detail="어드민 세션 생성 실패")
+
+    response.set_cookie(
+        key="admin_session_token",
+        value=token,
+        httponly=True,
+        max_age=settings.SESSION_EXPIRE_HOURS * 3600,
+        samesite="lax",
+        path="/",
+    )
+    return token
+
+
+def _get_admin_session(request: Request) -> dict | None:
+    """쿠키에서 어드민 토큰을 읽어 Redis 세션 데이터 반환"""
+    token = request.cookies.get("admin_session_token")
+    if not token:
+        return None
+
+    try:
+        redis_client = get_redis()
+        data = redis_client.get(f"admin_session:{token}")
+        if data:
+            return json.loads(data)
+    except Exception as e:
+        logger.warning(f"Redis 어드민 세션 조회 실패: {e}")
+
+    return None
+
+
+def _delete_admin_session(request: Request, response: Response):
+    """Redis 어드민 세션 삭제 + 쿠키 삭제"""
+    token = request.cookies.get("admin_session_token")
+    if token:
+        try:
+            redis_client = get_redis()
+            redis_client.delete(f"admin_session:{token}")
+        except Exception as e:
+            logger.warning(f"Redis 어드민 세션 삭제 실패: {e}")
+
+    response.delete_cookie(key="admin_session_token", path="/")
+
+
 def _user_row_to_dict(row: dict) -> dict:
     """DB 행을 세션 저장용 딕셔너리로 변환"""
     return {
@@ -149,9 +210,9 @@ async def register(req: UserRegisterRequest, response: Response):
             # 사용자 등록
             cur.execute(
                 """
-                INSERT INTO users (user_id, password, name, email, provider)
+                INSERT INTO users (user_id, password, user_name, email, provider)
                 VALUES (%s, %s, %s, %s, 'email')
-                RETURNING user_id, name, email, role, provider, profile_image, create_dt
+                RETURNING user_id, user_name as name, email, role, provider, profile_image, create_dt
                 """,
                 (user_id, _hash_password(req.password), req.name, req.email),
             )
@@ -183,7 +244,7 @@ async def login(req: UserLoginRequest, response: Response):
         with get_pg_cursor() as cur:
             cur.execute(
                 """
-                SELECT user_id, name, email, role, provider, profile_image,
+                SELECT user_id, user_name as name, email, role, provider, profile_image,
                        last_login, create_dt, password
                 FROM users WHERE email = %s AND provider = 'email'
                 """,
@@ -442,10 +503,10 @@ async def oauth_callback(
                 # 기존 사용자 → 로그인 시간 갱신
                 cur.execute(
                     """
-                    UPDATE users SET last_login = NOW(), name = COALESCE(%s, name),
+                    UPDATE users SET last_login = NOW(), user_name = COALESCE(%s, user_name),
                            profile_image = COALESCE(%s, profile_image)
                     WHERE provider = %s AND provider_id = %s
-                    RETURNING user_id, name, email, role, provider, profile_image, create_dt
+                    RETURNING user_id, user_name as name, email, role, provider, profile_image, create_dt
                     """,
                     (name, profile_image, provider, provider_id),
                 )
@@ -455,9 +516,9 @@ async def oauth_callback(
                 user_id = f"{provider}_{uuid.uuid4().hex[:8]}"
                 cur.execute(
                     """
-                    INSERT INTO users (user_id, name, email, provider, provider_id, profile_image)
+                    INSERT INTO users (user_id, user_name, email, provider, provider_id, profile_image)
                     VALUES (%s, %s, %s, %s, %s, %s)
-                    RETURNING user_id, name, email, role, provider, profile_image, create_dt
+                    RETURNING user_id, user_name as name, email, role, provider, profile_image, create_dt
                     """,
                     (user_id, name, email, provider, provider_id, profile_image),
                 )
@@ -513,7 +574,7 @@ async def get_user(user_id: str):
         with get_pg_cursor() as cur:
             cur.execute(
                 """
-                SELECT user_id, name, email, role, provider, profile_image,
+                SELECT user_id, user_name as name, email, role, provider, profile_image,
                        last_login, create_dt
                 FROM users WHERE user_id = %s
                 """,
@@ -587,7 +648,7 @@ async def update_user(user_id: str, req: UserUpdateRequest, request: Request, re
                 f"""
                 UPDATE users SET {', '.join(updates)}
                 WHERE user_id = %s
-                RETURNING user_id, name, email, role, provider, profile_image,
+                RETURNING user_id, user_name as name, email, role, provider, profile_image,
                           last_login, create_dt
                 """,
                 values,
@@ -642,74 +703,45 @@ async def delete_user(user_id: str, request: Request, response: Response):
 # ══════════════════════════════════════
 
 @router.post("/admin/login")
-async def admin_login(request: Request):
-    """관리자 비밀번호 인증 → 세션에 is_admin 플래그 저장"""
+async def admin_login(request: Request, response: Response):
+    """관리자 아이디/비밀번호 인증 → 새로운 관리자 세션 생성"""
     settings = get_settings()
 
-    # 1) 로그인 체크
-    token = request.cookies.get("session_token")
-    if not token:
-        raise HTTPException(status_code=401, detail="먼저 로그인해주세요")
-
-    redis_client = get_redis()
-    session_data = redis_client.get(f"session:{token}")
-    if not session_data:
-        raise HTTPException(status_code=401, detail="세션이 만료되었습니다")
-
-    session = json.loads(session_data)
-
-    # 2) 비밀번호 확인
     body = await request.json()
+    username = body.get("username", "")
     password = body.get("password", "")
 
-    if password != settings.ADMIN_PASSWORD:
-        raise HTTPException(status_code=403, detail="관리자 비밀번호가 올바르지 않습니다")
+    if not username or not password:
+        raise HTTPException(status_code=400, detail="아이디와 비밀번호를 입력해주세요")
 
-    # 3) 세션에 is_admin 플래그 추가
-    session["is_admin"] = True
-    redis_client.setex(
-        f"session:{token}",
-        settings.SESSION_EXPIRE_HOURS * 3600,
-        json.dumps(session, default=str),
-    )
+    if username != settings.ADMIN_USERNAME or password != settings.ADMIN_PASSWORD:
+        raise HTTPException(status_code=403, detail="관리자 아이디 또는 비밀번호가 올바르지 않습니다")
 
-    logger.info(f"✅ 관리자 인증 성공: {session.get('user_id')}")
+    user_data = {
+        "user_id": settings.ADMIN_USERNAME,
+        "name": "Admin",
+        "role": "ADMIN",
+        "provider": "system",
+        "is_admin": True,
+    }
+    _create_admin_session(response, user_data)
+
+    logger.info(f"✅ 관리자 인증 성공: {settings.ADMIN_USERNAME}")
     return {"success": True, "message": "관리자 인증 완료"}
 
 
 @router.post("/admin/logout")
-async def admin_logout(request: Request):
-    """관리자 권한 해제 (세션에서 is_admin 제거)"""
-    token = request.cookies.get("session_token")
-    if not token:
-        return {"success": True}
-
-    redis_client = get_redis()
-    session_data = redis_client.get(f"session:{token}")
-    if session_data:
-        session = json.loads(session_data)
-        session.pop("is_admin", None)
-        settings = get_settings()
-        redis_client.setex(
-            f"session:{token}",
-            settings.SESSION_EXPIRE_HOURS * 3600,
-            json.dumps(session, default=str),
-        )
-
+async def admin_logout(request: Request, response: Response):
+    """관리자 로그아웃 (세션 삭제)"""
+    _delete_admin_session(request, response)
     return {"success": True, "message": "관리자 권한이 해제되었습니다"}
 
 
 @router.get("/admin/check")
 async def admin_check(request: Request):
     """현재 세션이 관리자 인증 상태인지 확인"""
-    token = request.cookies.get("session_token")
-    if not token:
+    session = _get_admin_session(request)
+    if not session:
         return {"is_admin": False}
 
-    redis_client = get_redis()
-    session_data = redis_client.get(f"session:{token}")
-    if not session_data:
-        return {"is_admin": False}
-
-    session = json.loads(session_data)
     return {"is_admin": session.get("is_admin", False)}

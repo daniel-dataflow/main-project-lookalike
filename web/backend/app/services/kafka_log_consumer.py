@@ -121,44 +121,66 @@ class KafkaLogConsumer:
         """
         Kafka consumer loop
         """
-        logger.info(f"Starting Kafka consumer for topic: {self.topic}")
+        logger.info(f"Starting Kafka consumer thread for topic: {self.topic}")
         buffer = []
         last_flush_time = time.time()
         flush_interval = 10.0
         batch_size = 50
 
-        try:
-            for message in self.consumer:
-                if not self.running:
-                    break
-                
+        while self.running:
+            if not self.consumer:
                 try:
-                    raw_value = message.value
-                    parsed_log = self.parse_filebeat_message(raw_value)
-                    
-                    if parsed_log:
-                        # Debug: Log success
-                        # logger.info(f"Parsed log for container: {parsed_log.get('container')}") 
-                        buffer.append({
-                            "_index": self.index_name,
-                            "_source": parsed_log
-                        })
-
-                    # Flush buffer
-                    current_time = time.time()
-                    if len(buffer) >= batch_size or (current_time - last_flush_time) >= flush_interval:
-                        if buffer:
-                            logger.info(f"Flushing buffer to ES: {len(buffer)} docs")
-                            helpers.bulk(self.es_client, buffer)
-                            buffer = []
-                        last_flush_time = current_time
-                        
-                except Exception as e:
-                    logger.error(f"Error processing message: {e}")
+                    self.consumer = KafkaConsumer(
+                        self.topic,
+                        bootstrap_servers=self.bootstrap_servers,
+                        group_id=self.group_id,
+                        auto_offset_reset="latest",
+                        enable_auto_commit=True,
+                        value_deserializer=lambda x: json.loads(x.decode('utf-8')),
+                        request_timeout_ms=20000,
+                        api_version_auto_timeout_ms=20000
+                    )
+                    self.consumer.topics()
+                    logger.info("✅ Kafka connection successful. Starting consumer thread.")
+                except (KafkaError, NoBrokersAvailable) as e:
+                    logger.warning(f"❌ Kafka connection failed: {e}. Retrying in 5 seconds...")
+                    time.sleep(5)
                     continue
 
-        except Exception as e:
-            logger.error(f"Kafka consumer error: {e}")
+            try:
+                for message in self.consumer:
+                    if not self.running:
+                        break
+                    
+                    try:
+                        raw_value = message.value
+                        parsed_log = self.parse_filebeat_message(raw_value)
+                        
+                        if parsed_log:
+                            # Debug: Log success
+                            # logger.info(f"Parsed log for container: {parsed_log.get('container')}") 
+                            buffer.append({
+                                "_index": self.index_name,
+                                "_source": parsed_log
+                            })
+
+                        # Flush buffer
+                        current_time = time.time()
+                        if len(buffer) >= batch_size or (current_time - last_flush_time) >= flush_interval:
+                            if buffer:
+                                logger.info(f"Flushing buffer to ES: {len(buffer)} docs")
+                                helpers.bulk(self.es_client, buffer)
+                                buffer = []
+                            last_flush_time = current_time
+                            
+                    except Exception as e:
+                        logger.error(f"Error processing message: {e}")
+                        continue
+
+            except Exception as e:
+                logger.error(f"Kafka consumer error: {e}")
+                self.consumer = None
+                time.sleep(5)
 
     def start(self):
         """
@@ -166,30 +188,9 @@ class KafkaLogConsumer:
         """
         self.running = True
         
-        try:
-            # Try connecting to Kafka
-            self.consumer = KafkaConsumer(
-                self.topic,
-                bootstrap_servers=self.bootstrap_servers,
-                group_id=self.group_id,
-                auto_offset_reset="latest",
-                enable_auto_commit=True,
-                value_deserializer=lambda x: json.loads(x.decode('utf-8')),
-                request_timeout_ms=20000,
-                api_version_auto_timeout_ms=20000
-            )
-            
-            # Test connection
-            self.consumer.topics()
-            logger.info("✅ Kafka connection successful. Starting consumer thread.")
-            
-            thread = threading.Thread(target=self.consume_and_index, daemon=True)
-            thread.start()
-            return True
-            
-        except (KafkaError, NoBrokersAvailable) as e:
-            logger.warning(f"❌ Kafka connection failed: {e}")
-            return False
+        thread = threading.Thread(target=self.consume_and_index, daemon=True)
+        thread.start()
+        return True
 
     def stop(self):
         self.running = False

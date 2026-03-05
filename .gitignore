@@ -208,7 +208,10 @@ marimo/_lsp/
 __marimo__/
 miniconda3/
 logs/
-data-pipeline/airflow/simple_auth_manager_passwords.json.generateddata/ollama/id_ed25519
+
+# 인증키
+data-pipeline/airflow/simple_auth_manager_passwords.json.generated
+data/ollama/id_ed25519
 
 # 데이터 및 모델 파일 (전체 제외)
 data/
@@ -222,4 +225,20 @@ venv/
 .venv/
 __pycache__/
 .ollama/
+
 data-pipeline/crawlers/web_crawlers/debug_logs/
+data-pipeline/airflow/simple_auth_manager_passwords.json.generated
+data-pipeline/elasticsearch/data/
+data-pipeline/database/data/
+
+ml-models/api/app.py
+
+# arm환경 추가 yml 파일
+/docker-compose.arm64.yml
+/docker-compose.hadoop-arm64.yml
+/hadoop-conf
+/hadoop-scripts
+
+# yolo 가중치 파일
+/weights
+origin/dev

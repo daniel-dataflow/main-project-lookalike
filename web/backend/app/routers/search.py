@@ -6,6 +6,8 @@ from fastapi.responses import Response
 from typing import Optional
 import logging
 import json
+import os
+import httpx
 
 from ..database import get_pg_cursor, get_redis
 from ..models.search import (
@@ -27,6 +29,7 @@ from ..services.search_service import search_products
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/search", tags=["검색"])
+ML_ENGINE_URL = os.getenv("ML_ENGINE_URL", "http://ml-engine:8914/predict_vector")
 
 
 # ──────────────────────────────────────
@@ -55,7 +58,8 @@ async def search_by_image(
     request: Request,
     image: Optional[UploadFile] = File(None, description="검색할 이미지 (선택)"),
     search_text: Optional[str] = Form(None, description="추가 검색어"),
-    category: Optional[str] = Form(None, description="카테고리 필터"),
+    gender: Optional[str] = Form(None, description="성별 필터"),
+    category: Optional[str] = Form(None, description="의류 카테고리 필터"),
 ):
     """
     이미지 또는 텍스트 기반 상품 검색
@@ -97,21 +101,59 @@ async def search_by_image(
                 f"hdfs={'✅' if image_info['hdfs_uploaded'] else '❌'}"
             )
 
-        # 3. 검색 서비스 (전략 자동 선택: ES kNN → ES 텍스트 → DB fallback)
-        # query_embedding: 향후 ML 서버로부터 임베딩 벡터를 받으면 자동으로 kNN 검색으로 전환됨
+        # 3. ML 엔진 호출: 벡터 검색 Top-K(product_id -> score) 확보
+        ml_scores = None
+        try:
+            data = {}
+            files = {}
+
+            if search_text:
+                data["text"] = search_text
+            if gender:
+                data["gender"] = gender
+            if category:
+                data["category"] = category
+
+            if image:
+                # 업로드 파일은 앞단 처리에서 이미 한 번 읽혔을 수 있으므로 포인터를 되감는다.
+                await image.seek(0)
+                files["image"] = (
+                    image.filename or "query.jpg",
+                    await image.read(),
+                    image.content_type or "application/octet-stream",
+                )
+
+            # ML 경로는 임베딩 + ES 검색까지 포함되므로 read timeout을 넉넉히 둔다.
+            async with httpx.AsyncClient(
+                timeout=httpx.Timeout(timeout=60.0, connect=5.0, read=60.0)
+            ) as client:
+                ml_resp = await client.post(ML_ENGINE_URL, data=data, files=files)
+                ml_resp.raise_for_status()
+                ml_data = ml_resp.json()
+                ml_scores = ml_data.get("ml_product_scores")
+        except Exception as ml_err:
+            # ML 경로 실패 시 DB fallback으로 자동 전환되도록 None 유지
+            logger.warning(
+                "ML 엔진 호출 실패, DB fallback 사용: %s: %r",
+                type(ml_err).__name__,
+                ml_err,
+            )
+
+        # 4. 검색 서비스 (전략 1: ML 검색 결과, 전략 2: 텍스트 검색, 전략 3: DB fallback)
         ml_results = await search_products(
             query_text=search_text,
-            query_embedding=None,   # TODO: ML 서버 연동 후 여기에 벡터 진달
+            ml_product_scores=ml_scores,
             category=category,
-            limit=4,
+            gender=gender,
+            limit=6,
         )
         result_count = len(ml_results)
 
-        # 4. DB에 검색 로그 기록
-        # category 형식: "남자_상의" → gender='남자', applied_category='상의'
-        gender_filter = None
+        # 5. DB에 검색 로그 기록
+        # 기존 "남자_상의" 형식의 임시 호환 처리 및 분리 처리
+        gender_filter = gender
         category_filter = category
-        if category and "_" in category:
+        if category and "_" in category and not gender:
             parts = category.split("_", 1)
             gender_filter, category_filter = parts[0], parts[1]
 
@@ -148,7 +190,7 @@ async def search_by_image(
             raise HTTPException(status_code=500, detail="검색 로그 저장 실패")
 
 
-        # 5. 검색 결과 DB 저장
+        # 6. 검색 결과 DB 저장
         try:
             with get_pg_cursor() as cur:
                 for rank, item in enumerate(ml_results, 1):
@@ -173,8 +215,8 @@ async def search_by_image(
         except Exception as res_err:
             logger.warning(f"검색 결과 저장 실패 (검색은 계속): {res_err}")
 
-        # 6. 응답
-        # search_source: 실제 사용된 검색 전략 (프론트엜드 시디버깅, 향후 UI에서 활용 가능)
+        # 7. 응답
+        # search_source: 실제 사용된 검색 전략 (프론트엔드 디버깅, 향후 UI에서 활용 가능)
         used_source = ml_results[0]["search_source"] if ml_results else "db"
         return ImageSearchResponse(
             success=True,
@@ -182,7 +224,7 @@ async def search_by_image(
             thumbnail_url=f"/api/search/thumbnail/{log_id}",
             results=[
                 ProductResult(
-                    product_id=r["product_id"],
+                    product_id=str(r["product_id"]),
                     product_name=r["product_name"],
                     brand=r["brand"],
                     price=r["price"],
@@ -203,6 +245,35 @@ async def search_by_image(
     except Exception as e:
         logger.error(f"이미지 검색 실패: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="서버 오류가 발생했습니다")
+
+
+# ──────────────────────────────────────
+# YOLO 의류 객체 탐지 프록시 (UI 선택용)
+# ──────────────────────────────────────
+@router.post("/detect")
+async def detect_apparel(
+    request: Request,
+    image: UploadFile = File(..., description="의류를 탐지할 원본 이미지")
+):
+    """
+    ML 엔진의 YOLO 객체 탐지 API로 이미지를 단순히 전달(프록시)하고
+    바운딩 박스 목록(좌표)만 반환합니다.
+    """
+    # 설정: ML Engine의 새로운 YOLO 독립 라우터
+    YOLO_ENGINE_URL = os.getenv("YOLO_ENGINE_URL", "http://ml-engine:8914/yolo/detect")
+    
+    try:
+        data = await image.read()
+        files = {"image": (image.filename or "detect.jpg", data, image.content_type or "image/jpeg")}
+        
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            resp = await client.post(YOLO_ENGINE_URL, files=files)
+            resp.raise_for_status()
+            return resp.json()
+            
+    except Exception as e:
+        logger.error(f"YOLO 탐지 프록시 실패: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="객체 탐지 서버 통신 오류가 발생했습니다.")
 
 
 # ──────────────────────────────────────
@@ -349,18 +420,16 @@ async def get_search_history_detail(log_id: int, request: Request):
             cur.execute(
                 """
                 SELECT 
-                    p.prod_name as product_name,
-                    p.brand_name as brand,
-                    COALESCE(np.price, p.base_price) as price,
-                    p.img_hdfs_path as image_url,
-                    np.mall_name,
-                    np.mall_url,
-                    sr.rank
-                FROM search_results sr
-                JOIN products p ON sr.product_id::bigint = p.product_id
-                LEFT JOIN naver_prices np ON p.product_id = np.product_id AND np.rank = 1
-                WHERE sr.log_id = %s 
-                ORDER BY sr.rank ASC
+                    product_name,
+                    brand,
+                    price,
+                    image_url,
+                    mall_name,
+                    mall_url,
+                    rank
+                FROM search_results
+                WHERE log_id = %s 
+                ORDER BY rank ASC
                 """,
                 (log_id,),
             )
@@ -445,7 +514,7 @@ async def search_by_text(
 
         results = [
             SimilarProductResponse(
-                product_id=r["product_id"],
+                product_id=str(r["product_id"]),
                 prod_name=r["prod_name"],
                 base_price=r["base_price"],
                 img_hdfs_path=r["img_hdfs_path"],
