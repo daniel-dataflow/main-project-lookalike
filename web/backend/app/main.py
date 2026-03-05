@@ -39,7 +39,7 @@ async def lifespan(app: FastAPI):
         logger.warning(f"⚠️ DB 연결 초기화 중 일부 실패 (앱은 계속 실행): {e}")
     
     # Elasticsearch 인덱스 초기화
-    logger.info("📊 Elasticsearch 인덱스 초기화 시도")
+    logger.info("📊 Elasticsearch 인덱스 초기화")
     try:
         from .core.elasticsearch_setup import (
             init_elasticsearch_index,
@@ -50,7 +50,7 @@ async def lifespan(app: FastAPI):
         init_metric_index()           # container-metrics
         init_product_index()          # products (ML 임베딩 + VLM 설명용)
     except Exception as e:
-        logger.warning(f"⚠️ Elasticsearch 인덱스 초기화 불가 (인프라는 DB Fallback으로 실행): {e}")
+        logger.warning(f"⚠️ Elasticsearch 인덱스 초기화 실패: {e}")
     
     # 백그라운드 로그 및 메트릭 수집 서비스 시작
     logger.info("🔄 백그라운드 수집 서비스 시작")
