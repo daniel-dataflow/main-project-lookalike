@@ -20,23 +20,6 @@ TARGET_MAP = {
     "Men": {
         "Outer": [
             "https://www.ssfshop.com/8seconds/LeatherJacket/list?dspCtgryNo=SFMA42A05A06&brandShopNo=BDMA07A01&brndShopId=8SBSS"
-        ],
-        "Top": [
-            "https://www.ssfshop.com/8seconds/Short-Sleeve/list?dspCtgryNo=SFMA42A02A01&brandShopNo=BDMA07A01&brndShopId=8SBSS"
-        ],
-        "Bottom": [
-            "https://www.ssfshop.com/8seconds/Jogger/list?dspCtgryNo=SFMA42A04A06&brandShopNo=BDMA07A01&brndShopId=8SBSS"
-        ]
-    },
-    "Women": {
-        "Outer": [
-            "https://www.ssfshop.com/8seconds/Coats/list?dspCtgryNo=SFMA41A07A02&brandShopNo=BDMA07A01&brndShopId=8SBSS"
-        ],
-        "Top": [
-            "https://www.ssfshop.com/8seconds/Long-Sleeve/list?dspCtgryNo=SFMA41A02A02A03&brandShopNo=BDMA07A01&brndShopId=8SBSS"
-        ],
-        "Bottom": [
-            "https://www.ssfshop.com/8seconds/Slim/list?dspCtgryNo=SFMA41A04A11&brandShopNo=BDMA07A01&brndShopId=8SBSS"
         ]
     }
 }

@@ -43,9 +43,9 @@ with DAG(
 
     # 테스트를 위해 8seconds만 활성화. 필요시 주석 해제하여 병렬 확장 가능!
     brands = {
-        # '8seconds': '8S',
+        '8seconds': '8S',
         # 'topten': 'TT',
-        'zara': 'ZR',
+        # 'zara': 'ZR',
         # 'uniqlo': 'UQ',
         # 'musinsa': 'MS'
     }
@@ -113,14 +113,13 @@ with DAG(
         json_paths = embed_to_json.override(task_id=f"embed_to_json_{crawler_key}")(
             rows=final_rows,
             out_root="/opt/airflow/data/embeddings_json",
-            batch_size=4,
         )
 
         mongo_done = upsert_mongo.override(task_id=f"upsert_mongo_{crawler_key}")(
             json_paths=json_paths,
             mongo_uri="{{ var.value.MONGO_URI }}", 
-            db_name="fashion",
-            collection="products",
+            db_name="datadb",
+            collection="analyzed_metadata",
         )
 
         # =========================================================
@@ -129,9 +128,8 @@ with DAG(
         
         vlm_analyze_task = BashOperator(
             task_id=f'vlm_analyze_images_{crawler_key}',
-            bash_command=f'python3 -u /opt/airflow/dags/scripts/vlm.py' # 필요시 나중에 인자 넘기기 가능
+            bash_command=f'python3 -u /opt/airflow/dags/scripts/vlm.py --brand_name {crawler_key}'
         )
-
         sync_es_task = BashOperator(
             task_id=f'sync_mongo_to_es_{crawler_key}',
             bash_command=f'python3 -u /opt/airflow/dags/scripts/sync_to_es.py --brand_name {crawler_key}'
@@ -144,9 +142,7 @@ with DAG(
         # 함수의 인자 전달을 통해 에어플로우가 자동으로 의존성을 연결합니다.
         
         # 1. 앞단 로직 연결 (크롤링 -> 스파크 -> API -> HDFS 다운로드 시작)
-        # crawl_task >> spark_task >> naver_api_task >> 
-
-        fetched
+        crawl_task >> spark_task >> naver_api_task >> fetched
 
         # 2. 뒷단 로직 연결 (몽고DB 적재 완료 -> VLM/임베딩 -> ES 동기화)
         mongo_done >> vlm_analyze_task >> sync_es_task
