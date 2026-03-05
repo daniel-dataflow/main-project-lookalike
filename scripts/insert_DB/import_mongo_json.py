@@ -60,9 +60,19 @@ def import_to_mongodb(brand: str, docs: List[dict]):
         # 만약 기존 데이터를 삭제하고 싶다면 추가 가능
         # collection.delete_many({"brand": brand})
         
-        # 벌크 인서트
-        result = collection.insert_many(docs, ordered=False)
-        print(f"✅ Imported {len(result.inserted_ids)} JSON documents to MongoDB for brand '{brand}'.")
+        # UpdateOne을 사용한 upsert 형태벌크 연산 구성
+        from pymongo import UpdateOne
+        requests = []
+        for doc in docs:
+            # 기존 '_id'나 'product_id' 기준으로 매핑 
+            # (doc에는 'product_id' 키가 있으므로 이를 사용)
+            product_id = doc.get('product_id')
+            if product_id:
+                requests.append(UpdateOne({'product_id': product_id}, {'$set': doc}, upsert=True))
+                
+        if requests:
+            result = collection.bulk_write(requests, ordered=False)
+            print(f"✅ Upserted {result.upserted_count} and modified {result.modified_count} JSON documents to MongoDB for brand '{brand}'.")
         
     except BulkWriteError as bwe:
         print(f"❌ Bulk write errors occurred: {bwe.details}")

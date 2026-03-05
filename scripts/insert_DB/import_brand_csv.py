@@ -60,7 +60,60 @@ def import_brand_products(cur, brand: str):
                 row.get('update_dt', '')
             ))
             product_count += 1
-    print(f"✅ Imported {product_count} products for brand '{brand}'.")
+    print(f"✅ Imported {product_count} products from CSV for brand '{brand}'.")
+
+def import_brand_from_json(cur, brand: str):
+    """CSV 파일이 없을 때 JSON 파일들을 읽어서 PostgreSQL에 삽입"""
+    import glob
+    import json
+    json_dir = f'data-pipeline/database/data/{brand}/postgre/json/*.json'
+    files = glob.glob(json_dir)
+    
+    if not files:
+        print(f"⚠️  No JSON files found for brand '{brand}' in {json_dir}. Skipping.")
+        return
+
+    product_count = 0
+    for filepath in files:
+        try:
+            with open(filepath, 'r', encoding='utf-8') as f:
+                doc = json.load(f)
+            
+            pid_int = hash_product_id(doc.get('product_id', ''))
+            model_code = doc.get('model_code', '')
+            prod_name = doc.get('prod_name', '')
+            
+            # base_price 처리
+            base_price = 0
+            if doc.get('base_price'):
+                try:
+                    base_price = int(float(doc['base_price']))
+                except (ValueError, TypeError):
+                    base_price = 0
+                    
+            category_code = doc.get('category_code', '')
+            img_hdfs_path = doc.get('img_hdfs_path', '')
+            brand_name = doc.get('brand_name', '')
+            gender = doc.get('gender', '')
+            origin_url = doc.get('origine_url', '') # note the spelling
+            create_dt = doc.get('create_dt', '')
+            update_dt = doc.get('update_dt', '')
+
+            cur.execute("""
+                INSERT INTO products (
+                    product_id, model_code, prod_name, base_price, 
+                    category_code, img_hdfs_path, brand_name, gender, origin_url, create_dt, update_dt
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (product_id) DO NOTHING
+            """, (
+                pid_int, model_code, prod_name, base_price, category_code, img_hdfs_path, 
+                brand_name, gender, origin_url, create_dt, update_dt
+            ))
+            product_count += 1
+        except Exception as e:
+            print(f"❌ Error inserting JSON doc {filepath}: {e}")
+            
+    print(f"✅ Imported {product_count} products from JSON metadata for brand '{brand}'.")
 
 def main():
     parser = argparse.ArgumentParser(description="Import brand CSV data into PostgreSQL.")
@@ -93,7 +146,12 @@ def main():
             truncate_tables(cur)
         
         if args.brand:
-            import_brand_products(cur, args.brand)
+            csv_path = f'data-pipeline/database/data/{args.brand}/postgre/products.csv'
+            if os.path.exists(csv_path):
+                import_brand_products(cur, args.brand)
+            else:
+                print(f"ℹ️  CSV not found for '{args.brand}'. Falling back to JSON metadata.")
+                import_brand_from_json(cur, args.brand)
 
         conn.commit()
     except Exception as e:

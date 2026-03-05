@@ -19,11 +19,19 @@ BRANDS=("8seconds" "topten" "uniqlo" "spao" "zara")
 echo "[INFO] 필요 패키지(psycopg2-binary, pymongo, python-dotenv) 설치 여부 확인 및 설치 중..."
 python3 -m pip install -q psycopg2-binary pymongo python-dotenv
 
-# 1. 초기화 (PostgreSQL Truncate)
-echo "[INFO] PostgreSQL 기존 테이블(products 등)을 초기화합니다..."
-python3 scripts/insert_DB/import_brand_csv.py --init
+# 1. 초기화 (PostgreSQL Truncate) - 생략됨 (기존 데이터 유지)
+echo "[INFO] 기존 데이터를 유지하면서 새로운 데이터만 삽입(Upsert)합니다..."
+
+echo "[INFO] macOS 및 Windows 환경 식별자 찌꺼기 파일들 정리 중..."
+find data-pipeline/database/data \( -name "*:Zone.Identifier" -o -name ".DS_Store" \) -type f -delete || true
+
+# 2. HDFS 초기화 - 생략됨 (기존 이미지 유지)
+
+TOTAL_BRANDS=${#BRANDS[@]}
+CURRENT_BRAND=0
 
 for BRAND in "${BRANDS[@]}"; do
+    CURRENT_BRAND=$((CURRENT_BRAND + 1))
     TARGET_DIR="data-pipeline/database/data/$BRAND"
     
     if [ ! -d "$TARGET_DIR" ]; then
@@ -34,19 +42,21 @@ for BRAND in "${BRANDS[@]}"; do
     fi
 
     echo "======================================================"
-    echo " 🚀 [$BRAND] 데이터 로드 시작"
+    echo " 🚀 [$CURRENT_BRAND/$TOTAL_BRANDS] $BRAND 데이터 로드 시작"
     echo "======================================================"
 
     # HDFS 이미지 전송 (hadoop/raw/ 아래 구조 가정)
     HDFS_SRC="$TARGET_DIR/hadoop/raw/$BRAND"
     if [ -d "$HDFS_SRC" ]; then
-        echo "[$BRAND] 하둡 HDFS에 로컬 이미지 데이터 업로드..."
+        echo "[$BRAND] 하둡 HDFS에 로컬 이미지 데이터 업로드 준비 중..."
         
-        # 이전 데이터 지우기 (원한다면)
-        docker exec namenode-main hdfs dfs -rm -r -f /raw/$BRAND || true
-        docker exec namenode-main hdfs dfs -mkdir -p /raw
-        
+        echo "[$BRAND] 도커 컨테이너로 파일 복사 중 (이 작업은 시간이 다소 소요될 수 있습니다)..."
         docker cp "$HDFS_SRC" namenode-main:/tmp/
+        
+        echo "[$BRAND] 불필요한 OS 찌꺼기 파일 정리 중..."
+        docker exec namenode-main find /tmp/ \( -name "*:Zone.Identifier" -o -name ".DS_Store" \) -type f -delete || true
+        
+        echo "[$BRAND] HDFS 스토리지로 파일 이동 중 (이 작업은 시간이 다소 소요될 수 있습니다)..."
         docker exec namenode-main bash -c "set -e; hdfs dfs -put -f /tmp/$BRAND /raw/; rm -rf /tmp/$BRAND; echo '>> HDFS 업로드 완료'"
     else
         echo "[$BRAND] ℹ️  HDFS 폴더($HDFS_SRC) 없음. 스킵."

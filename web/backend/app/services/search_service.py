@@ -159,7 +159,8 @@ def _hydrate_from_db(
                 "product_name": row["prod_name"],
                 "brand": row["brand_name"],
                 "price": row["lowest_price"],
-                "image_url": row["img_hdfs_path"] or "https://placehold.co/300x300?text=No+Image",
+                # HDFS 기본 패스 형식 보정 (DB에 '/raw/...' 나 'topten/image/...' 형태로 섞여있을 수 있음)
+                "image_url": (f"/{row['img_hdfs_path']}" if row["img_hdfs_path"] and not row["img_hdfs_path"].startswith('/') else row["img_hdfs_path"]) or "https://placehold.co/300x300?text=No+Image",
                 "mall_name": row["mall_name"] or "공식몰",
                 "mall_url": row["mall_url"] or "#",
                 "similarity_score": round(product_scores.get(score_key, 0.0), 4),
@@ -245,7 +246,7 @@ def _search_by_db(category: Optional[str], gender: Optional[str], limit: int) ->
                 "product_name": row["prod_name"],
                 "brand": row["brand_name"],
                 "price": row["lowest_price"],
-                "image_url": row["img_hdfs_path"] or "https://placehold.co/300x300?text=No+Image",
+                "image_url": (f"/{row['img_hdfs_path']}" if row["img_hdfs_path"] and not row["img_hdfs_path"].startswith('/') else row["img_hdfs_path"]) or "https://placehold.co/300x300?text=No+Image",
                 "mall_name": row["mall_name"] or "공식몰",
                 "mall_url": row["mall_url"] or "#",
                 "similarity_score": None,        # DB fallback은 유사도 점수 없음

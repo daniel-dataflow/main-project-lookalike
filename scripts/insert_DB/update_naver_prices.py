@@ -5,6 +5,7 @@ import requests
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from dotenv import load_dotenv
+import datetime
 
 # .env 환경변수 로딩
 load_dotenv()
@@ -68,9 +69,14 @@ def main():
         
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             # 1. products 테이블에서 처리 대상 조회 (또는 전체)
+            # 기존에 가격이 수집되지 않은 상품만 조회
             cur.execute("""
-                SELECT product_id, prod_name, brand_name
-                FROM products
+                SELECT p.product_id, p.prod_name, p.brand_name, p.model_code
+                FROM products p
+                WHERE p.product_id NOT IN (
+                    SELECT DISTINCT product_id 
+                    FROM naver_prices
+                )
             """)
             products = cur.fetchall()
             
@@ -80,59 +86,55 @@ def main():
             
             for prod in products:
                 pid = prod['product_id']
-                # 브랜드명과 상품명을 조합하여 검색 정확도 상향
-                search_query = f"{prod['brand_name']} {prod['prod_name']}".strip()
+                # 1차: 브랜드명 + 모델코드(상품코드)
+                items = []
+                search_query = ""
                 
-                # 네이버 API로 넉넉하게 검색 (공식몰 필터링을 위해 20개 요청)
-                items = search_naver_shopping(search_query, display=20)
+                if prod.get('model_code'):
+                    search_query = f"{prod['brand_name']} {prod['model_code']}".strip()
+                    items = search_naver_shopping(search_query, display=20)
+                
+                # 2차: 브랜드명 + 상품명 (모델코드가 없거나 1차 검색 실패 시)
+                if not items:
+                    search_query_fallback = f"{prod['brand_name']} {prod['prod_name']}".strip()
+                    if search_query:
+                        print(f"⚠️ 1차 검색 실패, 상품명으로 2차 검색 시도: {search_query_fallback}")
+                        time.sleep(1.0) # 혹시 모를 레이트 리밋 방지
+                    search_query = search_query_fallback
+                    items = search_naver_shopping(search_query, display=20)
                 
                 if items:
-                    filtered_items = []
-                    for item in items:
-                        mall_name = item.get("mallName", "알 수 없음")
-                        
-                        # 공식몰 제외 필터링
-                        is_official = False
-                        brand_upper = prod['brand_name'].upper() if prod['brand_name'] else ""
-                        mall_upper = mall_name.upper()
-                        
-                        if brand_upper == "8SECONDS":
-                            if "에잇세컨즈" in mall_name or "8SECONDS" in mall_upper or "SSF" in mall_upper:
-                                is_official = True
-                        elif brand_upper == "TOPTEN10":
-                            if "탑텐" in mall_name or "TOPTEN" in mall_upper:
-                                is_official = True
-                                
-                        if not is_official:
-                            filtered_items.append(item)
+                    # 공식몰 제외 필터 삭제 (모든 결과 허용)
+                    # 가격 낮은순 정렬
+                    items_sorted = sorted(items, key=lambda x: int(x.get("lprice", 0)))
                     
-                    if filtered_items:
-                        # 가격 낮은순 정렬
-                        items_sorted = sorted(filtered_items, key=lambda x: int(x.get("lprice", 0)))
-                        
-                        # 기존 데이터 삭제 후 새 데이터 삽입
-                        cur.execute("DELETE FROM naver_prices WHERE product_id = %s", (pid,))
-                        
-                        # 상위 5개 삽입
-                        for rank, item in enumerate(items_sorted[:5], start=1):
-                            price = int(item.get("lprice", 0))
-                            mall_name = item.get("mallName", "알 수 없음")
-                            mall_url = item.get("link", "")
-                            image_url = item.get("image", "")
+                    # 기존 데이터 삭제 후 새 데이터 삽입
+                    cur.execute("DELETE FROM naver_prices WHERE product_id = %s", (pid,))
+                    
+                    # 상위 5개 삽입
+                    for rank, item in enumerate(items_sorted[:5], start=1):
+                        price = int(item.get("lprice", 0))
+                        mall_name = item.get("mallName", "알 수 없음")
+                        mall_url = item.get("link", "")
+                        image_url = item.get("image", "")
 
-                            # 2. naver_prices 테이블에 정규 INSERT 수행
-                            cur.execute("""
-                                INSERT INTO naver_prices (product_id, rank, price, mall_name, mall_url, image_url, create_dt, update_dt)
-                                VALUES (%s, %s, %s, %s, %s, %s, now(), now())
-                            """, (pid, rank, price, mall_name, mall_url, image_url))
-                            
-                        saved_count = min(5, len(items_sorted))
-                        updated_count += saved_count
-                        print(f"✅ 업데이트 완료: {search_query} -> {saved_count}개의 최저가 저장")
-                    else:
-                        print(f"⚠️ 유효 검색 결과 없음 (전부 공식몰): {search_query}")
+                        # 2. naver_prices 테이블에 정규 INSERT 수행
+                        cur.execute("""
+                            INSERT INTO naver_prices (product_id, rank, price, mall_name, mall_url, image_url, create_dt, update_dt)
+                            VALUES (%s, %s, %s, %s, %s, %s, now(), now())
+                        """, (pid, rank, price, mall_name, mall_url, image_url))
+                        
+                    saved_count = min(5, len(items_sorted))
+                    updated_count += saved_count
+                    print(f"✅ 업데이트 완료: {search_query} -> {saved_count}개의 최저가 저장")
                 else:
                     print(f"⚠️ 검색 결과 없음: {search_query}")
+                    # 실패 결과를 파일로 남김
+                    log_dir = "log/spark/naver_api"
+                    os.makedirs(log_dir, exist_ok=True)
+                    log_file = os.path.join(log_dir, "missing_items.log")
+                    with open(log_file, "a", encoding="utf-8") as f:
+                        f.write(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] BRAND: {prod.get('brand_name', 'N/A')} | CODE: {prod.get('model_code', 'N/A')} | NAME: {prod.get('prod_name', 'N/A')}\n")
                 
                 # 네이버 안티 봇 회피 및 API Rate Limit 고려하여 충분한 랜덤 지연 시간 추가
                 delay = random.uniform(1.5, 3.0)
