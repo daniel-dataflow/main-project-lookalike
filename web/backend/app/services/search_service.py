@@ -17,6 +17,19 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 
+def _category_filter_values(category: str) -> list[str]:
+    """입력 카테고리를 DB category_code 비교용 값 목록으로 확장한다."""
+    key = (category or "").strip().lower()
+    if not key:
+        return []
+    category_map = {
+        "top": ["top", "상의"],
+        "bottom": ["bottom", "하의"],
+        "outer": ["outer", "아우터"],
+    }
+    return category_map.get(key, [key])
+
+
 # ──────────────────────────────────────────────────────────────────────
 # Public API
 # ──────────────────────────────────────────────────────────────────────
@@ -107,8 +120,11 @@ def _hydrate_from_db(
                 conditions.append("p.gender = %s")
                 params.append(gender.lower())
             if category:
-                conditions.append("p.category_code = %s")
-                params.append(category)
+                category_values = _category_filter_values(category)
+                if category_values:
+                    placeholders = ",".join(["%s"] * len(category_values))
+                    conditions.append(f"LOWER(p.category_code) IN ({placeholders})")
+                    params.extend(category_values)
 
             where_clause = " AND ".join(conditions)
             cur.execute(
@@ -213,8 +229,11 @@ def _search_by_db(category: Optional[str], gender: Optional[str], limit: int) ->
                 conditions.append("p.gender = %s")
                 params.append(gender.lower())
             if category_code:
-                conditions.append("p.category_code = %s")
-                params.append(category_code)
+                category_values = _category_filter_values(category_code)
+                if category_values:
+                    placeholders = ",".join(["%s"] * len(category_values))
+                    conditions.append(f"LOWER(p.category_code) IN ({placeholders})")
+                    params.extend(category_values)
 
             where_clause = ("WHERE " + " AND ".join(conditions)) if conditions else ""
             params.append(limit)
