@@ -350,8 +350,8 @@ if [ "$HAS_RECENT_VIEWS" != "1" ]; then
     $PG_CMD -U ${POSTGRES_USER} -d ${POSTGRES_DB} -c "
         CREATE TABLE recent_views (
             view_id BIGSERIAL PRIMARY KEY,
-            user_id VARCHAR(50) REFERENCES users(user_id) ON DELETE CASCADE,
-            product_id BIGINT REFERENCES products(product_id) ON DELETE CASCADE,
+            user_id VARCHAR(20) REFERENCES users(user_id) ON DELETE CASCADE,
+	    product_id VARCHAR(50) REFERENCES products(product_id) ON DELETE CASCADE,
             view_dt TIMESTAMP DEFAULT NOW()
         );
         CREATE INDEX idx_recent_views_user ON recent_views(user_id, view_dt DESC);
@@ -360,7 +360,7 @@ if [ "$HAS_RECENT_VIEWS" != "1" ]; then
         CREATE TABLE likes (
             like_id BIGSERIAL PRIMARY KEY,
             user_id VARCHAR(50) REFERENCES users(user_id) ON DELETE CASCADE,
-            product_id BIGINT REFERENCES products(product_id) ON DELETE CASCADE,
+	    product_id VARCHAR(20) REFERENCES products(product_id) ON DELETE CASCADE,
             create_dt TIMESTAMP DEFAULT NOW()
         );
         CREATE INDEX idx_likes_user ON likes(user_id, create_dt DESC);
