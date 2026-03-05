@@ -61,7 +61,10 @@ def search_naver_shopping(query: str, display: int = 5) -> list:
         return []
 
 def main():
-    print("🚀 네이버 쇼핑 API -> naver_prices 업데이트 배치를 시작합니다. (상위 5개 최저가)")
+    # 배치 실행 시간 기록 (로그 파일명용)
+    batch_run_time = datetime.datetime.now().strftime("%Y%m%d_%H%M")
+    log_filename = f"{batch_run_time}_missing_items.log"
+    print(f"🚀 네이버 쇼핑 API -> naver_prices 업데이트 배치를 시작합니다. (상위 5개 최저가)")
     conn = None
     try:
         conn = get_db_connection()
@@ -102,6 +105,9 @@ def main():
                         time.sleep(1.0) # 혹시 모를 레이트 리밋 방지
                     search_query = search_query_fallback
                     items = search_naver_shopping(search_query, display=20)
+                    used_fallback = True
+                else:
+                    used_fallback = False
                 
                 if items:
                     # 공식몰 제외 필터 삭제 (모든 결과 허용)
@@ -127,14 +133,30 @@ def main():
                     saved_count = min(5, len(items_sorted))
                     updated_count += saved_count
                     print(f"✅ 업데이트 완료: {search_query} -> {saved_count}개의 최저가 저장")
+
+                    # 로그 디렉토리 준비
+                    log_dir = "logs/spark/naver_api"
+                    os.makedirs(log_dir, exist_ok=True)
+                    log_file = os.path.join(log_dir, log_filename)
+                    
+                    # 1. 1차 실패 후 2차(상품명)에서 성공한 경우 로깅
+                    if used_fallback:
+                        with open(log_file, "a", encoding="utf-8") as f:
+                            f.write(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] [2차검색성공] BRAND: {prod.get('brand_name', 'N/A')} | CODE: {prod.get('model_code', 'N/A')} | NAME: {prod.get('prod_name', 'N/A')} -> {saved_count}건\n")
+                    
+                    # 2. 검색 결과가 5개 미만인 경우 로깅
+                    if len(items_sorted) < 5:
+                        with open(log_file, "a", encoding="utf-8") as f:
+                            f.write(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] [최저가부족({len(items_sorted)}/5)] BRAND: {prod.get('brand_name', 'N/A')} | CODE: {prod.get('model_code', 'N/A')} | NAME: {prod.get('prod_name', 'N/A')}\n")
+
                 else:
                     print(f"⚠️ 검색 결과 없음: {search_query}")
-                    # 실패 결과를 파일로 남김
-                    log_dir = "log/spark/naver_api"
+                    # 실패 결과를 파일로 남김 (0건)
+                    log_dir = "logs/spark/naver_api"
                     os.makedirs(log_dir, exist_ok=True)
-                    log_file = os.path.join(log_dir, "missing_items.log")
+                    log_file = os.path.join(log_dir, log_filename)
                     with open(log_file, "a", encoding="utf-8") as f:
-                        f.write(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] BRAND: {prod.get('brand_name', 'N/A')} | CODE: {prod.get('model_code', 'N/A')} | NAME: {prod.get('prod_name', 'N/A')}\n")
+                        f.write(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] [검색실패(0건)] BRAND: {prod.get('brand_name', 'N/A')} | CODE: {prod.get('model_code', 'N/A')} | NAME: {prod.get('prod_name', 'N/A')}\n")
                 
                 # 네이버 안티 봇 회피 및 API Rate Limit 고려하여 충분한 랜덤 지연 시간 추가
                 delay = random.uniform(1.5, 3.0)
