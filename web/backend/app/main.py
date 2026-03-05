@@ -227,6 +227,10 @@ async def product_detail(request: Request, product_id: str):
                     {"request": request, "error": "상품을 찾을 수 없습니다"},
                     status_code=404,
                 )
+                
+            product = dict(product)
+            if product.get("img_hdfs_path") and not product["img_hdfs_path"].startswith('/'):
+                product["img_hdfs_path"] = f"/{product['img_hdfs_path']}"
 
             # 2. 최저가 5개 쇼핑몰
             cur.execute(
