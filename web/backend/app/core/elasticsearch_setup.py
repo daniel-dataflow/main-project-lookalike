@@ -151,7 +151,7 @@ def init_product_index():
         },
         "mappings": {
             "properties": {
-                "product_id":    {"type": "long"},
+                "product_id":    {"type": "keyword"},
                 "prod_name":     {
                     "type": "text",
                     "analyzer": "standard",

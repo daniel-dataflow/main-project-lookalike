@@ -135,6 +135,8 @@
                         isLiked = false;
                         likeIcon.classList.remove('fas');
                         likeIcon.classList.add('far');
+                    } else if (data.message) {
+                        alert(data.message);
                     }
                 } else {
                     // 좋아요 추가
@@ -147,6 +149,8 @@
                         isLiked = true;
                         likeIcon.classList.remove('far');
                         likeIcon.classList.add('fas');
+                    } else if (data.message) {
+                        alert(data.message);
                     }
                 }
             } catch (error) {
