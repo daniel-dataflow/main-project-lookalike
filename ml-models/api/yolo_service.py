@@ -67,7 +67,8 @@ class YoloDetector:
 
         w, h = pil_img.size
         # conf=0.25 (스코어 미만 제외) 및 iou=0.7 적용하여 파인튜닝 스크립트(yolo_exceptional_handling.py) 예외처리 조건 완벽 동기화
-        results = self.model(pil_img, conf=0.25, iou=0.7)
+        # confidence threshold 0.37로 변경(공백을 상의로 잡는 문제)
+        results = self.model(pil_img, conf=0.37, iou=0.7)
         
         boxes_out = []
         for r in results:
