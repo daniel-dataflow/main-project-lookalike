@@ -511,7 +511,7 @@ services:
       - airflow_logs:/opt/airflow/logs
       - ./data:/opt/airflow/data
       - ./data-pipeline/spark/jobs:/opt/airflow/data-pipeline/spark/jobs
-      - ./best.pt:/opt/airflow/model/best.pt:ro  # ✅ YOLO 모델 마운트
+      - ./ml-models/weights/best.pt:/opt/airflow/model/best.pt:ro  # ✅ YOLO 모델 마운트
     networks: [main-network]
     restart: unless-stopped
     deploy:
@@ -567,7 +567,7 @@ services:
       - ./data-pipeline:/opt/airflow/data-pipeline
       - airflow_logs:/opt/airflow/logs
       - ./data-pipeline/spark/jobs:/opt/airflow/data-pipeline/spark/jobs
-      - ./best.pt:/opt/airflow/model/best.pt:ro  # ✅ YOLO 모델 마운트
+      - ./ml-models/weights/best.pt:/opt/airflow/model/best.pt:ro  # ✅ YOLO 모델 마운트
       - ./data:/opt/airflow/data
     networks: [main-network]
     restart: unless-stopped

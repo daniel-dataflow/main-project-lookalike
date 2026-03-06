@@ -110,7 +110,6 @@ def analyze_with_ollama(img_bytes, category):
         return None
 
 def main(brand_name):
-    # 🌟 인자로 받은 브랜드 이름으로 HDFS 경로 동적 생성
     HDFS_PATH = f"/raw/{brand_name}/image"
     print(f"📂 타겟 HDFS 경로 설정됨: {HDFS_PATH}")
 

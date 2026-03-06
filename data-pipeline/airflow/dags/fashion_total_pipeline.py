@@ -41,13 +41,12 @@ with DAG(
     max_active_tasks=2, 
 ) as dag:
 
-    # 테스트를 위해 8seconds만 활성화. 필요시 주석 해제하여 병렬 확장 가능!
     brands = {
         '8seconds': '8S',
-        # 'topten': 'TT',
-        # 'zara': 'ZR',
-        # 'uniqlo': 'UQ',
-        # 'musinsa': 'MS'
+        'topten': 'TT',
+        'zara': 'ZR',
+        'uniqlo': 'UQ',
+        'musinsa': 'MS'
     }
 
     for crawler_key, spark_key in brands.items():
@@ -136,7 +135,7 @@ with DAG(
         )
 
         # =========================================================
-        # 🔗 [핵심] 파이프라인 전체 흐름(의존성) 연결
+        # 🔗 파이프라인 전체 흐름(의존성) 연결
         # =========================================================
         # 참고: TaskFlow API(fetched -> final_rows -> json_paths -> mongo_done)는
         # 함수의 인자 전달을 통해 에어플로우가 자동으로 의존성을 연결합니다.

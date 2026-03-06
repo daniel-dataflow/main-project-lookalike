@@ -4,21 +4,42 @@ import json
 import os
 from datetime import datetime
 from playwright.async_api import async_playwright
-from hdfs import InsecureClient  # HDFS 라이브러리 추가
+from hdfs import InsecureClient
 
 # --- 설정 ---
 BRAND_NAME = "zara"
-TODAY_STR = datetime.now().strftime('%Y%m%d')
+TODAY_STR = datetime.now().strftime('%Y%m%d') # 20260306 포맷 통일
 
-# HDFS 설정 (Docker 내부 Airflow에서 실행 기준)
-HDFS_NAMENODE_URL = "http://namenode:9870" 
-HDFS_USER = "hadoop" 
+HDFS_NAMENODE_URL = "http://namenode-main:9870" 
+HDFS_USER = "root" 
 
 # 수집 대상 URL
 TARGET_MAP = {
     "Men": {
         "Outer": [
-            "https://www.zara.com/kr/ko/man-blazers-l608.html?v1=2436311"
+            "https://www.zara.com/kr/ko/man-outerwear-l715.html?v1=2606109",
+            "https://www.zara.com/kr/ko/man-jackets-l640.html?v1=2536906"
+        ],
+        "Top": [
+            "https://www.zara.com/kr/ko/man-tshirts-l855.html?v1=2432042",
+            "https://www.zara.com/kr/ko/man-sweatshirts-l821.html?v1=2432232"
+        ],
+        "Bottom": [
+            "https://www.zara.com/kr/ko/man-trousers-l838.html?v1=2432096",
+            "https://www.zara.com/kr/ko/man-jeans-l659.html?v1=2432131"
+        ]
+    },
+    "Women": {
+        "Outer": [
+            "https://www.zara.com/kr/ko/woman-jackets-l1114.html?v1=2417772",
+            "https://www.zara.com/kr/ko/woman-outerwear-l1184.html?v1=2419032"
+        ],
+        "Top": [
+            "https://www.zara.com/kr/ko/woman-shirts-l1217.html?v1=2420369",
+            "https://www.zara.com/kr/ko/woman-tshirts-l1362.html?v1=2420417"
+        ],
+        "Bottom": [
+            "https://www.zara.com/kr/ko/woman-trousers-l1335.html?v1=2420795"
         ]
     }
 }
@@ -54,7 +75,16 @@ async def extract_product_data_from_dom(page):
         data = await page.evaluate("""() => {
             const result = {};
             const urlMatch = location.href.match(/-p([0-9]+)\.html/);
-            result.goodsNo = urlMatch ? urlMatch[1] : location.href.split('?')[0].split('-').pop(); 
+            
+            const copyBtn = document.querySelector('button.product-color-extended-name__copy-action, [data-qa-action="product-detail-info-color-copy"]');
+            if (copyBtn && copyBtn.innerText.trim() !== '') {
+                result.goodsNo = copyBtn.innerText.trim();
+            } else {
+                result.goodsNo = urlMatch 
+                    ? urlMatch[1] 
+                    : location.href.split('?')[0].split('-').pop();
+            }
+            
             result.goodsNm = document.querySelector('h1')?.innerText.trim() || document.title;
             result.brandName = "ZARA";
             result.thumbnailImageUrl = document.querySelector('meta[property="og:image"]')?.content || "";
@@ -137,9 +167,11 @@ async def process_product(product_id, gender, category, context, collected_data,
                 collected_data.append({
                     "gender": gender, "category": category, "product_id": product_id, "data": product_dict 
                 })
-                print(f"   ✅ {product_id} 수집됨")
+                # 추출된 정확한 품번을 함께 출력하여 확인
+                real_goodsNo = product_dict.get('goodsNo', 'Unknown')
+                print(f"   ✅ {product_id} 수집됨 (품번: {real_goodsNo})")
             else:
-                print(f"   ⚠️ {product_id} 실패")
+                print(f"   ⚠️ {product_id} 수집 실패 (데이터 렌더링 지연)")
         except Exception as e:
             print(f"   ❌ {product_id} 에러: {str(e)[:50]}")
         finally:
@@ -152,23 +184,6 @@ async def crawl_category(gender, category_name, target_url, context, collected_d
     try:
         response = await page.goto(target_url, timeout=90000, wait_until="domcontentloaded")
         
-        # ====== [디버깅 로직] ======
-        os.makedirs("./debug_logs", exist_ok=True)
-        await asyncio.sleep(5)
-        
-        page_title = await page.title()
-        print(f"   📄 [디버그] 페이지 타이틀: {page_title}")
-        print(f"   🌐 [디버그] HTTP 상태 코드: {response.status if response else 'Unknown'}")
-        
-        screenshot_path = f"./debug_logs/debug_{gender}_{category_name}.png"
-        await page.screenshot(path=screenshot_path, full_page=True)
-        print(f"   📸 [디버그] 스크린샷 저장됨: {screenshot_path}")
-        
-        html_content = await page.content()
-        with open(f"./debug_logs/debug_{gender}_{category_name}.html", "w", encoding="utf-8") as f:
-            f.write(html_content)
-        # ==============================
-
         for _ in range(5):
             await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
             await asyncio.sleep(2)
@@ -186,15 +201,15 @@ async def crawl_category(gender, category_name, target_url, context, collected_d
         await asyncio.gather(*tasks)
     except Exception as e:
         print(f"   ❌ 목록 수집 실패: {e}")
-        await page.close()
+        if not page.is_closed(): await page.close()
 
 async def run():
-    print(f"--- [START] ZARA 하둡 수집기 (Xvfb 모드 + Stealth + Debug) ---")
+    print(f"--- [START] ZARA 하둡 수집기 (Xvfb 모드 + Stealth) ---")
     collected_data = [] 
     
     async with async_playwright() as p:
         browser = await p.chromium.launch(
-            headless=False, 
+            headless=True, # 서버 환경에 맞게 Headless True로 변경
             args=[
                 "--start-maximized", 
                 "--disable-blink-features=AutomationControlled",
@@ -228,13 +243,12 @@ async def run():
     # --- HDFS 파일 저장 로직 ---
     if collected_data:
         print(f"\n📦 {len(collected_data)}건 수집 완료. HDFS 저장 시작...")
-        today_date = datetime.now().strftime('%Y-%m-%d')
-        target_dir = f"/raw/{BRAND_NAME}/{today_date}"
+        
+        target_dir = f"/raw/{BRAND_NAME}/{TODAY_STR}" 
         
         try:
             client = InsecureClient(HDFS_NAMENODE_URL, user=HDFS_USER)
             
-            # 디렉토리 생성 시도
             try:
                 client.makedirs(target_dir)
                 print(f"   📁 HDFS 타겟 디렉토리 확인: {target_dir}")
@@ -244,11 +258,12 @@ async def run():
             saved_count = 0
             for item in collected_data:
                 try:
-                    filename = f"{BRAND_NAME}_{item['gender'].lower()}_{item['category'].lower()}_{item['product_id']}.json"
+                    safe_goods_no = str(item['data'].get('goodsNo', item['product_id'])).replace('/', '-')
+                    filename = f"{BRAND_NAME}_{item['gender'].lower()}_{item['category'].lower()}_{safe_goods_no}.json"
+                    
                     hdfs_file_path = f"{target_dir}/{filename}"
                     final_data = item['data']
                     
-                    # HDFS에 JSON 파일 쓰기
                     with client.write(hdfs_file_path, encoding='utf-8', overwrite=True) as writer:
                         json.dump(final_data, writer, ensure_ascii=False, indent=4)
                     saved_count += 1
