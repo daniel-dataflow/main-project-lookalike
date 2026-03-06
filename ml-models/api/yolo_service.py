@@ -31,21 +31,15 @@ class YoloDetector:
         try:
             from ultralytics import YOLO
             
+            
             # 절대 경로나 상대 경로 기반으로 가중치 파일 로딩
             base_dir = os.path.dirname(__file__)
             primary_path = os.path.abspath(os.path.join(base_dir, self.model_name))
-            legacy_path = os.path.abspath(os.path.join(base_dir, "../yolo/yolo_weights.pt"))
 
             weight_path = primary_path
             if not os.path.exists(weight_path):
-                if os.path.exists(legacy_path):
-                    logger.warning(
-                        f"YOLO 가중치 기본 경로를 찾지 못해 legacy 경로로 fallback 합니다: {legacy_path}"
-                    )
-                    weight_path = legacy_path
-                else:
-                    logger.error(f"YOLO 가중치 파일을 찾을 수 없습니다: {primary_path}")
-                    return
+                logger.error(f"YOLO 가중치 파일을 찾을 수 없습니다: {primary_path}")
+                return
 
             logger.info(f"Custom YOLO 모델({weight_path}) 로드 중...")
                 

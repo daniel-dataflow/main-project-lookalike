@@ -320,7 +320,7 @@ services:
   # 9. Spark Master 
   # ============================================================
   spark-master:
-    build: ./spark
+    image: apache/spark:3.5.3
     container_name: spark-master-main
     hostname: spark-master
     depends_on:
@@ -364,7 +364,7 @@ services:
   # 10. Spark Worker 
   # ============================================================
   spark-worker-1:
-    build: ./spark
+    image: apache/spark:3.5.3
     container_name: spark-worker-1-main
     hostname: spark-worker-1
     user: root
@@ -511,7 +511,7 @@ services:
       - airflow_logs:/opt/airflow/logs
       - ./data:/opt/airflow/data
       - ./data-pipeline/spark/jobs:/opt/airflow/data-pipeline/spark/jobs
-      - ./best.pt:/opt/airflow/model/best.pt:ro  # ✅ YOLO 모델 마운트
+      - ./ml-models/weights/best.pt:/opt/airflow/model/best.pt:ro
     networks: [main-network]
     restart: unless-stopped
     deploy:
@@ -577,10 +577,6 @@ services:
           memory: 4G
         reservations:
           memory: 2G
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
     command: bash -c "exec airflow scheduler"
     healthcheck:
       test: ["CMD-SHELL", "airflow jobs check --job-type SchedulerJob --hostname \"$$HOSTNAME\""]
