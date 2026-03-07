@@ -50,7 +50,7 @@ MONGO_HOST = os.environ.get('MONGODB_HOST', '127.0.0.1')
 MONGO_PORT = os.environ.get('MONGODB_PORT', '27017')
 MONGO_DB = os.environ.get('POSTGRES_DB', 'datadb') 
 MONGO_USER = os.environ.get('MONGODB_USER', 'datauser')
-MONGO_PASS = os.environ.get('MONGODB_PASSWORD', 'DataPass2026!')
+MONGO_PASS = os.environ.get('MONGODB_PASSWORD', '')
 
 mongo_url = os.environ.get('MONGODB_URL', f'mongodb://{MONGO_USER}:{MONGO_PASS}@{MONGO_HOST}:{MONGO_PORT}/')
 

@@ -10,8 +10,12 @@ from pymongo import MongoClient
 NAVER_CLIENT_ID = "YOUR_CLIENT_ID"       
 NAVER_CLIENT_SECRET = "YOUR_CLIENT_SECRET" 
 
+import os
+
 # MongoDB 접속 정보 (텍스트 임베더와 동일)
-MONGO_URI = "mongodb://datauser:DataPass2026!@mongo-main:27017/?authSource=admin"
+MONGO_USER = os.environ.get("MONGODB_USER", "datauser")
+MONGO_PASS = os.environ.get("MONGODB_PASSWORD", "")
+MONGO_URI = os.environ.get("MONGO_URI", f"mongodb://{MONGO_USER}:{MONGO_PASS}@mongo-main:27017/?authSource=admin")
 
 # ==========================================
 # 2. 네이버 API 호출 함수 (기존과 동일)

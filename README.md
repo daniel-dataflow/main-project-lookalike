@@ -3,27 +3,29 @@
 > **"비슷한 옷, 더 싸게"** — 이미지 한 장으로 유사 패션 상품을 찾고 최저가 5개 쇼핑몰을 한 번에 비교합니다.
 
 [![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=flat-square&logo=python)](https://python.org)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.111-009688?style=flat-square&logo=fastapi)](https://fastapi.tiangolo.com)
-[![Elasticsearch](https://img.shields.io/badge/Elasticsearch-8.x-005571?style=flat-square&logo=elasticsearch)](https://elastic.co)
-[![Airflow](https://img.shields.io/badge/Airflow-2.x-017CEE?style=flat-square&logo=apacheairflow)](https://airflow.apache.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.109.0-009688?style=flat-square&logo=fastapi)](https://fastapi.tiangolo.com)
+[![Elasticsearch](https://img.shields.io/badge/Elasticsearch-8.11.0-005571?style=flat-square&logo=elasticsearch)](https://elastic.co)
+[![Airflow](https://img.shields.io/badge/Airflow-2.10.4-017CEE?style=flat-square&logo=apacheairflow)](https://airflow.apache.org)
+[![Spark](https://img.shields.io/badge/Apache_Spark-3.5.3-E25A1C?style=flat-square&logo=apachespark)](https://spark.apache.org)
+[![Kafka](https://img.shields.io/badge/Kafka-7.5.0-231F20?style=flat-square&logo=apachekafka)](https://kafka.apache.org)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker)](https://docker.com)
 [![AWS](https://img.shields.io/badge/AWS-EC2_g4dn.xlarge-FF9900?style=flat-square&logo=amazonaws)](https://aws.amazon.com)
 
 ---
 
-## 🧑‍🤝‍🧑 팀명: **가칭**
+## 🧑‍🤝‍🧑 팀명: **Lookalike**
 
 ### 👑 팀장  
-- **한대성** (Lead DE · Pipeline Architect): 아키텍처 설계, Docker 인프라, Kafka 파이프라인, CI/CD, FastAPI 백엔드 총괄
+- **한대성** (Lead DE · Data Engineer · Pipeline Architect): 아키텍처 설계, Docker 인프라, Airflow · Spark 설계 및 튜닝, Kafka 운영 파이프라인, CI/CD, Core FastAPI 백엔드, 프로젝트 전체 총괄
 
 ### 🌱 팀원  
 - **박주언** (Data Engineer · ETL): 크롤러 개발, Spark 전처리, HDFS 적재, ERD 설계, Naver API 연동
-- **이주형** (ML Engineer · MLOps): AI 모델 선정, YOLOv11 파인튜닝, VLM(LLaVA) 프롬프트 설계, ML-Airflow 연동
-- **정수아** (AI Researcher · Vector Search): Fashion-CLIP/SBERT 임베딩, Late Fusion 검색, ML FastAPI 백엔드
+- **이주형** (ML Engineer · MLOps): AI 모델 스택 선정, YOLOv11 파인튜닝, VLM(LLaVA) 학습·프롬프트 설계, ML 파이프라인-Airflow DAG 최종 연결
+- **정수아** (AI Researcher · Vector Search): YOLOv11 파인튜닝, 이미지 처리 파이프라인, Fashion-CLIP/SBERT 임베딩 검색 로직 구현(FastAPI ML Serving), Vector search(Late Fusion-RRF)
   
 ### 🗓 프로젝트 기간  
-**2026년 01월 12일 ~ 2026년 03월 13일**  
-**서비스 URL**: http://lookalikes.duckdns.org:8900/
+**2026년 01월 12일 ~ 2026년 03월 11일**  
+**서비스 URL**: http://lookalike.duckdns.org:8900/
 
 ---
 

@@ -10,8 +10,10 @@ from ollama import Client
 from sentence_transformers import SentenceTransformer
 
 # 1. 고정 연결 및 모델 설정
-HDFS_URL = "http://namenode:9870"
-MONGO_URI = "mongodb://datauser:DataPass2026!@mongo-main:27017/datadb?authSource=admin"
+HDFS_URL = os.environ.get("HDFS_URL", "http://namenode:9870")
+MONGO_USER = os.environ.get("MONGODB_USER", "datauser")
+MONGO_PASS = os.environ.get("MONGODB_PASSWORD", "")
+MONGO_URI = os.environ.get("MONGO_URI", f"mongodb://{MONGO_USER}:{MONGO_PASS}@mongo-main:27017/datadb?authSource=admin")
 VLM_MODEL_NAME = "gemma3:4b"
 EMBED_MODEL_NAME = "paraphrase-multilingual-MiniLM-L12-v2"
 
