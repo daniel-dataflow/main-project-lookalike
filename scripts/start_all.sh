@@ -288,11 +288,15 @@ COMPOSE_CMD="docker compose -f docker-compose.yml"
 if [ "$1" == "--gpu" ] || [ "$1" == "-g" ]; then
     log_info "🚀 GPU 가속 옵션(--gpu) 활성화: Airflow 및 Spark 등 무거운 배치 컨테이너를 비활성화(disabled)하고 GPU 추론을 최적화합니다."
     COMPOSE_CMD="$COMPOSE_CMD -f docker-compose.gpu.yml"
+    # 기존에 켜져 있던 무거운 컨테이너 명시적 종료 (profile 기능은 up에서 무시할뿐, 켜져있는걸 끄진 않으므로)
+    log_info "🧹 기존 실행 중인 Airflow/Spark 컨테이너 정리 중..."
+    docker compose stop airflow-scheduler airflow-webserver spark-master spark-worker-1 2>/dev/null || true
+    docker compose rm -f airflow-scheduler airflow-webserver spark-master spark-worker-1 2>/dev/null || true
 fi
 
 # docker compose up --wait : 모든 의존성이 healthy 될때까지 대기하며 상태바 출력
 # (화면 UI 보존을 위해 tee를 제거하고, 에러 시 로그를 별도 수집합니다)
-$COMPOSE_CMD up --wait -d
+$COMPOSE_CMD up --wait -d --remove-orphans
 
 if [ $? -ne 0 ]; then
     log_error "⚠️ 일부 서비스 부팅에 실패했거나 대기 시간을 초과했습니다."

@@ -154,7 +154,7 @@ services:
       interval: 10s
       timeout: 10s
       retries: 5
-      start_period: 30s
+      start_period: 60s
 
   kibana:
     image: docker.elastic.co/kibana/kibana:8.11.0
@@ -236,7 +236,7 @@ services:
       interval: 10s
       timeout: 10s
       retries: 5
-      start_period: 30s
+      start_period: 60s
 
   # ============================================================
   # 7. Hadoop NameNode — apache/hadoop:3.3.6
@@ -325,7 +325,6 @@ services:
     hostname: spark-master
     depends_on:
       namenode: { condition: service_healthy }
-    env_file: [ .env ]
     environment:
       - SPARK_NO_DAEMONIZE=true
       - TZ=${TZ}
@@ -371,7 +370,6 @@ services:
     user: root
     depends_on:
       spark-master: { condition: service_healthy }
-    env_file: [ .env ]
     environment:
       - SPARK_NO_DAEMONIZE=true
       - TZ=${TZ}
@@ -489,7 +487,6 @@ services:
     user: "0:0"
     depends_on:
       init-db: { condition: service_completed_successfully }
-    env_file: [ .env ]
     environment:
       - AIRFLOW_HOME=/opt/airflow
       - AIRFLOW__CORE__EXECUTOR=LocalExecutor
@@ -498,6 +495,8 @@ services:
       - AIRFLOW__CORE__FERNET_KEY=${AIRFLOW_FERNET_KEY}
       - AIRFLOW__WEBSERVER__SECRET_KEY=${AIRFLOW_WEBSERVER_SECRET_KEY}
       - AIRFLOW__WEBSERVER__EXPOSE_CONFIG=True
+      - AIRFLOW__WEBSERVER__WEB_SERVER_WORKER_TIMEOUT=300
+      - AIRFLOW__WEBSERVER__WEB_SERVER_MASTER_TIMEOUT=300
       - ELASTICSEARCH_URL=http://elasticsearch:9200
       - AIRFLOW_VAR_MONGO_URI="mongodb://${MONGODB_USER}:${MONGODB_PASSWORD}@mongodb:27017"
       - PLAYWRIGHT_BROWSERS_PATH=/home/airflow/.cache/ms-playwright
