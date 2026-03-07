@@ -473,7 +473,8 @@ services:
         limits: { memory: 2G }
         reservations: { memory: 1G }
     command: >
-      bash -c "python -m uvicorn main:app --host 0.0.0.0 --port 8914 --reload"
+      bash -c "python -m uvicorn main:app --host 0.0.0.0 --port 8914"
+
 
   # ============================================================
   # 12. Airflow Webserver — apache/airflow:2.10.4-python3.11
