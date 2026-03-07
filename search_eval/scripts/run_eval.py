@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import mimetypes
 from pathlib import Path
 from typing import Dict, List, Tuple
 
@@ -57,7 +58,9 @@ def build_request_payload(row: Dict[str, str]) -> Tuple[Dict[str, str], Dict[str
     if query_type in {"text", "image_text"}:
         if not query_text:
             raise ValueError(f"query_type={query_type} requires query_text (query_id={row.get('query_id')})")
+        # ML /search expects `text`, backend /api/search/by-image expects `search_text`
         data["text"] = query_text
+        data["search_text"] = query_text
 
     if query_type in {"image", "image_text"}:
         if not image_path:
@@ -65,7 +68,10 @@ def build_request_payload(row: Dict[str, str]) -> Tuple[Dict[str, str], Dict[str
         img_file = Path(image_path)
         if not img_file.exists():
             raise FileNotFoundError(f"image not found: {img_file}")
-        files["image"] = (img_file.name, img_file.read_bytes(), "application/octet-stream")
+        mime_type, _ = mimetypes.guess_type(str(img_file))
+        if not mime_type or not mime_type.startswith("image/"):
+            mime_type = "image/png" if img_file.suffix.lower() == ".png" else "image/jpeg"
+        files["image"] = (img_file.name, img_file.read_bytes(), mime_type)
 
     return data, files
 
