@@ -232,9 +232,10 @@ class QueryRewriter:
 
         cached = self._cache.get(base)
         if cached is not None:
-            # LRU 갱신
             self._cache.move_to_end(base)
+            logger.info("rewrite cache hit: base='%s' -> rewritten='%s'", base, cached)
             return cached
+
 
         if not self._ensure_loaded():
             return base
@@ -251,6 +252,9 @@ class QueryRewriter:
 
         if not rewritten:
             return base
+
+        logger.info("rewrite applied: base='%s' -> rewritten='%s'", base, rewritten)
+
 
         # LRU 캐시 저장
         self._cache[base] = rewritten
@@ -310,7 +314,7 @@ def on_startup() -> None:
         es_url=os.getenv("ELASTICSEARCH_URL", "http://elasticsearch:9200"),
         clip_field="image_vector",
         sbert_field="text_vector",
-        # ML 점수 키를 product_code로 고정해 FastAPI의 DB hydration(model_code)과 맞춘다.
+        # ML 점수 키를 product_id로 설정(env)
         id_field=os.getenv("ML_ID_FIELD", "product_code"),
         # ML은 후보를 넉넉히 반환하고, 최종 노출 개수(6개)는 FastAPI 백엔드에서 제한한다.
         # dedupe/hydration 단계에서 후보가 줄어드는 경우를 대비하기 위함.
