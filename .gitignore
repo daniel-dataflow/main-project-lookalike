@@ -221,3 +221,7 @@ ml-models/api/app.py
 
 # yolo 가중치 파일
 /weights
+
+# 평가지표 계산
+search_eval/cases/images/이미지쿼리_jpg
+search_eval/scripts/calc_metrics.py
