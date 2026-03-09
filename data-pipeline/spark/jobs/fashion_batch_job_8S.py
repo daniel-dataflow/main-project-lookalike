@@ -22,7 +22,11 @@ BRAND_NAME = "8seconds"
 BRAND_PREFIX = "8S"
 
 kst = timezone('Asia/Seoul')
-TARGET_DATE = datetime.datetime.now(kst).strftime("%Y%m%d")
+
+if len(sys.argv) > 1:
+    TARGET_DATE = sys.argv[1]
+else:
+    TARGET_DATE = datetime.datetime.now().strftime("%Y%m%d")
 
 PG_HOST = "postgres-main"  
 PG_DB = "datadb"       

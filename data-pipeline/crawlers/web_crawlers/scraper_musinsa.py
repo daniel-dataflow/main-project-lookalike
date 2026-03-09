@@ -1,6 +1,7 @@
 import os
 import asyncio
 import re
+import sys
 import json
 from datetime import datetime
 from playwright.async_api import async_playwright
@@ -8,7 +9,11 @@ from hdfs import InsecureClient
 
 # --- 설정 ---
 BRAND_NAME = "musinsa"
-TODAY_STR = datetime.now().strftime('%Y%m%d') 
+
+if len(sys.argv) > 1:
+    TODAY_STR = sys.argv[1]
+else:
+    TODAY_STR = datetime.now().strftime('%Y%m%d')
 
 # 로컬 저장 경로
 LOCAL_OUTPUT_PATH = f"data/{BRAND_NAME}/{TODAY_STR}"

@@ -2,13 +2,18 @@ import asyncio
 import re
 import json
 import os
+import sys
 from datetime import datetime
 from playwright.async_api import async_playwright
 from hdfs import InsecureClient
 
 # --- 설정 ---
 BRAND_NAME = "zara"
-TODAY_STR = datetime.now().strftime('%Y%m%d') # 20260306 포맷 통일
+
+if len(sys.argv) > 1:
+    TODAY_STR = sys.argv[1]
+else:
+    TODAY_STR = datetime.now().strftime('%Y%m%d')
 
 HDFS_NAMENODE_URL = "http://namenode-main:9870" 
 HDFS_USER = "root" 

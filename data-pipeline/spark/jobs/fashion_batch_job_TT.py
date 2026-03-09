@@ -13,11 +13,16 @@ import datetime
 # 26.2.21
 import requests
 from hdfs import InsecureClient
+import sys
 
 # --- [1. 설정 정보] ---
 BRAND_NAME = "topten"  # 소문자로 통일 (HDFS 경로용)
 BRAND_PREFIX = "TT"    # Topten의 약어
-TARGET_DATE = datetime.datetime.now().strftime("%Y%m%d")
+
+if len(sys.argv) > 1:
+    TARGET_DATE = sys.argv[1]
+else:
+    TARGET_DATE = datetime.datetime.now().strftime("%Y%m%d")
 
 #PG_HOST = "postgresql"
 PG_HOST = "postgres-main"

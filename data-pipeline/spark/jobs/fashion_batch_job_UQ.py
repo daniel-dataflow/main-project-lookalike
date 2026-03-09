@@ -7,11 +7,16 @@ import psycopg2
 import datetime
 import requests
 from hdfs import InsecureClient
+import sys
 
 # --- [1. 설정 정보] ---
 BRAND_NAME = "uniqlo"
 BRAND_PREFIX = "UQ"
-TARGET_DATE = datetime.datetime.now().strftime("%Y%m%d")
+
+if len(sys.argv) > 1:
+    TARGET_DATE = sys.argv[1]
+else:
+    TARGET_DATE = datetime.datetime.now().strftime("%Y%m%d")
 
 PG_HOST = "postgresql"
 PG_DB = "datadb"

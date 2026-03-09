@@ -495,6 +495,7 @@ services:
       - AIRFLOW__CORE__FERNET_KEY=${AIRFLOW_FERNET_KEY}
       - AIRFLOW__WEBSERVER__SECRET_KEY=${AIRFLOW_WEBSERVER_SECRET_KEY}
       - AIRFLOW__WEBSERVER__EXPOSE_CONFIG=True
+      - PYTHONPATH=/opt/airflow
       - ELASTICSEARCH_URL=http://elasticsearch:9200
       - AIRFLOW_VAR_MONGO_URI="mongodb://datauser:DataPass2026!@mongodb:27017"
       - PLAYWRIGHT_BROWSERS_PATH=/home/airflow/.cache/ms-playwright
@@ -510,6 +511,7 @@ services:
       - ./data-pipeline:/opt/airflow/data-pipeline
       - airflow_logs:/opt/airflow/logs
       - ./data:/opt/airflow/data
+      - ./data-pipeline/airflow/functions:/opt/airflow/functions
       - ./data-pipeline/spark/jobs:/opt/airflow/data-pipeline/spark/jobs
       - ./ml-models/weights/best.pt:/opt/airflow/model/best.pt:ro  # ✅ YOLO 모델 마운트
     networks: [main-network]
@@ -556,6 +558,7 @@ services:
       - AIRFLOW__WEBSERVER__SECRET_KEY=${AIRFLOW_WEBSERVER_SECRET_KEY}
       - AIRFLOW_VAR_MONGO_URI="mongodb://datauser:DataPass2026!@mongodb:27017"
       - PLAYWRIGHT_BROWSERS_PATH=/home/airflow/.cache/ms-playwright
+      - PYTHONPATH=/opt/airflow
       - ELASTICSEARCH_URL=http://elasticsearch:9200
       - DOCKER_API_VERSION=1.44
       - AIRFLOW_CONN_SPARK_DEFAULT=spark://spark-master:7077
@@ -566,6 +569,7 @@ services:
       - ./data-pipeline/airflow/plugins:/opt/airflow/plugins
       - ./data-pipeline:/opt/airflow/data-pipeline
       - airflow_logs:/opt/airflow/logs
+      - ./data-pipeline/airflow/functions:/opt/airflow/functions
       - ./data-pipeline/spark/jobs:/opt/airflow/data-pipeline/spark/jobs
       - ./ml-models/weights/best.pt:/opt/airflow/model/best.pt:ro  # ✅ YOLO 모델 마운트
       - ./data:/opt/airflow/data

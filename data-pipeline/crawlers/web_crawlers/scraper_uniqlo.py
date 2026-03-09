@@ -1,5 +1,6 @@
 import os
 import asyncio
+import sys
 import re
 import json
 from datetime import datetime
@@ -8,7 +9,11 @@ from hdfs import InsecureClient
 
 # --- [설정] ---
 BRAND_NAME = "uniqlo"
-TODAY_STR = datetime.now().strftime('%Y%m%d')
+
+if len(sys.argv) > 1:
+    TODAY_STR = sys.argv[1]
+else:
+    TODAY_STR = datetime.now().strftime('%Y%m%d')
 
 LOCAL_SAVE_DIR = f"data/{BRAND_NAME}/{TODAY_STR}"
 

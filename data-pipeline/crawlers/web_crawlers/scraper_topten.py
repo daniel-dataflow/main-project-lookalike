@@ -1,4 +1,5 @@
 import os
+import sys
 import asyncio
 import re
 import json
@@ -8,7 +9,12 @@ from hdfs import InsecureClient
 
 # --- [설정] ---
 BRAND_NAME = "topten"
-TODAY_STR = datetime.now().strftime('%Y%m%d')
+
+if len(sys.argv) > 1:
+    TODAY_STR = sys.argv[1]
+else:
+    TODAY_STR = datetime.now().strftime('%Y%m%d')
+
 LOCAL_SAVE_DIR = f"data/{BRAND_NAME}/{TODAY_STR}"
 
 HDFS_NAMENODE_URL = "http://namenode-main:9870"
