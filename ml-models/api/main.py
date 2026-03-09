@@ -38,7 +38,8 @@ class EncoderHub:
 
         self._clip_model = FashionCLIP(model_name="fashion-clip")
         self._sbert_model = SentenceTransformer(
-            "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+            # "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+            "jhgan/ko-sroberta-sts"
         )
 
     def encode_image_clip(self, image: Image.Image) -> List[float]:

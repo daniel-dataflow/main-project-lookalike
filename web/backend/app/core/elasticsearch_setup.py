@@ -173,7 +173,7 @@ def init_product_index():
                 },
                 "text_vector": {
                     "type": "dense_vector",
-                    "dims": 384,
+                    "dims": 768,
                     "index": True,
                     "similarity": "cosine"
                 },
