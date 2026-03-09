@@ -23,10 +23,39 @@ HDFS_URL = "http://namenode:9870"
 TARGET_MAP = {
     "Men": {
         "Outer": [
-            "https://www.ssfshop.com/8seconds/Coats/list?dspCtgryNo=SFMA42A05A02&brandShopNo=BDMA07A01&brndShopId=8SBSS"
+            "https://www.ssfshop.com/8seconds/Coats/list?dspCtgryNo=SFMA42A05A02&brandShopNo=BDMA07A01&brndShopId=8SBSS",
+            "https://www.ssfshop.com/8seconds/LeatherJacket/list?dspCtgryNo=SFMA42A05A06&brandShopNo=BDMA07A01&brndShopId=8SBSS",
+            "https://www.ssfshop.com/8seconds/DenimJacket/list?dspCtgryNo=SFMA42A05A07&brandShopNo=BDMA07A01&brndShopId=8SBSS",
+            "https://www.ssfshop.com/8seconds/Jackets/list?dspCtgryNo=SFMA42A19A01&brandShopNo=BDMA07A01&brndShopId=8SBSS",
+            "https://www.ssfshop.com/8seconds/Cardigans/list?dspCtgryNo=SFMA42A03A02&brandShopNo=BDMA07A01&brndShopId=8SBSS"
+        ],
+        "Top": [
+            "https://www.ssfshop.com/8seconds/T-Shirts/list?dspCtgryNo=SFMA42A01&brandShopNo=BDMA07A01&brndShopId=8SBSS",
+            "https://www.ssfshop.com/8seconds/Pullovers/list?dspCtgryNo=SFMA42A03A01&brandShopNo=BDMA07A01&brndShopId=8SBSS",
+            "https://www.ssfshop.com/8seconds/Shirts/list?dspCtgryNo=SFMA42A02&brandShopNo=BDMA07A01&brndShopId=8SBSS"
+        ],
+        "Bottom": [
+            "https://www.ssfshop.com/8seconds/Pants-Trousers/list?dspCtgryNo=SFMA42A04&brandShopNo=BDMA07A01&brndShopId=8SBSS"
+        ]
+    },
+    "Women": {
+        "Outer": [
+            "https://www.ssfshop.com/8seconds/Jackets/list?dspCtgryNo=SFMA41A21A01&brandShopNo=BDMA07A01&brndShopId=8SBSS",
+            "https://www.ssfshop.com/8seconds/Leather-Jackets/list?dspCtgryNo=SFMA41A21A04&brandShopNo=BDMA07A01&brndShopId=8SBSS",
+            "https://www.ssfshop.com/8seconds/Coats/list?dspCtgryNo=SFMA41A07A02&brandShopNo=BDMA07A01&brndShopId=8SBSS",
+            "https://www.ssfshop.com/8seconds/Cardigans/list?dspCtgryNo=SFMA41A03A02&brandShopNo=BDMA07A01&brndShopId=8SBSS"
+        ],
+        "Top": [
+            "https://www.ssfshop.com/8seconds/Pullovers/list?dspCtgryNo=SFMA41A03A01&brandShopNo=BDMA07A01&brndShopId=8SBSS",
+            "https://www.ssfshop.com/8seconds/T-shirts/list?dspCtgryNo=SFMA41A01&brandShopNo=BDMA07A01&brndShopId=8SBSS",
+            "https://www.ssfshop.com/8seconds/Shirts-Blouses/list?dspCtgryNo=SFMA41A02&brandShopNo=BDMA07A01&brndShopId=8SBSS"
+        ],
+        "Bottom": [
+            "https://www.ssfshop.com/8seconds/Pants-Trousers/list?dspCtgryNo=SFMA41A04&brandShopNo=BDMA07A01&brndShopId=8SBSS"
         ]
     }
 }
+
 visited_products = set()
 sem = asyncio.Semaphore(3)
 
