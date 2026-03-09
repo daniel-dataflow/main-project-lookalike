@@ -460,6 +460,8 @@ services:
     env_file: [ .env ]  # rewrite 기능 관련 파라미터 읽어오기
     environment:
       - PYTHONUNBUFFERED=1
+      - ML_SEARCH_INDEX=${ML_SEARCH_INDEX}
+      - ML_ID_FIELD=${ML_ID_FIELD}
     working_dir: /app/ml-models/api
     ports:
       - "8914:8914"
