@@ -5,7 +5,7 @@ echo "Main Project Lookalike - 전체 서비스 중지"
 echo "=========================================="
 
 echo ""
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 cd "${PROJECT_ROOT}"
 echo "=== 안전 종료 프로세스를 시작합니다 ==="
