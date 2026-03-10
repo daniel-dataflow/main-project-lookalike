@@ -32,27 +32,29 @@ jobs:
           sudo docker-compose up -d --build
 
   deploy-gcp:
-    name: GCP Compute Engine 배포
-    runs-on: ubuntu-latest
+    name: GCP Compute Engine 배포
+    runs-on: ubuntu-latest
 
-    steps:
-    - name: GCP 접속 및 배포
-      uses: appleboy/ssh-action@master
-      with:
-        host: ${{ secrets.GCP_HOST }}
-        username: ${{ secrets.GCP_USER }}
-        key: ${{ secrets.GCP_SSH_KEY }}
-        port: 22
-        script: |
-          cd /home/${{ secrets.GCP_USER }}/main-project-lookalike
-        
-          # 1. 모든 파일의 소유권을 현재 유저로 강제 변경 (권한 에러 방지)
-          sudo chown -R ${{ secrets.GCP_USER }}:${{ secrets.GCP_USER }} .
-          
-          # 2. 강제 동기화 및 찌꺼기 파일 삭제
-          git fetch origin main
-          git reset --hard origin/main
-          
-          # 3. 도커 재시작
-          sudo docker-compose down
-          sudo docker-compose up -d --build
+    steps:
+    - name: GCP 접속 및 배포
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.GCP_HOST }}
+        username: ${{ secrets.GCP_USER }}
+        key: ${{ secrets.GCP_SSH_KEY }}
+        port: 22
+        script: |
+          # 1. 정확한 중립 구역(공용 폴더)으로 이동
+          cd /opt/main-project-lookalike
+          
+          # 2. 강제 동기화 (권한 꼬임 방지를 위해 sudo 사용)
+          sudo git fetch origin main
+          sudo git reset --hard origin/main
+          
+          # 3. 팀원 협업을 위한 권한 유지 (새로 다운받은 파일들도 다 같이 볼 수 있게 덮어쓰기)
+          sudo chown -R root:lookalike-devs .
+          sudo chmod -R 2775 .
+          
+          # 4. 도커 재시작 (명령어 하이픈 제거: docker compose)
+          docker compose down
+          docker compose up -d --build
