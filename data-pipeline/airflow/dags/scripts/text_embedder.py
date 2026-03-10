@@ -3,7 +3,7 @@ from pymongo import MongoClient
 from sentence_transformers import SentenceTransformer
 
 class FashionVectorGenerator:
-    def __init__(self, mongo_uri, db_name='datadb', collection_name='analyzed_metadata', model_name='paraphrase-multilingual-MiniLM-L12-v2'):
+    def __init__(self, mongo_uri, db_name='datadb', collection_name='analyzed_metadata', model_name='jhgan/ko-sroberta-sts'):
         print(f"⏳ 모델 로딩 중: {model_name}...")
         self.model = SentenceTransformer(model_name)
 

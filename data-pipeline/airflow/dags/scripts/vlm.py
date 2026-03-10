@@ -15,7 +15,7 @@ MONGO_USER = os.environ.get("MONGODB_USER", "datauser")
 MONGO_PASS = os.environ.get("MONGODB_PASSWORD", "")
 MONGO_URI = os.environ.get("MONGO_URI", f"mongodb://{MONGO_USER}:{MONGO_PASS}@mongo-main:27017/datadb?authSource=admin")
 VLM_MODEL_NAME = "gemma3:4b"
-EMBED_MODEL_NAME = "paraphrase-multilingual-MiniLM-L12-v2"
+EMBED_MODEL_NAME = "jhgan/ko-sroberta-sts"
 
 # 클라이언트 초기화
 hdfs_client = InsecureClient(HDFS_URL, user='root')
