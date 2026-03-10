@@ -5,8 +5,8 @@ on:
     branches: [ "main" ]
 
 jobs:
-  deploy:
-    name: 배포 수행
+  deploy-aws:
+    name: AWS EC2 배포
     runs-on: ubuntu-latest
 
     steps:
@@ -22,6 +22,32 @@ jobs:
         
           # 1. 모든 파일의 소유권을 현재 유저로 강제 변경 (권한 에러 방지)
           sudo chown -R ${{ secrets.EC2_USER }}:${{ secrets.EC2_USER }} .
+          
+          # 2. 강제 동기화 및 찌꺼기 파일 삭제
+          git fetch origin main
+          git reset --hard origin/main
+          
+          # 3. 도커 재시작
+          sudo docker-compose down
+          sudo docker-compose up -d --build
+
+  deploy-gcp:
+    name: GCP Compute Engine 배포
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: GCP 접속 및 배포
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.GCP_HOST }}
+        username: ${{ secrets.GCP_USER }}
+        key: ${{ secrets.GCP_SSH_KEY }}
+        port: 22
+        script: |
+          cd /home/${{ secrets.GCP_USER }}/main-project-lookalike
+        
+          # 1. 모든 파일의 소유권을 현재 유저로 강제 변경 (권한 에러 방지)
+          sudo chown -R ${{ secrets.GCP_USER }}:${{ secrets.GCP_USER }} .
           
           # 2. 강제 동기화 및 찌꺼기 파일 삭제
           git fetch origin main
