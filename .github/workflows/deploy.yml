@@ -55,6 +55,6 @@ jobs:
           sudo chown -R root:lookalike-devs .
           sudo chmod -R 2775 .
           
-          # 4. 도커 재시작 (명령어 하이픈 제거: docker compose)
-          docker compose down
-          docker compose up -d --build
+          # 4. 도커 컨테이너 빌드 및 재시작 (무중단 덮어쓰기 로직 적용)
+          docker compose build
+          docker compose up -d
