@@ -18,13 +18,17 @@ BRAND_PREFIX = "MS"
 TARGET_DATE = datetime.datetime.now().strftime("%Y%m%d")
 #TARGET_DATE = "20260211" 
 
+import os
+
 # 26.2.16
-PG_HOST = "postgresql"
-PG_DB = "datadb"
-PG_USER = "datauser"
-PG_PASS = "DataPass2026!"
-# 26.2.16
-MONGO_URI = "mongodb://datauser:DataPass2026!@mongo-main:27017"
+PG_HOST = os.environ.get("POSTGRES_HOST", "postgres-main")
+PG_DB = os.environ.get("POSTGRES_DB", "datadb")
+PG_USER = os.environ.get("POSTGRES_USER", "datauser")
+PG_PASS = os.environ.get("POSTGRES_PASSWORD", "")
+
+MONGO_USER = os.environ.get("MONGODB_USER", "datauser")
+MONGO_PASS = os.environ.get("MONGODB_PASSWORD", "")
+MONGO_URI = os.environ.get("MONGO_URI", f"mongodb://{MONGO_USER}:{MONGO_PASS}@mongo-main:27017")
 HDFS_BASE = "hdfs://namenode:9000"
 # [수정] 26.2.21 WebHDFS 접속용 URL 추가 (포트 9870)
 #HDFS_WEB_URL = "http://namenode:9870"

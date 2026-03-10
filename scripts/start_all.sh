@@ -11,7 +11,8 @@
 # ──────────────────────────────────────────────
 # 경로 고정
 # ──────────────────────────────────────────────
-PROJECT_ROOT="$HOME/main-project-lookalike"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 LOG_DIR="${PROJECT_ROOT}/logs"
 FAIL_DIR="${LOG_DIR}/fail"
 mkdir -p "${FAIL_DIR}"
@@ -32,7 +33,7 @@ mkdir -p "${LOG_DIR}/airflow"
 . "${PROJECT_ROOT}/.env"
 
 # .env 덮어쓰기 방지
-PROJECT_ROOT="$HOME/main-project-lookalike"
+PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LOG_DIR="${PROJECT_ROOT}/logs"
 
 # 타임스탬프
@@ -284,9 +285,19 @@ log_service_info "system" "docker-compose" "docker compose up --wait 호출" "st
 log_info "전체 컨테이너가 정상 작동(Healthy) 상태가 될 때까지 부팅 과정을 추적합니다."
 log_info "최대 3분 정도 소요되며 각 서비스의 상태가 표시됩니다."
 
+COMPOSE_CMD="docker compose -f docker-compose.yml"
+if [ "$1" == "--gpu" ] || [ "$1" == "-g" ]; then
+    log_info "🚀 GPU 가속 옵션(--gpu) 활성화: Airflow 및 Spark 등 무거운 배치 컨테이너를 비활성화(disabled)하고 GPU 추론을 최적화합니다."
+    COMPOSE_CMD="$COMPOSE_CMD -f docker-compose.gpu.yml"
+    # 기존에 켜져 있던 무거운 컨테이너 명시적 종료 (profile 기능은 up에서 무시할뿐, 켜져있는걸 끄진 않으므로)
+    log_info "🧹 기존 실행 중인 Airflow/Spark 컨테이너 정리 중..."
+    docker compose stop airflow-scheduler airflow-webserver spark-master spark-worker-1 2>/dev/null || true
+    docker compose rm -f airflow-scheduler airflow-webserver spark-master spark-worker-1 2>/dev/null || true
+fi
+
 # docker compose up --wait : 모든 의존성이 healthy 될때까지 대기하며 상태바 출력
 # (화면 UI 보존을 위해 tee를 제거하고, 에러 시 로그를 별도 수집합니다)
-docker compose up --wait
+$COMPOSE_CMD up --wait -d --remove-orphans
 
 if [ $? -ne 0 ]; then
     log_error "⚠️ 일부 서비스 부팅에 실패했거나 대기 시간을 초과했습니다."

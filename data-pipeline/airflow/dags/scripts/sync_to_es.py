@@ -1,4 +1,5 @@
 import argparse
+import os
 from pymongo import MongoClient
 from elasticsearch import Elasticsearch, helpers
 
@@ -94,7 +95,10 @@ if __name__ == "__main__":
     parser.add_argument("--brand_name", type=str, required=True, help="처리할 브랜드 이름")
     
     # 🚨 주의: 에어플로우(도커 안)에서 실행되므로 mongo-main 주소를 사용해야 합니다!
-    parser.add_argument("--mongo_uri", type=str, default="mongodb://datauser:DataPass2026!@mongo-main:27017/?authSource=admin", help="MongoDB 접속 URI")
+    mongo_user = os.environ.get("MONGODB_USER", "datauser")
+    mongo_pass = os.environ.get("MONGODB_PASSWORD", "")
+    default_mongo = os.environ.get("MONGO_URI", f"mongodb://{mongo_user}:{mongo_pass}@mongo-main:27017/?authSource=admin")
+    parser.add_argument("--mongo_uri", type=str, default=default_mongo, help="MongoDB 접속 URI")
     parser.add_argument("--es_uri", type=str, default="http://elasticsearch-main:9200", help="ElasticSearch 접속 URI")
     
     args = parser.parse_args()
