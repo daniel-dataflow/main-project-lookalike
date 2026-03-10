@@ -30,7 +30,7 @@ def sync_mongo_to_es(brand_name, mongo_uri, es_uri):
                 },
                 "vec_text": {
                     "type": "dense_vector",
-                    "dims": 384, 
+                    "dims": 768, 
                     "index": True,
                     "similarity": "cosine"
                 }

@@ -164,7 +164,7 @@ def init_product_index():
                     "type": "text",
                     "analyzer": "standard"
                 },
-                # ML 모델 임베딩 벡터 (image: 512차원, text: 384차원, cosine 유사도)
+                # ML 모델 임베딩 벡터 (image: 512차원, text: 768차원, cosine 유사도)
                 "image_vector": {
                     "type": "dense_vector",
                     "dims": 512,

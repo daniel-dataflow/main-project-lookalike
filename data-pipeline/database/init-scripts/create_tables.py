@@ -245,7 +245,7 @@ def init_elasticsearch():
             },
             "text_vector": {
                 "type": "dense_vector",
-                "dims": 512,
+                "dims": 768,
                 "index": True,
                 "similarity": "cosine"
             },

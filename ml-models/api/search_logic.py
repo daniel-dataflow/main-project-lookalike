@@ -8,7 +8,7 @@ from elasticsearch import Elasticsearch
 
 # 인코더 함수 시그니처
 # - clip_image_encoder(image) -> list[float] (dim=512)
-# - sbert_text_encoder(text) -> list[float] (dim=384)
+# - sbert_text_encoder(text) -> list[float] (dim=768)
 EncoderImage = Callable[[Any], List[float]]
 EncoderText = Callable[[str], List[float]]
 RewriteText = Callable[[str], str]

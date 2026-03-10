@@ -22,7 +22,7 @@
 ### 1.2 통합 데이터 파이프라인망 (Data Engineering)
 - **기반 엔진**: `Apache Airflow` 스케줄러 기반의 9단계 완전 자동화 분산 제어망.
 - **수집 및 정제**: Playwright 웹 크롤러 ➔ PySpark 분산 클러스터 전처리 ➔ HDFS 및 PostgreSQL 적재.
-- **멀티모달 융합**: 이미지 YOLO 크롭 ➔ 고차원(512/384) 텐서 임베딩 전처리 ➔ VLM 텍스트화 ➔ Elasticsearch 최종 검색망 하이브리드 동기화 수행.
+- **멀티모달 융합**: 이미지 YOLO 크롭 ➔ 고차원(512/768) 텐서 임베딩 전처리 ➔ VLM 텍스트화 ➔ Elasticsearch 최종 검색망 하이브리드 동기화 수행.
 
 > 🔗 **관련 상세 문서**:
 > - `docs/architecture/data_pipeline_system.md` (데이터 수집부터 ML 융합 적재까지의 전체 워크플로우 아키텍처)
