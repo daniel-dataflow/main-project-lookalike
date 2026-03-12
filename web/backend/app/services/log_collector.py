@@ -11,6 +11,7 @@ from ..core.elasticsearch_setup import get_es_client
 from .slack_notifier import get_slack_notifier
 from .auto_recovery import get_auto_recovery
 import json
+from ..config.logging import SERVICE_MAP, LOG_INDEX_NAME
 
 logger = logging.getLogger(__name__)
 
@@ -31,19 +32,10 @@ class LogCollector:
             self.docker_client = None
             
         self.es_client = get_es_client()
-        self.index_name = "container-logs"
+        self.index_name = LOG_INDEX_NAME
         
         # 컨테이너 이름에 따른 서비스 매핑
-        self.service_map = {
-            "Airflow": ["airflow-webserver-main", "airflow-scheduler-main"],
-            "Spark": ["spark-master-main", "spark-worker-1-main"],
-            "Hadoop": ["namenode-main", "datanode-main"],
-            "Kafka": ["kafka-main", "zookeeper-main"],
-            "DB": ["postgres-main", "mongo-main", "redis-main"],
-            "Elastic": ["elasticsearch-main"],
-            "API_BE": ["fastapi-main"],
-            "API_ML": ["ml-engine-main"]
-        }
+        self.service_map = SERVICE_MAP
         
         # Slack 알림 서비스
         self.slack_notifier = get_slack_notifier()

@@ -3,6 +3,7 @@ from fastapi import APIRouter, HTTPException, Query
 from typing import Optional, List, Dict
 from datetime import datetime, timedelta
 import time as _time
+from ..config.logging import LOG_INDEX_NAME, DASHBOARD_CACHE_TTL
 from ..core.elasticsearch_setup import get_es_client
 from kafka import KafkaConsumer
 from kafka.errors import KafkaError
@@ -14,14 +15,15 @@ router = APIRouter(
 )
 
 es_client = get_es_client()
-INDEX_NAME = "container-logs"
+INDEX_NAME = LOG_INDEX_NAME
 
 # ──────────────────────────────────────
-# [성능] 대시보드 통합 캐시 (30초)
+# [성능] 대시보드 통합 캐시 (DASHBOARD_CACHE_TTL 초)
 # ──────────────────────────────────────
 _dashboard_cache = None
 _dashboard_cache_time: float = 0
-_DASHBOARD_CACHE_TTL = 30  # 30초
+_DASHBOARD_CACHE_TTL = DASHBOARD_CACHE_TTL
+
 
 @router.get("/dashboard")
 async def get_log_dashboard():

@@ -2,6 +2,7 @@ import os
 from elasticsearch import Elasticsearch
 from elasticsearch.exceptions import RequestError
 import logging
+from ..config.logging import LOG_INDEX_NAME, METRIC_INDEX_NAME
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +19,7 @@ def init_elasticsearch_index():
     인덱스가 없으면 생성, 있으면 건너뜀
     """
     es = get_es_client()
-    index_name = "container-logs"
+    index_name = LOG_INDEX_NAME
 
     # 인덱스 설정 및 매핑
     index_body = {
@@ -53,7 +54,7 @@ def init_elasticsearch_index():
 
 def init_metric_index():
     es = get_es_client()
-    index_name = "container-metrics"
+    index_name = METRIC_INDEX_NAME
     index_body = {
         "settings": {
             "number_of_shards": 1,
@@ -118,7 +119,7 @@ def setup_index_lifecycle():
         # 여기서는 단순화를 위해 템플릿 설정 생략하고, 
         # 기존 인덱스에 수동으로 settings update를 시도
         es.indices.put_settings(
-            index="container-logs",
+            index=LOG_INDEX_NAME,
             body={
                 "index": {
                     "lifecycle": {
@@ -127,7 +128,7 @@ def setup_index_lifecycle():
                 }
             }
         )
-        print(f"✅ Attached ILM policy to 'container-logs'")
+        print(f"✅ Attached ILM policy to '{LOG_INDEX_NAME}'")
         
     except Exception as e:
         print(f"⚠️ Failed to setup Index Lifecycle Policy: {e}")

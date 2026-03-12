@@ -23,6 +23,7 @@ from ..models.user import (
     OAuthConfigResponse,
 )
 from ..config import get_settings
+from ..config.auth import OAUTH_CONFIGS
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/auth", tags=["인증"])
@@ -338,26 +339,8 @@ async def get_oauth_providers():
 # ──────────────────────────────────────
 # OAuth2: 소셜 로그인 시작 (→ 제공자로 리다이렉트)
 # ──────────────────────────────────────
-OAUTH_CONFIGS = {
-    "google": {
-        "auth_url": "https://accounts.google.com/o/oauth2/v2/auth",
-        "token_url": "https://oauth2.googleapis.com/token",
-        "userinfo_url": "https://www.googleapis.com/oauth2/v2/userinfo",
-        "scope": "openid email profile",
-    },
-    "naver": {
-        "auth_url": "https://nid.naver.com/oauth2.0/authorize",
-        "token_url": "https://nid.naver.com/oauth2.0/token",
-        "userinfo_url": "https://openapi.naver.com/v1/nid/me",
-        "scope": "",
-    },
-    "kakao": {
-        "auth_url": "https://kauth.kakao.com/oauth/authorize",
-        "token_url": "https://kauth.kakao.com/oauth/token",
-        "userinfo_url": "https://kapi.kakao.com/v2/user/me",
-        "scope": "profile_nickname profile_image",
-    },
-}
+# OAUTH_CONFIGS is now managed via config.auth.OAUTH_CONFIGS
+
 
 
 @router.get("/oauth/{provider}")

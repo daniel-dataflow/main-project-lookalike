@@ -1,5 +1,5 @@
 """
-애플리케이션 설정 - 환경변수 기반
+애플리케이션 설정 - 환경변수 기반 (Base Settings)
 """
 from pydantic_settings import BaseSettings
 from functools import lru_cache
@@ -45,9 +45,6 @@ class Settings(BaseSettings):
     KAKAO_CLIENT_ID: str = ""
     KAKAO_CLIENT_SECRET: str = ""
     
-    # 리다이렉트 URI (환경변수 설정 제거 - 요청 호스트 기반 동적 생성)
-    # OAUTH_REDIRECT_URI: Optional[str] = None
-
     # === 세션 ===
     SESSION_SECRET_KEY: str = "change-this-in-production"  # Set in .env
     SESSION_EXPIRE_HOURS: int = 24
@@ -69,6 +66,13 @@ class Settings(BaseSettings):
     THUMBNAIL_SIZE: int = 150
     THUMBNAIL_QUALITY: int = 85
     USE_MOCK_ML: bool = True
+
+    # === DB 커넥션 설정 ===
+    POSTGRES_MIN_CONN: int = 2
+    POSTGRES_MAX_CONN: int = 10
+    MONGO_TIMEOUT_MS: int = 5000
+    REDIS_TIMEOUT_SEC: int = 5
+
 
     @property
     def DATABASE_URL(self) -> str:
@@ -92,8 +96,6 @@ class Settings(BaseSettings):
     def ELASTICSEARCH_URL(self) -> str:
         return f"http://{self.ELASTICSEARCH_HOST}:{self.ELASTICSEARCH_PORT}"
 
-    # OAUTH_REDIRECT_BASE 프로퍼티 제거 (동적 생성을 위해 auth.py에서 처리)
-
     def is_oauth_configured(self, provider: str) -> bool:
         """지정된 OAuth 제공자의 클라이언트 키가 설정되어 있는지 확인"""
         if provider == "google":
@@ -106,7 +108,7 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", ".env"
+            os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", "..", ".env"
         )
         env_file_encoding = "utf-8"
         extra = "ignore"  # .env에 다른 변수가 있어도 무시

@@ -35,8 +35,8 @@ def init_postgres():
     settings = get_settings()
     try:
         _pg_pool = pool.ThreadedConnectionPool(
-            minconn=2,
-            maxconn=10,
+            minconn=settings.POSTGRES_MIN_CONN,
+            maxconn=settings.POSTGRES_MAX_CONN,
             host=settings.POSTGRES_HOST,
             port=settings.POSTGRES_PORT,
             database=settings.POSTGRES_DB,
@@ -91,7 +91,7 @@ def init_mongo():
             username=settings.MONGODB_USER,
             password=settings.MONGODB_PASSWORD,
             authSource="admin",
-            serverSelectionTimeoutMS=5000,
+            serverSelectionTimeoutMS=settings.MONGO_TIMEOUT_MS,
         )
         # 연결 테스트
         _mongo_client.admin.command("ping")
@@ -123,7 +123,7 @@ def init_redis():
             password=settings.REDIS_PASSWORD,
             db=0,
             decode_responses=True,
-            socket_connect_timeout=5,
+            socket_connect_timeout=settings.REDIS_TIMEOUT_SEC,
         )
         _redis_client.ping()
         logger.info("✅ Redis 연결 완료")

@@ -11,6 +11,7 @@ from datetime import datetime
 from typing import Dict, List, Any, Optional
 from fastapi import APIRouter, HTTPException, Request
 
+from ..config.admin import SYSTEM_CACHE_TTL, DB_CACHE_TTL, INFRA_CACHE_TTL
 from ..database import get_pg_cursor, get_redis, get_mongo_db
 from ..models.admin import (
     SystemStatusResponse,
@@ -27,11 +28,11 @@ router = APIRouter(prefix="/api/admin", tags=["admin"])
 # ──────────────────────────────────────
 _system_cache: Optional[dict] = None
 _system_cache_time: float = 0
-_SYSTEM_CACHE_TTL = 5  # 5초
+_SYSTEM_CACHE_TTL = SYSTEM_CACHE_TTL
 
 _db_cache: Optional[dict] = None
 _db_cache_time: float = 0
-_DB_CACHE_TTL = 10  # 10초
+_DB_CACHE_TTL = DB_CACHE_TTL
 
 
 
@@ -174,7 +175,7 @@ from typing import Optional
 # 캐시 저장소
 _docker_cache: Optional[Dict[str, Any]] = None
 _docker_cache_time: Optional[datetime] = None
-_CACHE_TTL_SECONDS = 60  # 60초 캐시
+_CACHE_TTL_SECONDS = INFRA_CACHE_TTL  # 캐시 설정 사용
 _docker_warming = False  # 백그라운드 워밍 중복 방지 플래그
 
 

@@ -8,6 +8,7 @@ from collections import deque
 from typing import Optional
 import urllib.request
 import urllib.error
+from ..config.logging import STARTUP_NOISE_PATTERNS
 
 logger = logging.getLogger(__name__)
 
@@ -21,30 +22,8 @@ def _parse_int_env(key: str) -> Optional[int]:
     return int(v) if v else None
 
 
-# ─── 기동 노이즈 패턴 (서버 재시작 시 정상적으로 발생하는 에러) ───
-_STARTUP_NOISE_PATTERNS = [
-    # Hadoop
-    "incompatible clusterids",
-    "initialization failed for block pool",
-    "all specified directories have failed to load",
-    "datanode registration failed",
-    "warn datanode",
-    "namenode is in safe mode",
-    # Kafka
-    "broker is not available",
-    "nobrokersavailable",
-    "error while fetching metadata",
-    "leader not available",
-    "notleaderforpartitionerror",
-    # Airflow
-    "scheduler is not running",
-    "dag file processor manager",
-    # 공통 - 컨테이너 기동 순서 차이
-    "connection refused",
-    "connection reset by peer",
-    "failed to connect",
-    "temporary failure in name resolution",
-]
+# _STARTUP_NOISE_PATTERNS is now managed via config.logging.STARTUP_NOISE_PATTERNS
+
 
 
 class SlackNotifier:
@@ -89,7 +68,7 @@ class SlackNotifier:
         self._startup_grace_sec = int(os.environ.get("SLACK_STARTUP_GRACE_SEC", 300))
 
         # ─── [NEW] 기동 노이즈 패턴 필터 ───
-        self._startup_noise_patterns = list(_STARTUP_NOISE_PATTERNS)
+        self._startup_noise_patterns = list(STARTUP_NOISE_PATTERNS)
 
         # ─── [NEW] Global Rate Limiter ───
         # 지정 시간 창 내에서 최대 N건만 전송
