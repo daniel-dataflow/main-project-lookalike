@@ -113,58 +113,60 @@ async function adminLogout() {
 ========================================================================= */
 
 async function adminLogin(e) {
-            e.preventDefault();
+    e.preventDefault();
 
-            const username = document.getElementById('adminUsername').value.trim();
-            const password = document.getElementById('adminPassword').value.trim();
-            if (!username || !password) return;
+    const username = document.getElementById('adminUsername').value.trim();
+    const password = document.getElementById('adminPassword').value.trim();
+    if (!username || !password) return;
 
-            const btn = document.getElementById('adminLoginBtn');
-            const spinner = document.getElementById('adminLoginSpinner');
-            const btnText = btn.querySelector('.btn-text');
-            const errorEl = document.getElementById('adminAuthError');
+    const btn = document.getElementById('adminLoginBtn');
+    const spinner = document.getElementById('adminLoginSpinner');
+    const btnText = btn.querySelector('.btn-text');
+    const errorEl = document.getElementById('adminAuthError');
 
-            btn.disabled = true;
-            spinner.classList.remove('d-none');
-            btnText.classList.add('d-none');
-            errorEl.style.display = 'none';
+    btn.disabled = true;
+    spinner.classList.remove('d-none');
+    btnText.classList.add('d-none');
+    errorEl.style.display = 'none';
 
-            try {
-                const resp = await fetch('/api/auth/admin/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'same-origin',
-                    body: JSON.stringify({ username, password }),
-                });
+    try {
+        const resp = await fetch('/api/auth/admin/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            body: JSON.stringify({ username, password }),
+        });
 
-                if (resp.ok) {
-                    // 인증 성공 후 인프라 대시보드로 이동
-                    location.href = '/admin/infra';
-                } else {
-                    const err = await resp.json();
-                    document.getElementById('adminAuthErrorMsg').textContent =
-                        err.detail || '인증에 실패했습니다.';
-                    errorEl.style.display = 'flex';
-                    document.getElementById('adminPassword').value = '';
-                    document.getElementById('adminPassword').focus();
-                }
-            } catch (e) {
-                document.getElementById('adminAuthErrorMsg').textContent = '서버 연결에 실패했습니다.';
-                errorEl.style.display = 'flex';
-            } finally {
-                btn.disabled = false;
-                spinner.classList.add('d-none');
-                btnText.classList.remove('d-none');
-            }
+        if (resp.ok) {
+            // 인증 성공 후 인프라 대시보드로 이동
+            location.href = '/admin/infra';
+        } else {
+            const err = await resp.json();
+            document.getElementById('adminAuthErrorMsg').textContent =
+                err.detail || '인증에 실패했습니다.';
+            errorEl.style.display = 'flex';
+            document.getElementById('adminPassword').value = '';
+            document.getElementById('adminPassword').focus();
         }
+    } catch (e) {
+        document.getElementById('adminAuthErrorMsg').textContent = '서버 연결에 실패했습니다.';
+        errorEl.style.display = 'flex';
+    } finally {
+        btn.disabled = false;
+        spinner.classList.add('d-none');
+        btnText.classList.remove('d-none');
+    }
+}
 
 /* =========================================================================
    [admin_dashboard.js]
 ========================================================================= */
 
 document.addEventListener('DOMContentLoaded', function () {
-        // API Chart
-        const ctxApi = document.getElementById('apiChart').getContext('2d');
+    // API Chart
+    const apiChartEl = document.getElementById('apiChart');
+    if (apiChartEl) {
+        const ctxApi = apiChartEl.getContext('2d');
         new Chart(ctxApi, {
             type: 'line',
             data: {
@@ -184,9 +186,12 @@ document.addEventListener('DOMContentLoaded', function () {
                 scales: { y: { beginAtZero: true, grid: { display: false } } }
             }
         });
+    }
 
-        // Log Chart
-        const ctxLog = document.getElementById('logChart').getContext('2d');
+    // Log Chart
+    const logChartEl = document.getElementById('logChart');
+    if (logChartEl) {
+        const ctxLog = logChartEl.getContext('2d');
         new Chart(ctxLog, {
             type: 'doughnut',
             data: {
@@ -204,4 +209,5 @@ document.addEventListener('DOMContentLoaded', function () {
                 cutout: '70%'
             }
         });
-    });
+    }
+});

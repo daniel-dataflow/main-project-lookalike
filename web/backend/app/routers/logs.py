@@ -270,13 +270,13 @@ async def get_logs_stream(
     must_conditions = []
     
     if service and service != "ALL":
-        must_conditions.append({"term": {"service": service}})
+        must_conditions.append({"match_phrase": {"service": service}})
     
     if level and level != "ALL":
-        must_conditions.append({"term": {"level": level}})
+        must_conditions.append({"match_phrase": {"level": level}})
         
     if keyword:
-        must_conditions.append({"match": {"message": keyword}})
+        must_conditions.append({"match_phrase": {"message": keyword}})
 
     query = {
         "bool": {
@@ -320,13 +320,13 @@ async def get_logs_download(
     must_conditions = []
     
     if service and service != "ALL":
-        must_conditions.append({"term": {"service": service}})
+        must_conditions.append({"match_phrase": {"service": service}})
     
     if level and level != "ALL":
-        must_conditions.append({"term": {"level": level}})
+        must_conditions.append({"match_phrase": {"level": level}})
         
     if keyword:
-        must_conditions.append({"match": {"message": keyword}})
+        must_conditions.append({"match_phrase": {"message": keyword}})
 
     query = {
         "bool": {
