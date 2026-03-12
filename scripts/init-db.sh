@@ -69,7 +69,7 @@ psql -h postgresql -U "$POSTGRES_USER" -d "$POSTGRES_DB" <<-EOSQL
 
     -- Products 테이블
     CREATE TABLE IF NOT EXISTS products (
-	product_id VARCHAR(20) PRIMARY KEY,
+        product_id VARCHAR(20) PRIMARY KEY,
         model_code VARCHAR(50),
         brand_name VARCHAR(50),
         prod_name VARCHAR(512),

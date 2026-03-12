@@ -14,7 +14,20 @@ export POSTGRES_PORT=5432
 export MONGODB_HOST=127.0.0.1
 export MONGODB_PORT=27017
 
-BRANDS=("8seconds" "topten" "uniqlo" "spao" "zara")
+# 동적 브랜드 목록 탐색
+BRANDS=()
+if [ -d "data-pipeline/database/data" ]; then
+    for BRAND_DIR in data-pipeline/database/data/*; do
+        if [ -d "$BRAND_DIR" ]; then
+            BRANDS+=("$(basename "$BRAND_DIR")")
+        fi
+    done
+fi
+
+if [ ${#BRANDS[@]} -eq 0 ]; then
+    echo "❌ data-pipeline/database/data 폴더에 처리할 브랜드 데이터가 없습니다."
+    exit 1
+fi
 
 echo "[INFO] 필요 패키지(psycopg2-binary, pymongo, python-dotenv) 설치 여부 확인 및 설치 중..."
 python3 -m pip install -q psycopg2-binary pymongo python-dotenv

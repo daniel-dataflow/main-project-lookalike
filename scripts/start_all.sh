@@ -11,7 +11,8 @@
 # ──────────────────────────────────────────────
 # 경로 고정
 # ──────────────────────────────────────────────
-PROJECT_ROOT="$HOME/main-project-lookalike"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 LOG_DIR="${PROJECT_ROOT}/logs"
 FAIL_DIR="${LOG_DIR}/fail"
 mkdir -p "${FAIL_DIR}"
@@ -32,7 +33,7 @@ mkdir -p "${LOG_DIR}/airflow"
 . "${PROJECT_ROOT}/.env"
 
 # .env 덮어쓰기 방지
-PROJECT_ROOT="$HOME/main-project-lookalike"
+PROJECT_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 LOG_DIR="${PROJECT_ROOT}/logs"
 
 # 타임스탬프

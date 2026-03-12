@@ -260,16 +260,6 @@ def _ensure_index(
     )
 
 
-import hashlib
-
-def _hash_string_to_long(s: str) -> int:
-    """문자열 ID (예: 'zara_02298221')를 ES 'long' 매핑에 맞는 64비트 정수로 변환"""
-    # 64-bit signed integer max: 9223372036854775807
-    hex_digest = hashlib.md5(s.encode('utf-8')).hexdigest()
-    # 15 hex chars = 60 bits, fits safely in signed 64-bit long
-    return int(hex_digest[:15], 16)
-
-
 def _build_actions(
     docs: Iterable[Dict[str, Any]],
     index_name: str,
@@ -283,16 +273,6 @@ def _build_actions(
     for doc in docs:
         if id_field not in doc:
             raise ValueError(f"doc missing id field '{id_field}': {doc}")
-
-        # 백엔드 검색 연동을 위해 문자열 ID를 ES long 타입으로 캐스팅 보장
-        doc_id_str = str(doc.get(id_field))
-        if "product_id" in doc:
-            try:
-                # 숫자 변환 시도
-                doc["product_id"] = int(doc["product_id"])
-            except ValueError:
-                # 'zara_123' 같은 문자열이면 해시하여 long 반환
-                doc["product_id"] = _hash_string_to_long(str(doc["product_id"]))
 
         for vf in vector_fields:
             if vf not in doc:

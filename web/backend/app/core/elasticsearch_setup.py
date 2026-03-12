@@ -151,7 +151,7 @@ def init_product_index():
         },
         "mappings": {
             "properties": {
-                "product_id":    {"type": "long"},
+                "product_id":    {"type": "keyword"},
                 "prod_name":     {
                     "type": "text",
                     "analyzer": "standard",
@@ -164,7 +164,7 @@ def init_product_index():
                     "type": "text",
                     "analyzer": "standard"
                 },
-                # ML 모델 임베딩 벡터 (image: 512차원, text: 384차원, cosine 유사도)
+                # ML 모델 임베딩 벡터 (image: 512차원, text: 768차원, cosine 유사도)
                 "image_vector": {
                     "type": "dense_vector",
                     "dims": 512,
@@ -173,7 +173,7 @@ def init_product_index():
                 },
                 "text_vector": {
                     "type": "dense_vector",
-                    "dims": 384,
+                    "dims": 768,
                     "index": True,
                     "similarity": "cosine"
                 },

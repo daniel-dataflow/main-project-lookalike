@@ -11,10 +11,6 @@ try:
 except ImportError:
     pass
 
-def hash_product_id(pid_str: str) -> int:
-    """문자열 ID를 64비트 정수로 변환"""
-    hex_digest = hashlib.md5(pid_str.encode('utf-8')).hexdigest()
-    return int(hex_digest[:15], 16)
 
 def truncate_tables(cur):
     """PostgreSQL 관련 테이블 모두 비우기"""
@@ -36,7 +32,7 @@ def import_brand_products(cur, brand: str):
         reader = csv.DictReader(f)
         product_count = 0
         for row in reader:
-            pid_int = hash_product_id(row['product_id'])
+            pid_str = str(row['product_id'])[:20] if row.get('product_id') else ''
             # 'base_price' 컬럼이 없거나 비었을 때 예외처리 수정 (필요하다면)
             base_price = int(float(row['base_price'])) if row.get('base_price') else 0
 
@@ -47,7 +43,7 @@ def import_brand_products(cur, brand: str):
                 ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (product_id) DO NOTHING
             """, (
-                pid_int,
+                pid_str,
                 row.get('model_code', ''),
                 row.get('prod_name', ''),
                 base_price,
@@ -79,7 +75,7 @@ def import_brand_from_json(cur, brand: str):
             with open(filepath, 'r', encoding='utf-8') as f:
                 doc = json.load(f)
             
-            pid_int = hash_product_id(doc.get('product_id', ''))
+            pid_str = str(doc.get('product_id', ''))[:20] if doc.get('product_id') else ''
             model_code = doc.get('model_code', '')
             prod_name = doc.get('prod_name', '')
             
@@ -106,7 +102,7 @@ def import_brand_from_json(cur, brand: str):
                 ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 ON CONFLICT (product_id) DO NOTHING
             """, (
-                pid_int, model_code, prod_name, base_price, category_code, img_hdfs_path, 
+                pid_str, model_code, prod_name, base_price, category_code, img_hdfs_path, 
                 brand_name, gender, origin_url, create_dt, update_dt
             ))
             product_count += 1

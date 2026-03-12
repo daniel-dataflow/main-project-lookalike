@@ -216,7 +216,7 @@ async def list_products(
 # 상품 상세 조회 (PG + MongoDB 조합)
 # ──────────────────────────────────────
 @router.get("/{product_id}", response_model=ProductDetailResponse)
-async def get_product_detail(product_id: int):
+async def get_product_detail(product_id: str):
     """상품 상세 정보 (PostgreSQL + MongoDB 조합)"""
     try:
         # 1. PostgreSQL: 상품 기본 정보
@@ -317,7 +317,7 @@ async def create_product(req: ProductCreateRequest):
 # 상품 삭제
 # ──────────────────────────────────────
 @router.delete("/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_product(product_id: int):
+async def delete_product(product_id: str):
     """상품 삭제"""
     try:
         with get_pg_cursor() as cur:
@@ -349,7 +349,7 @@ async def delete_product(product_id: int):
 # 최근 본 상품 기록
 # ──────────────────────────────────────
 @router.post("/{product_id}/view")
-async def record_product_view(product_id: int, request: Request):
+async def record_product_view(product_id: str, request: Request):
     """상품 조회 기록 (최근 본 상품)"""
     session = _get_user_from_session(request)
     user_id = session.get("user_id") if session else None
@@ -380,7 +380,7 @@ async def record_product_view(product_id: int, request: Request):
 # ──────────────────────────────────────
 # ──────────────────────────────────────
 @router.post("/{product_id}/like")
-async def add_like(product_id: int, request: Request):
+async def add_like(product_id: str, request: Request):
     """좋아요 추가"""
     session = _get_user_from_session(request)
     user_id = session.get("user_id") if session else None
@@ -408,7 +408,7 @@ async def add_like(product_id: int, request: Request):
 # 좋아요 취소
 # ──────────────────────────────────────
 @router.delete("/{product_id}/like")
-async def remove_like(product_id: int, request: Request):
+async def remove_like(product_id: str, request: Request):
     """좋아요 취소"""
     session = _get_user_from_session(request)
     user_id = session.get("user_id") if session else None
@@ -435,7 +435,7 @@ async def remove_like(product_id: int, request: Request):
 # 좋아요 상태 확인
 # ──────────────────────────────────────
 @router.get("/{product_id}/like-status")
-async def get_like_status(product_id: int, request: Request):
+async def get_like_status(product_id: str, request: Request):
     """좋아요 상태 확인"""
     session = _get_user_from_session(request)
     user_id = session.get("user_id") if session else None

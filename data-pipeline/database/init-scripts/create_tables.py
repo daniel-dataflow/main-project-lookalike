@@ -208,9 +208,8 @@ def init_mongodb():
             db.product_details.drop()
             print("🗑️ MongoDB collection dropped: product_details")
 
-        # 2. 최신 설계 반영 (fabric_info 제거, detail_desc 집중)
         db.product_details.insert_one({
-            "product_id": -1,                # PostgreSQL의 product_id와 매칭용
+            "product_id": "-1",                # PostgreSQL의 product_id와 매칭용
             "detail_desc": "INITIAL DUMMY: 원문 상세 설명이 여기에 통째로 들어갑니다.", 
             "create_dt": datetime.utcnow(),  # 데이터 수집 시점
             "is_dummy": True
@@ -236,7 +235,7 @@ def init_elasticsearch():
 
     mappings = {
         "properties": {
-            "product_id": {"type": "long"},
+            "product_id": {"type": "keyword"},
             "log_id": {"type": "long"},
             "image_vector": {
                 "type": "dense_vector",
@@ -246,7 +245,7 @@ def init_elasticsearch():
             },
             "text_vector": {
                 "type": "dense_vector",
-                "dims": 512,
+                "dims": 768,
                 "index": True,
                 "similarity": "cosine"
             },

@@ -5,7 +5,9 @@ echo "Main Project Lookalike - 전체 서비스 중지"
 echo "=========================================="
 
 echo ""
-cd ~/main-project-lookalike/
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
+cd "${PROJECT_ROOT}"
 echo "=== 안전 종료 프로세스를 시작합니다 ==="
 
 # 1. 상위 애플리케이션 종료

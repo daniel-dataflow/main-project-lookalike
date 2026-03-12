@@ -31,21 +31,15 @@ class YoloDetector:
         try:
             from ultralytics import YOLO
             
+            
             # 절대 경로나 상대 경로 기반으로 가중치 파일 로딩
             base_dir = os.path.dirname(__file__)
             primary_path = os.path.abspath(os.path.join(base_dir, self.model_name))
-            legacy_path = os.path.abspath(os.path.join(base_dir, "../yolo/yolo_weights.pt"))
 
             weight_path = primary_path
             if not os.path.exists(weight_path):
-                if os.path.exists(legacy_path):
-                    logger.warning(
-                        f"YOLO 가중치 기본 경로를 찾지 못해 legacy 경로로 fallback 합니다: {legacy_path}"
-                    )
-                    weight_path = legacy_path
-                else:
-                    logger.error(f"YOLO 가중치 파일을 찾을 수 없습니다: {primary_path}")
-                    return
+                logger.error(f"YOLO 가중치 파일을 찾을 수 없습니다: {primary_path}")
+                return
 
             logger.info(f"Custom YOLO 모델({weight_path}) 로드 중...")
                 
@@ -67,7 +61,8 @@ class YoloDetector:
 
         w, h = pil_img.size
         # conf=0.25 (스코어 미만 제외) 및 iou=0.7 적용하여 파인튜닝 스크립트(yolo_exceptional_handling.py) 예외처리 조건 완벽 동기화
-        results = self.model(pil_img, conf=0.25, iou=0.7)
+        # 빈공간 상의로 잡는 문제 해결을 위해 conf threshold 수정
+        results = self.model(pil_img, conf=0.38, iou=0.7)
         
         boxes_out = []
         for r in results:

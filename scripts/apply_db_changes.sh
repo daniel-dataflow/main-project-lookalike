@@ -350,8 +350,8 @@ if [ "$HAS_RECENT_VIEWS" != "1" ]; then
     $PG_CMD -U ${POSTGRES_USER} -d ${POSTGRES_DB} -c "
         CREATE TABLE recent_views (
             view_id BIGSERIAL PRIMARY KEY,
-            user_id VARCHAR(20) REFERENCES users(user_id) ON DELETE CASCADE,
-	    product_id VARCHAR(50) REFERENCES products(product_id) ON DELETE CASCADE,
+            user_id VARCHAR(50) REFERENCES users(user_id) ON DELETE CASCADE,
+            product_id VARCHAR(20) REFERENCES products(product_id) ON DELETE CASCADE,
             view_dt TIMESTAMP DEFAULT NOW()
         );
         CREATE INDEX idx_recent_views_user ON recent_views(user_id, view_dt DESC);
@@ -360,7 +360,7 @@ if [ "$HAS_RECENT_VIEWS" != "1" ]; then
         CREATE TABLE likes (
             like_id BIGSERIAL PRIMARY KEY,
             user_id VARCHAR(50) REFERENCES users(user_id) ON DELETE CASCADE,
-	    product_id VARCHAR(20) REFERENCES products(product_id) ON DELETE CASCADE,
+            product_id VARCHAR(20) REFERENCES products(product_id) ON DELETE CASCADE,
             create_dt TIMESTAMP DEFAULT NOW()
         );
         CREATE INDEX idx_likes_user ON likes(user_id, create_dt DESC);
@@ -467,9 +467,40 @@ else
     echo "   ⏭️  brand_sequences 테이블 이미 존재 (스킵)"
 fi
 
-# products.prod_name length, brand_name type
-echo "   ⚠️  products.prod_name, brand_name 타입 변경 중..."
+# products.prod_name length, brand_name type, product_id type
+echo "   ⚠️  products 컬럼 타입 및 product_id VARCHAR(20) 적용 중..."
 $PG_CMD -U ${POSTGRES_USER} -d ${POSTGRES_DB} -c "
+    ALTER TABLE naver_prices DROP CONSTRAINT IF EXISTS naver_prices_product_id_fkey;
+    ALTER TABLE product_features DROP CONSTRAINT IF EXISTS product_features_product_id_fkey;
+    ALTER TABLE recent_views DROP CONSTRAINT IF EXISTS recent_views_product_id_fkey;
+    ALTER TABLE likes DROP CONSTRAINT IF EXISTS likes_product_id_fkey;
+
+    ALTER TABLE products ALTER COLUMN product_id TYPE VARCHAR(20);
+    ALTER TABLE naver_prices ALTER COLUMN product_id TYPE VARCHAR(20);
+    ALTER TABLE product_features ALTER COLUMN product_id TYPE VARCHAR(20);
+    
+    -- recent_views와 likes가 존재할 때만 타입 변경
+    DO \$\$ BEGIN
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='recent_views' AND column_name='product_id') THEN
+            ALTER TABLE recent_views ALTER COLUMN product_id TYPE VARCHAR(20);
+        END IF;
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='likes' AND column_name='product_id') THEN
+            ALTER TABLE likes ALTER COLUMN product_id TYPE VARCHAR(20);
+        END IF;
+    END \$\$;
+
+    ALTER TABLE naver_prices ADD CONSTRAINT naver_prices_product_id_fkey FOREIGN KEY (product_id) REFERENCES products(product_id) ON DELETE CASCADE;
+    ALTER TABLE product_features ADD CONSTRAINT product_features_product_id_fkey FOREIGN KEY (product_id) REFERENCES products(product_id) ON DELETE CASCADE;
+    
+    DO \$\$ BEGIN
+        IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='recent_views') THEN
+            ALTER TABLE recent_views ADD CONSTRAINT recent_views_product_id_fkey FOREIGN KEY (product_id) REFERENCES products(product_id) ON DELETE CASCADE;
+        END IF;
+        IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name='likes') THEN
+            ALTER TABLE likes ADD CONSTRAINT likes_product_id_fkey FOREIGN KEY (product_id) REFERENCES products(product_id) ON DELETE CASCADE;
+        END IF;
+    END \$\$;
+
     ALTER TABLE products ALTER COLUMN prod_name TYPE VARCHAR(512);
     ALTER TABLE products ALTER COLUMN brand_name TYPE VARCHAR(50);
 "

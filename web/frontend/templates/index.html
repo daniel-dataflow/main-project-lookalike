@@ -408,7 +408,24 @@
         let startX, startY;
         const manualBox = document.getElementById('manualBox');
 
-        manualBboxContainer.addEventListener('mousedown', function (e) {
+        manualBboxContainer.addEventListener('touchstart', function (e) {
+            if (currentMode !== 'manual') return;
+            const touch = e.touches[0];
+            const rect = manualBboxContainer.getBoundingClientRect();
+            let clickX = touch.clientX - rect.left;
+            let clickY = touch.clientY - rect.top;
+
+            const imgRect = getRenderedImageRect();
+            if (!imgRect) return;
+
+            // 모바일 스크롤 방지를 위해, 사진(실제 렌더링된 영역) 위에서 터치될 때만 스크롤을 막고 바깥 여백은 스크롤 허용
+            if (clickX >= imgRect.offsetX && clickX <= imgRect.offsetX + imgRect.renderedW &&
+                clickY >= imgRect.offsetY && clickY <= imgRect.offsetY + imgRect.renderedH) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        manualBboxContainer.addEventListener('pointerdown', function (e) {
             if (currentMode !== 'manual') return;
             const rect = manualBboxContainer.getBoundingClientRect();
             let clickX = e.clientX - rect.left;
@@ -416,6 +433,12 @@
 
             const imgRect = getRenderedImageRect();
             if (!imgRect) return;
+
+            // 클릭위치가 실제 렌더링된 사진 공간 밖이면 네모 박스를 그리지 않는다 (여백은 여백 그대로 둠)
+            if (clickX < imgRect.offsetX || clickX > imgRect.offsetX + imgRect.renderedW ||
+                clickY < imgRect.offsetY || clickY > imgRect.offsetY + imgRect.renderedH) {
+                return;
+            }
 
             // 클릭위치가 실제 렌더링된 사진 범위를 벗어날 경우 제한
             clickX = Math.max(imgRect.offsetX, Math.min(clickX, imgRect.offsetX + imgRect.renderedW));
@@ -433,7 +456,7 @@
             selectedBbox = null;
         });
 
-        manualBboxContainer.addEventListener('mousemove', function (e) {
+        manualBboxContainer.addEventListener('pointermove', function (e) {
             if (!isDraggingBox || currentMode !== 'manual') return;
             const rect = manualBboxContainer.getBoundingClientRect();
             let currentX = e.clientX - rect.left;
@@ -457,7 +480,7 @@
             manualBox.style.height = height + 'px';
         });
 
-        manualBboxContainer.addEventListener('mouseup', function (e) {
+        manualBboxContainer.addEventListener('pointerup', function (e) {
             if (!isDraggingBox || currentMode !== 'manual') return;
             isDraggingBox = false;
 
@@ -493,7 +516,7 @@
         });
 
         // 박스 밖으로 드래그가 나갈 경우 취소 처리 
-        manualBboxContainer.addEventListener('mouseleave', function (e) {
+        manualBboxContainer.addEventListener('pointerleave', function (e) {
             if (isDraggingBox) {
                 isDraggingBox = false;
                 const w = parseFloat(manualBox.style.width);

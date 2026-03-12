@@ -17,6 +17,19 @@ from typing import Optional
 logger = logging.getLogger(__name__)
 
 
+def _category_filter_values(category: str) -> list[str]:
+    """입력 카테고리를 DB category_code 비교용 값 목록으로 확장한다."""
+    key = (category or "").strip().lower()
+    if not key:
+        return []
+    category_map = {
+        "top": ["top", "상의"],
+        "bottom": ["bottom", "하의"],
+        "outer": ["outer", "아우터"],
+    }
+    return category_map.get(key, [key])
+
+
 # ──────────────────────────────────────────────────────────────────────
 # Public API
 # ──────────────────────────────────────────────────────────────────────
@@ -59,7 +72,9 @@ async def search_products(
                 limit=limit,
             )
             if hydrated:
-                return hydrated
+                # 유사도 검색 결과만 반환한다.
+                # (DB 보강을 끄고, 수화 결과가 줄어드는 원인을 로그로 먼저 확인하기 위함)
+                return hydrated[:limit]
             # ML 결과는 왔지만 DB 매핑이 0건인 경우 빈 배열을 반환하지 않고 fallback 사용.
             logger.warning("ML 결과 Hydration 0건, fallback to DB")
         except Exception as e:
@@ -83,7 +98,7 @@ def _hydrate_from_db(
     limit: int = 6,
 ) -> list:
     """
-    ES에서 반환된 {product_code: score} 목록을 사용하여
+    ES에서 반환된 {product_id: score} 목록을 사용하여
     PostgreSQL에서 표시용 부가 데이터(최저가, 쇼핑몰 이름, URL 등)를 채워 넣고,
     원래의 ES 스코어(유사도) 순서를 유지한 채 반환합니다.
     """
@@ -92,23 +107,32 @@ def _hydrate_from_db(
 
     from ..database import get_pg_cursor
     product_ids = list(product_scores.keys())
+    # 디버깅 포인트 1: ML이 넘긴 후보 개수(보통 24)
+    logger.info(
+        "Hydration start: ml_scores=%d, gender=%s, category=%s, limit=%d",
+        len(product_ids),
+        gender,
+        category,
+        limit,
+    )
 
     try:
         with get_pg_cursor() as cur:
             # IN clause용 파라미터 생성
             placeholders = ",".join(["%s"] * len(product_ids))
-            conditions = [
-                f"(p.model_code IN ({placeholders}) OR p.product_id::text IN ({placeholders}))"
-            ]
-            params: list = list(product_ids) + list(product_ids)
+            conditions = [f"p.product_id::text IN ({placeholders})"]
+            params: list = list(product_ids)
 
             # ML 경로에서도 사용자가 선택한 성별/카테고리 조건을 강제 적용한다.
             if gender:
                 conditions.append("p.gender = %s")
                 params.append(gender.lower())
             if category:
-                conditions.append("p.category_code = %s")
-                params.append(category)
+                category_values = _category_filter_values(category)
+                if category_values:
+                    placeholders = ",".join(["%s"] * len(category_values))
+                    conditions.append(f"LOWER(p.category_code) IN ({placeholders})")
+                    params.extend(category_values)
 
             where_clause = " AND ".join(conditions)
             cur.execute(
@@ -116,7 +140,6 @@ def _hydrate_from_db(
                 SELECT
                     p.product_id, p.prod_name, p.brand_name,
                     p.base_price, p.img_hdfs_path, p.category_code,
-                    p.model_code,
                     COALESCE(np.price, p.base_price) AS lowest_price,
                     np.mall_name, np.mall_url
                 FROM products p
@@ -127,6 +150,8 @@ def _hydrate_from_db(
                 tuple(params),
             )
             rows = cur.fetchall()
+        # 디버깅 포인트 2: DB 매핑 + 필터 적용 후 남은 raw row 개수
+        logger.info("Hydration db rows: %d", len(rows))
 
         # 결과를 list of dict로 변환하고 유사도 점수 삽입
         # 동일 model_code가 여러 product_id로 들어온 경우가 있어
@@ -140,19 +165,17 @@ def _hydrate_from_db(
         )
 
         products = []
-        seen_score_keys = set()
+        seen_product_ids = set()
         for row in sorted_rows:
-            model_code = row["model_code"]
             pid = str(row["product_id"])
-            
-            score_key = model_code if model_code in product_scores else pid
-            if score_key not in product_scores:
+
+            if pid not in product_scores:
                 continue
-                
-            # ML 키(=model_code 또는 product_id) 기준으로 1건만 유지
-            if score_key in seen_score_keys:
+
+            # product_id 기준 중복 방지
+            if pid in seen_product_ids:
                 continue
-            seen_score_keys.add(score_key)
+            seen_product_ids.add(pid)
 
             products.append({
                 "product_id": pid,
@@ -163,7 +186,7 @@ def _hydrate_from_db(
                 "image_url": (f"/{row['img_hdfs_path']}" if row["img_hdfs_path"] and not row["img_hdfs_path"].startswith('/') else row["img_hdfs_path"]) or "https://placehold.co/300x300?text=No+Image",
                 "mall_name": row["mall_name"] or "공식몰",
                 "mall_url": row["mall_url"] or "#",
-                "similarity_score": round(product_scores.get(score_key, 0.0), 4),
+                "similarity_score": round(product_scores.get(pid, 0.0), 4),
                 "search_source": source,
             })
 
@@ -173,19 +196,10 @@ def _hydrate_from_db(
             key=lambda x: (x["similarity_score"] or 0.0, str(x["product_id"])),
             reverse=True,
         )
+        # 디버깅 포인트 3: 최종 수화 결과 개수(여기서 5로 줄어드는지 확인)
+        logger.info("Hydration final products: %d", len(products))
 
-        # 동일 상품명이 반복 노출되지 않도록 2차 dedupe
-        # (동일명 다중 상품코드가 존재하는 현재 데이터셋 보정)
-        deduped: list = []
-        seen_names = set()
-        for item in products:
-            name_key = (item["brand"], item["product_name"])
-            if name_key in seen_names:
-                continue
-            seen_names.add(name_key)
-            deduped.append(item)
-
-        return deduped[:limit]
+        return products[:limit]
 
     except Exception as e:
         logger.error(f"DB Hydration 실패: {e}", exc_info=True)
@@ -214,8 +228,11 @@ def _search_by_db(category: Optional[str], gender: Optional[str], limit: int) ->
                 conditions.append("p.gender = %s")
                 params.append(gender.lower())
             if category_code:
-                conditions.append("p.category_code = %s")
-                params.append(category_code)
+                category_values = _category_filter_values(category_code)
+                if category_values:
+                    placeholders = ",".join(["%s"] * len(category_values))
+                    conditions.append(f"LOWER(p.category_code) IN ({placeholders})")
+                    params.extend(category_values)
 
             where_clause = ("WHERE " + " AND ".join(conditions)) if conditions else ""
             params.append(limit)
@@ -258,3 +275,4 @@ def _search_by_db(category: Optional[str], gender: Optional[str], limit: int) ->
     except Exception as e:
         logger.error(f"DB fallback 검색 실패: {e}", exc_info=True)
         return []
+

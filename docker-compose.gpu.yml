@@ -1,0 +1,19 @@
+services:
+  airflow-scheduler:
+    profiles: [ "disabled" ]
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [ gpu ]
+
+  airflow-webserver:
+    profiles: [ "disabled" ]
+
+  spark-master:
+    profiles: [ "disabled" ]
+
+  spark-worker-1:
+    profiles: [ "disabled" ]

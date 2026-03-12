@@ -28,13 +28,13 @@ if len(sys.argv) > 1:
 else:
     TARGET_DATE = datetime.datetime.now().strftime("%Y%m%d")
 
-PG_HOST = "postgres-main"  
-PG_DB = "datadb"       
-PG_USER = "datauser"
-PG_PASS = "DataPass2026!"  
+PG_HOST = os.environ.get("POSTGRES_HOST", "postgres-main")
+PG_DB = os.environ.get("POSTGRES_DB", "datadb")
+PG_USER = os.environ.get("POSTGRES_USER", "datauser")
+PG_PASS = os.environ.get("POSTGRES_PASSWORD", "")
 
-MONGO_USER = "datauser"
-MONGO_PASS = "DataPass2026!"
+MONGO_USER = os.environ.get("MONGODB_USER", "datauser")
+MONGO_PASS = os.environ.get("MONGODB_PASSWORD", "")
 
 HDFS_BASE = "hdfs://namenode-main:9000"
 HDFS_WEB_URL = "http://namenode-main:9870"
