@@ -12,11 +12,11 @@ def process_fashion_clip_embedding(rows: list[dict[str, Any]], out_root: str, ba
     if not rows:
         return []
 
-    print("🚀 [시작] FashionCLIP 모델을 로드합니다...")
+    print("[시작] FashionCLIP 모델을 로드합니다...")
     model = FashionCLIP(model_name="fashion-clip")
     
     out_paths: list[str] = []
-    print(f"📦 총 {len(rows)}개의 데이터에 대해 개별 임베딩 처리를 시작합니다.")
+    print(f"총 {len(rows)}개의 데이터에 대해 개별 임베딩 처리를 시작합니다.")
 
     for idx, r in enumerate(rows, 1):
         image_path = r["crop_local_path"]
@@ -25,17 +25,17 @@ def process_fashion_clip_embedding(rows: list[dict[str, Any]], out_root: str, ba
         out_path = out_dir / Path(r["image_filename"]).with_suffix(".json")
 
         if out_path.exists():
-            print(f"⏭️ [{idx}/{len(rows)}] [건너뜀] 이미 처리된 파일입니다: {out_path.name}")
+            print(f"[{idx}/{len(rows)}] [건너뜀] 이미 처리된 파일입니다: {out_path.name}")
             out_paths.append(str(out_path))
             continue
 
         if not os.path.exists(image_path):
-            print(f"⚠️ [{idx}/{len(rows)}] [건너뜀] 원본 이미지를 찾을 수 없습니다: {image_path}")
+            print(f"[{idx}/{len(rows)}] [건너뜀] 원본 이미지를 찾을 수 없습니다: {image_path}")
             continue
 
         file_size = os.path.getsize(image_path)
         if file_size < 5120:  
-            print(f"🚨 [{idx}/{len(rows)}] [건너뜀] 1KB 더미 이미지 의심: {image_path}")
+            print(f"[{idx}/{len(rows)}] [건너뜀] 1KB 더미 이미지 의심: {image_path}")
             continue
 
         img = None
@@ -43,7 +43,7 @@ def process_fashion_clip_embedding(rows: list[dict[str, Any]], out_root: str, ba
             img = Image.open(image_path).convert("RGB")
 
             if img.width < 10 or img.height < 10:
-                print(f"🚨 [{idx}/{len(rows)}] [건너뜀] 이미지가 너무 작습니다: {image_path}")
+                print(f"[{idx}/{len(rows)}] [건너뜀] 이미지가 너무 작습니다: {image_path}")
                 img.close()
                 continue
 
@@ -69,10 +69,10 @@ def process_fashion_clip_embedding(rows: list[dict[str, Any]], out_root: str, ba
             out_paths.append(str(out_path))
 
             if idx % 50 == 0:
-                print(f"✅ 진행 중: {idx}/{len(rows)}장 완료...")
+                print(f"진행 중: {idx}/{len(rows)}장 완료...")
 
         except Exception as e:
-            print(f"❌ [{idx}/{len(rows)}] [에러 발생 스킵] {image_path} - {e}")
+            print(f"[{idx}/{len(rows)}] [에러 발생 스킵] {image_path} - {e}")
             continue
 
         finally:
@@ -80,5 +80,5 @@ def process_fashion_clip_embedding(rows: list[dict[str, Any]], out_root: str, ba
                 img.close()
             gc.collect()
 
-    print(f"🎉 [종료] 총 {len(out_paths)}개의 임베딩 JSON 처리가 완료되었습니다.")
+    print(f"[종료] 총 {len(out_paths)}개의 임베딩 JSON 처리가 완료되었습니다.")
     return out_paths

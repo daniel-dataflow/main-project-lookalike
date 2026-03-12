@@ -9,16 +9,17 @@ from dotenv import load_dotenv
 # ---------------------------------------------------------
 
 from tasks.operator_tasks import get_crawl_task, get_spark_task, get_naver_api_task
-from tasks.hdfs_tasks import fetch_from_hdfs
 from tasks.yolo_tasks import yolo_reorganize_dedup_upsert
 from tasks.embed_tasks import embed_to_json
-from tasks.mongo_tasks import upsert_mongo
-
 from tasks.vlm_tasks import extract_text_vlm
 from tasks.text_embed_tasks import embed_text_vectors
-from tasks.mongo_text_tasks import upsert_mongo_text_data
-from tasks.sync_es_tasks import sync_mongo_to_es
 
+from tasks.db_tasks import (
+    fetch_from_hdfs,
+    upsert_mongo,
+    upsert_mongo_text_data,
+    sync_mongo_to_es
+)
 # .env 환경변수 로드
 load_dotenv()
 
@@ -47,10 +48,10 @@ with DAG(
 
     brands = {
         '8seconds': '8S',
-        #'topten': 'TT',
-        #'zara': 'ZR',
-        #'uniqlo': 'UQ',
-        #'musinsa': 'MS'
+        'topten': 'TT',
+        'zara': 'ZR',
+        'uniqlo': 'UQ',
+        'musinsa': 'MS'
     }
 
 

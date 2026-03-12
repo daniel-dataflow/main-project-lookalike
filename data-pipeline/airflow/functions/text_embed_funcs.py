@@ -36,7 +36,7 @@ def process_text_embedding(json_paths: list[str], model_name: str) -> list[str]:
 
     if not docs_to_embed: return updated_paths
 
-    print(f"📦 총 {len(docs_to_embed)}건의 텍스트 배치(Batch) 임베딩 시작...")
+    print(f"총 {len(docs_to_embed)}건의 텍스트 배치(Batch) 임베딩 시작...")
     
     texts = [item[1]["_raw_text_input"] for item in docs_to_embed]
     vectors = embedding_model.encode(texts).tolist()
@@ -51,6 +51,6 @@ def process_text_embedding(json_paths: list[str], model_name: str) -> list[str]:
         updated_paths.append(str(path_obj))
         
     gc.collect()
-    print(f"🎉 텍스트 임베딩 완료! (처리: {len(vectors)}건)")
+    print(f"텍스트 임베딩 완료! (처리: {len(vectors)}건)")
     
     return updated_paths

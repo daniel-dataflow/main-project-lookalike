@@ -45,7 +45,7 @@ def process_vlm_extraction(brand_name: str, hdfs_url: str, ollama_host: str, mod
         
         save_path = out_root / f"{product_id}_vlm.json"
         if save_path.exists():
-            print(f"⏭️ [{idx}/{total_imgs}] [건너뜀] 이미 분석된 파일: {product_id}")
+            print(f"[{idx}/{total_imgs}] [건너뜀] 이미 분석된 파일: {product_id}")
             out_paths.append(str(save_path))
             continue
 
