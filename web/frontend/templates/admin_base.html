@@ -16,8 +16,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <!-- [성능] defer: DOMContentLoaded 이후 실행, 렌더링 블로킹 방지 -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
-    <link href="/static/css/style.css" rel="stylesheet">
-    <link href="/static/css/admin_style.css" rel="stylesheet">
+    <link href="/static/css/style.css?v=2" rel="stylesheet">
+    <link href="/static/css/admin_style.css?v=2" rel="stylesheet">
 </head>
 
 <body>
@@ -179,7 +179,6 @@
                 <button class="btn btn-link text-dark p-0 me-3 d-md-none" type="button" data-bs-toggle="offcanvas"
                     data-bs-target="#mobileSidebar">
                     <i class="fas fa-bars fs-4"></i>
-                </button>
                 </button>
                 <h5 class="m-0 fw-bold text-nowrap dashboard-title">{% block page_title
                     %}Dashboard{% endblock %}</h5>

@@ -10,9 +10,14 @@ import docker
 from datetime import datetime
 from typing import Dict, List, Any, Optional
 from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel
 
 from ..database import get_pg_cursor, get_redis, get_mongo_db
+from ..models.admin import (
+    SystemStatusResponse,
+    DatabaseStatusResponse,
+    ContainerInfo,
+    DockerStatusResponse
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/admin", tags=["admin"])
@@ -28,43 +33,6 @@ _db_cache: Optional[dict] = None
 _db_cache_time: float = 0
 _DB_CACHE_TTL = 10  # 10초
 
-
-# ──────────────────────────────────────
-# Response Models
-# ──────────────────────────────────────
-class SystemStatusResponse(BaseModel):
-    cpu_percent: float
-    cpu_freq_current: float
-    cpu_freq_min: float
-    cpu_freq_max: float
-    cpu_cores_physical: int
-    cpu_cores_logical: int
-    memory_total: int
-    memory_used: int
-    memory_percent: float
-    disk_total: int
-    disk_used: int
-    disk_percent: float
-    uptime_seconds: int
-
-
-class DatabaseStatusResponse(BaseModel):
-    postgresql: Dict[str, Any]
-    redis: Dict[str, Any]
-    mongodb: Dict[str, Any]
-
-
-class ContainerInfo(BaseModel):
-    name: str
-    status: str
-    cpu_percent: float
-    memory_usage: int
-    memory_limit: int
-
-
-class DockerStatusResponse(BaseModel):
-    containers: List[ContainerInfo]
-    checked_at: str  # ISO8601 마지막 실측 시각
 
 
 # ──────────────────────────────────────
