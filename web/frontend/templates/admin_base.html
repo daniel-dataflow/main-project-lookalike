@@ -2,14 +2,7 @@
 <html lang="ko">
 
 <head>
-    <script>
-        // 최우선 실행: 렌더링 전에 상태 적용
-        (function () {
-            if (localStorage.getItem('sidebarCollapsed') === 'true') {
-                document.documentElement.className = 'sidebar-collapsed-init';
-            }
-        })();
-    </script>
+    <script src="/static/js/admin_common.js"></script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Lookalike Admin{% endblock %}</title>
@@ -29,7 +22,6 @@
 
 <body>
     <!-- 어드민 인증 오버레이 제거됨 (서버 사이드 렌더링 검증 및 admin_login.html로 대체) -->
-
 
     <!-- 프로페셔널 사이드바 -->
     <div class="sidebar" id="adminSidebar">
@@ -87,13 +79,7 @@
                         <span class="sidebar-text">배치작업 모니터링</span>
                     </a>
                 </li>
-                <li class="nav-item">
-                    <a href="/admin/infra_old" class="nav-link {% if request.url.path == '/admin/infra_old' %}active{% endif %}"
-                        data-tooltip="인프라 모니터링 (기존)">
-                        <i class="fas fa-server"></i>
-                        <span class="sidebar-text">인프라 모니터링 (기존)</span>
-                    </a>
-                </li>
+
                  -->
             </ul>
         </div>
@@ -169,12 +155,7 @@
                         <i class="fas fa-cogs me-2"></i> 배치작업 모니터링
                     </a>
                 </li>
-                <li>
-                    <a href="/admin/infra_old"
-                        class="nav-link link-dark {% if request.url.path == '/admin/infra_old' %}active{% endif %}">
-                        <i class="fas fa-server me-2"></i> 인프라 모니터링 (기존)
-                    </a>
-                </li>
+
                 -->
             </ul>
             <hr>
@@ -225,110 +206,9 @@
 
     <!-- [성능] defer: 병렬 다운로드 후 DOM 준비되면 실행 -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" defer></script>
-    <script src="/static/js/script.js" defer></script>
 
     <!-- [성능 최적화 3차] 페이지 전환 속도 개선 -->
-    <script>
-        // ── (1) API 데이터 프리로드 ──
-        // HTML 파싱 시점에 즉시 fetch 시작 → DOMContentLoaded 전에 응답 도착
-        // 각 페이지 JS에서 window.__preload[key]를 await하여 중복 호출 방지
-        (function () {
-            const preloadMap = {
-                '/admin/infra': [
-                    { key: 'infraDashboard', url: '/api/admin/infra/dashboard' },
-                    { key: 'metricsStats', url: '/api/metrics/stats' },
-                    { key: 'metricsStream', url: '/api/metrics/stream' }
-                ],
-                '/admin/logs': [
-                    { key: 'logsDashboard', url: '/api/logs/dashboard' }
-                ]
-            };
-            const path = location.pathname;
-            const targets = preloadMap[path];
-            if (targets) {
-                window.__preload = {};
-                targets.forEach(t => {
-                    window.__preload[t.key] = fetch(t.url).then(r => r.json()).catch(() => null);
-                });
-            }
-        })();
 
-        // ── (2) 네비게이션 프리페치 ──
-        // 사이드바 링크에 마우스를 올리면 해당 페이지 HTML을 미리 다운로드
-        // → 클릭 시 브라우저 캐시에서 즉시 로드되어 체감 전환 속도 향상
-        (function () {
-            const prefetched = new Set();
-            document.addEventListener('mouseover', function (e) {
-                const link = e.target.closest('.nav-link[href^="/admin/"]');
-                if (!link) return;
-                const href = link.getAttribute('href');
-                if (!href || href === location.pathname || prefetched.has(href)) return;
-                prefetched.add(href);
-                const el = document.createElement('link');
-                el.rel = 'prefetch';
-                el.href = href;
-                document.head.appendChild(el);
-            });
-        })();
-    </script>
-
-    <script>
-        // 서버에서 이미 권한을 검증하고 렌더링했으므로, 사용자 이름만 한 번 더 가져옵니다.
-        document.addEventListener('DOMContentLoaded', async function () {
-            try {
-                const meResp = await fetch('/api/auth/me', { credentials: 'same-origin' });
-                const meData = await meResp.json();
-                const name = (meData.success && meData.user && meData.user.name) ? meData.user.name : 'Admin';
-                applyUserName(name);
-            } catch (e) {
-                // 무시
-            }
-        });
-
-        function applyUserName(name) {
-            const el1 = document.getElementById('adminUserName');
-            const el2 = document.getElementById('adminTopName');
-            if (el1) el1.textContent = name;
-            if (el2) el2.textContent = name;
-        }
-
-        // 사이드바 접기/펴기 토글 함수
-        function toggleSidebar() {
-            const sidebar = document.getElementById('adminSidebar');
-            const mainContent = document.getElementById('adminMainContent');
-
-            sidebar.classList.toggle('collapsed');
-            mainContent.classList.toggle('expanded');
-
-            // 로컬 스토리지에 상태 저장
-            localStorage.setItem('sidebarCollapsed', sidebar.classList.contains('collapsed'));
-        }
-
-        // 페이지 로드 시 저장된 사이드바 상태 복원
-        document.addEventListener('DOMContentLoaded', function () {
-            const isCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
-            const sidebar = document.getElementById('adminSidebar');
-            const mainContent = document.getElementById('adminMainContent');
-
-            // 초기화 클래스 제거
-            document.documentElement.classList.remove('sidebar-collapsed-init');
-
-            if (isCollapsed) {
-                sidebar.classList.add('collapsed');
-                mainContent.classList.add('expanded');
-            }
-        });
-
-        async function adminLogout() {
-            try {
-                await fetch('/api/auth/admin/logout', {
-                    method: 'POST',
-                    credentials: 'same-origin',
-                });
-            } catch (e) { }
-            location.href = '/';
-        }
-    </script>
 </body>
 
 </html>

@@ -77,49 +77,4 @@
     </div>
 </div>
 
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        // API Chart
-        const ctxApi = document.getElementById('apiChart').getContext('2d');
-        new Chart(ctxApi, {
-            type: 'line',
-            data: {
-                labels: ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00'],
-                datasets: [{
-                    label: 'Requests',
-                    data: [120, 132, 101, 134, 90, 105, 125],
-                    borderColor: '#0d6efd',
-                    tension: 0.4,
-                    fill: false
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                scales: { y: { beginAtZero: true, grid: { display: false } } }
-            }
-        });
-
-        // Log Chart
-        const ctxLog = document.getElementById('logChart').getContext('2d');
-        new Chart(ctxLog, {
-            type: 'doughnut',
-            data: {
-                labels: ['Success', 'Fail'],
-                datasets: [{
-                    data: [92, 8],
-                    backgroundColor: ['#198754', '#dc3545'],
-                    borderWidth: 0
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { display: false } },
-                cutout: '70%'
-            }
-        });
-    });
-</script>
 {% endblock %}

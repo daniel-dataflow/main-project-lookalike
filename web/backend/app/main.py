@@ -334,11 +334,7 @@ async def admin_stats(request: Request):
     return templates.TemplateResponse("admin_dashboard.html", {"request": request})
 
 
-@app.get("/admin/infra_old", response_class=HTMLResponse)
-async def admin_infra_old(request: Request):
-    if auth_redirect := check_admin_access(request):
-        return auth_redirect
-    return templates.TemplateResponse("admin_infra_old.html", {"request": request})
+
 
 
 
@@ -356,10 +352,7 @@ async def admin_inquiry(request: Request):
     return templates.TemplateResponse("admin_inquiry.html", {"request": request})
 
 
-# 기존 로그 모니터링 (구버전 → _old 처리)
-# @app.get("/admin/logs_old", response_class=HTMLResponse)
-# async def admin_logs_old(request: Request):
-#     return templates.TemplateResponse("admin_logs_old.html", {"request": request})
+
 
 @app.get("/admin/logs", response_class=HTMLResponse)
 async def admin_logs(request: Request):
