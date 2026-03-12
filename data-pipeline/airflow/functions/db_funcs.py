@@ -227,7 +227,7 @@ class ElasticSearchManager:
                         "index": True, "similarity": "cosine"
                     },
                     "vec_text": {
-                        "type": "dense_vector", "dims": 384, 
+                        "type": "dense_vector", "dims": 768, 
                         "index": True, "similarity": "cosine"
                     }
                 }

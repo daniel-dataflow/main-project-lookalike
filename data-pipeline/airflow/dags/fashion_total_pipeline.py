@@ -18,7 +18,8 @@ from tasks.db_tasks import (
     fetch_from_hdfs,
     upsert_mongo,
     upsert_mongo_text_data,
-    sync_mongo_to_es
+    sync_mongo_to_es,
+    refine_prices_task
 )
 # .env 환경변수 로드
 load_dotenv()
@@ -54,6 +55,11 @@ with DAG(
         'musinsa': 'MS'
     }
 
+    global_price_refine = refine_prices_task.override(task_id="global_price_refinement")()
+    
+    # 의존성 묶기
+    naver_api_tasks = []
+    fetch_tasks = []
 
     for crawler_key, spark_key in brands.items():
         
@@ -64,6 +70,12 @@ with DAG(
         spark_task = get_spark_task(crawler_key, spark_key, TODAY_STR)
         naver_api_task = get_naver_api_task(crawler_key)
 
+        
+        # 1차 파이프라인 연결: 크롤링 -> 스파크 -> 네이버 API
+        crawl_task >> spark_task >> naver_api_task
+
+        naver_api_tasks.append(naver_api_task)
+
         # =========================================================
         # [STEP 4~7] 이미지 분석 및 몽고DB 적재 (TaskFlow API)
         # =========================================================
@@ -73,6 +85,8 @@ with DAG(
             hdfs_root=f"/raw/{crawler_key}/image",
             incoming_dir=f"/opt/airflow/data/incoming/{crawler_key}",
         )
+
+        fetch_tasks.append(fetched)
 
         final_rows = yolo_reorganize_dedup_upsert.override(task_id=f"yolo_{crawler_key}")(
             records=fetched,
@@ -107,7 +121,7 @@ with DAG(
 
         embedded_json_paths = embed_text_vectors.override(task_id=f"embed_text_{crawler_key}")(
             json_paths=vlm_json_paths,
-            model_name="paraphrase-multilingual-MiniLM-L12-v2"
+            model_name="jhgan/ko-sroberta-sts"
         )
 
         mongo_text_done = upsert_mongo_text_data.override(task_id=f"upsert_text_mongo_{crawler_key}")(
@@ -120,19 +134,13 @@ with DAG(
             mongo_uri="{{ var.value.MONGO_URI }}",
             es_uri="http://elasticsearch-main:9200"
         )
-
-        # =========================================================
-        # 🔗 파이프라인 전체 흐름(의존성) 연결
-        # =========================================================
-        
-        # 1. 데이터 수집 -> 이미지 준비 단계
-        crawl_task >> spark_task >> naver_api_task >> fetched
-
         # 2. 이미지 적재 완료 후 -> VLM 텍스트 분석 시작
-        mongo_done >> vlm_json_paths 
-        
+        mongo_done >> vlm_json_paths
+
         # 3. 텍스트 적재 완료 후 -> ElasticSearch 최종 동기화 시작
         mongo_text_done >> es_sync_done
+
+        naver_api_tasks >> global_price_refine >> fetch_tasks
 
         # (참고: fetched -> final_rows -> image_json_paths -> mongo_done 과
         # vlm_json_paths -> embedded_json_paths -> mongo_text_done 은
