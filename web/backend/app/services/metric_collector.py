@@ -5,6 +5,7 @@ import docker
 from datetime import datetime
 from kafka import KafkaProducer
 from kafka.errors import KafkaError
+from ..config.logging import SERVICE_MAP
 
 logger = logging.getLogger(__name__)
 
@@ -20,17 +21,7 @@ class MetricCollector:
         self.topic = "system-metrics"
         self.bootstrap_servers = ["kafka:9092"]
         
-        # Service mapping (same as LogCollector)
-        self.service_map = {
-            "Airflow": ["airflow-webserver-main", "airflow-scheduler-main"],
-            "Spark": ["spark-master-main", "spark-worker-1-main"],
-            "Hadoop": ["namenode-main", "datanode-main"],
-            "Kafka": ["kafka-main", "zookeeper-main"],
-            "DB": ["postgres-main", "mongo-main", "redis-main"],
-            "Elastic": ["elasticsearch-main"],
-            "API_BE": ["fastapi-main"],
-            "API_ML": ["ml-engine-main"]
-        }
+        self.service_map = SERVICE_MAP
         self.container_to_service = {}
         for service, containers in self.service_map.items():
             for container in containers:

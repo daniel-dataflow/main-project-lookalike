@@ -7,7 +7,7 @@ import asyncio
 import time
 import psutil
 import docker
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, List, Any, Optional
 from fastapi import APIRouter, HTTPException, Request
 
@@ -169,8 +169,7 @@ def _check_mongodb() -> dict:
 # ──────────────────────────────────────
 # Docker 컨테이너 상태 API (캐싱 + 백그라운드 워밍)
 # ──────────────────────────────────────
-from datetime import datetime, timedelta
-from typing import Optional
+
 
 # 캐시 저장소
 _docker_cache: Optional[Dict[str, Any]] = None

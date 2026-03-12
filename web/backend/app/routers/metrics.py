@@ -2,6 +2,7 @@ from fastapi import APIRouter, Query
 from typing import Optional, List, Dict
 from datetime import datetime, timedelta
 from ..core.elasticsearch_setup import get_es_client
+from ..config.logging import METRIC_INDEX_NAME
 
 router = APIRouter(
     prefix="/api/metrics",
@@ -9,7 +10,7 @@ router = APIRouter(
 )
 
 es_client = get_es_client()
-INDEX_NAME = "container-metrics"
+INDEX_NAME = METRIC_INDEX_NAME
 
 @router.get("/stream")
 async def get_metrics_stream(

@@ -441,20 +441,20 @@ function getToastIcon(type) {
 ========================================================================= */
 
 document.addEventListener('DOMContentLoaded', async function () {
-        const container = document.getElementById('productsContainer');
-        const emptyState = document.getElementById('emptyState');
-        const loading = document.getElementById('loading');
+    const container = document.getElementById('productsContainer');
+    const emptyState = document.getElementById('emptyState');
+    const loading = document.getElementById('loading');
 
-        try {
-            const response = await fetch('/api/products/likes');
-            const data = await response.json();
+    try {
+        const response = await fetch('/api/products/likes');
+        const data = await response.json();
 
-            loading.classList.add('d-none');
+        if (loading) loading.classList.add('d-none');
 
-            if (data.success && data.products && data.products.length > 0) {
-                data.products.forEach(product => {
-                    const price = product.lowest_price ? product.lowest_price.toLocaleString() : '-';
-                    const card = `
+        if (data.success && data.products && data.products.length > 0) {
+            data.products.forEach(product => {
+                const price = product.lowest_price ? product.lowest_price.toLocaleString() : '-';
+                const card = `
                     <div class="col">
                         <a href="/product/${product.product_id}" class="text-decoration-none">
                             <div class="card h-100 border-0 shadow-sm hover-shadow">
@@ -473,90 +473,90 @@ document.addEventListener('DOMContentLoaded', async function () {
                         </a>
                     </div>
                 `;
-                    container.innerHTML += card;
-                });
-            } else {
-                emptyState.classList.remove('d-none');
-            }
-        } catch (error) {
-            console.error('좋아요 목록 조회 실패:', error);
-            loading.classList.add('d-none');
-            emptyState.classList.remove('d-none');
+                if (container) container.innerHTML += card;
+            });
         }
-    });
+    } catch (error) {
+        console.error('좋아요 목록 조회 실패:', error);
+        if (loading) loading.classList.add('d-none');
+        if (emptyState) emptyState.classList.remove('d-none');
+    }
+});
 
 /* =========================================================================
    [mypage.js]
 ========================================================================= */
 
 function togglePassword(inputId, btn) {
-        const input = document.getElementById(inputId);
-        const icon = btn.querySelector('i');
+    const input = document.getElementById(inputId);
+    const icon = btn.querySelector('i');
 
-        if (input.type === 'password') {
-            input.type = 'text';
-            icon.classList.remove('fa-eye-slash');
-            icon.classList.add('fa-eye');
-        } else {
-            input.type = 'password';
-            icon.classList.remove('fa-eye');
-            icon.classList.add('fa-eye-slash');
+    if (!input || !icon) return;
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.classList.remove('fa-eye-slash');
+        icon.classList.add('fa-eye');
+    } else {
+        input.type = 'password';
+        icon.classList.remove('fa-eye');
+        icon.classList.add('fa-eye-slash');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', async function () {
+    const modal = document.getElementById('editProfileModal');
+    const form = document.getElementById('editProfileForm');
+    const editLink = document.getElementById('editProfileLink');
+    const passwordChangeItem = document.getElementById('passwordChangeItem');
+    const withdrawLink = document.getElementById('withdrawLink');
+
+    let originalUser = null;
+
+    // 페이지 로드 시 사용자 정보 확인
+    try {
+        const resp = await fetch('/api/auth/me');
+        const data = await resp.json();
+
+        if (data.success && data.user) {
+            originalUser = data.user;
+
+            // 1. 소셜 로그인 유저 체크
+            if (data.user.provider !== 'email') {
+                // 소셜 유저는 비밀번호 변경 항목 자체를 숨김
+                if (passwordChangeItem) passwordChangeItem.style.display = 'none';
+            }
         }
+    } catch (e) {
+        console.error('사용자 정보 로드 실패:', e);
     }
 
-    document.addEventListener('DOMContentLoaded', async function () {
-        const modal = document.getElementById('editProfileModal');
-        const form = document.getElementById('editProfileForm');
-        const editLink = document.getElementById('editProfileLink');
-        const passwordChangeItem = document.getElementById('passwordChangeItem');
-        const withdrawLink = document.getElementById('withdrawLink');
+    // 회원탈퇴 클릭
+    if (withdrawLink) {
+        withdrawLink.addEventListener('click', async function (e) {
+            e.preventDefault();
+            if (!confirm('정말로 탈퇴하시겠습니까? 탈퇴 후 복구할 수 없습니다.')) return;
 
-        let originalUser = null;
+            try {
+                const resp = await fetch(`/api/auth/users/${originalUser.user_id}`, {
+                    method: 'DELETE'
+                });
+                const result = await resp.json();
 
-        // 페이지 로드 시 사용자 정보 확인
-        try {
-            const resp = await fetch('/api/auth/me');
-            const data = await resp.json();
-
-            if (data.success && data.user) {
-                originalUser = data.user;
-
-                // 1. 소셜 로그인 유저 체크
-                if (data.user.provider !== 'email') {
-                    // 소셜 유저는 비밀번호 변경 항목 자체를 숨김
-                    if (passwordChangeItem) passwordChangeItem.style.display = 'none';
+                if (resp.ok) {
+                    alert('탈퇴 처리되었습니다. 이용해 주셔서 감사합니다.');
+                    window.location.href = "/";
+                } else {
+                    alert(result.detail || '탈퇴 처리에 실패했습니다.');
                 }
+            } catch (err) {
+                console.error(err);
+                alert('서버 오류가 발생했습니다.');
             }
-        } catch (e) {
-            console.error('사용자 정보 로드 실패:', e);
-        }
+        });
+    }
 
-        // 회원탈퇴 클릭
-        if (withdrawLink) {
-            withdrawLink.addEventListener('click', async function (e) {
-                e.preventDefault();
-                if (!confirm('정말로 탈퇴하시겠습니까? 탈퇴 후 복구할 수 없습니다.')) return;
-
-                try {
-                    const resp = await fetch(`/api/auth/users/${originalUser.user_id}`, {
-                        method: 'DELETE'
-                    });
-                    const result = await resp.json();
-
-                    if (resp.ok) {
-                        alert('탈퇴 처리되었습니다. 이용해 주셔서 감사합니다.');
-                        window.location.href = "/";
-                    } else {
-                        alert(result.detail || '탈퇴 처리에 실패했습니다.');
-                    }
-                } catch (err) {
-                    console.error(err);
-                    alert('서버 오류가 발생했습니다.');
-                }
-            });
-        }
-
-        // 저장 버튼 클릭
+    // 저장 버튼 클릭
+    if (form) {
         form.addEventListener('submit', async function (e) {
             e.preventDefault();
 
@@ -568,10 +568,12 @@ function togglePassword(inputId, btn) {
             if (!currentPassword) return alert('현재 비밀번호를 입력해주세요.');
             if (!newPassword || newPassword.length < 4) return alert('새 비밀번호는 4자리 이상이어야 합니다.');
             if (newPassword !== newPasswordConfirm) {
-                document.getElementById('passwordMismatch').classList.remove('d-none');
+                const mismatchMsg = document.getElementById('passwordMismatch');
+                if (mismatchMsg) mismatchMsg.classList.remove('d-none');
                 return;
             } else {
-                document.getElementById('passwordMismatch').classList.add('d-none');
+                const mismatchMsg = document.getElementById('passwordMismatch');
+                if (mismatchMsg) mismatchMsg.classList.add('d-none');
             }
 
             // 업데이트할 데이터 구성
@@ -582,12 +584,13 @@ function togglePassword(inputId, btn) {
 
             // 로딩 표시
             const btn = document.getElementById('saveProfileBtn');
+            if (!btn) return;
             const spinner = btn.querySelector('.spinner-border');
             const btnText = btn.querySelector('.btn-text');
 
             btn.disabled = true;
-            spinner.classList.remove('d-none');
-            btnText.classList.add('d-none');
+            if (spinner) spinner.classList.remove('d-none');
+            if (btnText) btnText.classList.add('d-none');
 
             try {
                 const resp = await fetch(`/api/auth/users/${originalUser.user_id}`, {
@@ -609,31 +612,32 @@ function togglePassword(inputId, btn) {
                 alert('서버 오류가 발생했습니다.');
             } finally {
                 btn.disabled = false;
-                spinner.classList.add('d-none');
-                btnText.classList.remove('d-none');
+                if (spinner) spinner.classList.add('d-none');
+                if (btnText) btnText.classList.remove('d-none');
             }
         });
-    });
+    }
+});
 
 /* =========================================================================
    [recent.js]
 ========================================================================= */
 
 document.addEventListener('DOMContentLoaded', async function () {
-        const container = document.getElementById('productsContainer');
-        const emptyState = document.getElementById('emptyState');
-        const loading = document.getElementById('loading');
+    const container = document.getElementById('productsContainer');
+    const emptyState = document.getElementById('emptyState');
+    const loading = document.getElementById('loading');
 
-        try {
-            const response = await fetch('/api/products/recent-views');
-            const data = await response.json();
+    try {
+        const response = await fetch('/api/products/recent-views');
+        const data = await response.json();
 
-            loading.classList.add('d-none');
+        if (loading) loading.classList.add('d-none');
 
-            if (data.success && data.products && data.products.length > 0) {
-                data.products.forEach(product => {
-                    const price = product.lowest_price ? product.lowest_price.toLocaleString() : '-';
-                    const card = `
+        if (data.success && data.products && data.products.length > 0) {
+            data.products.forEach(product => {
+                const price = product.lowest_price ? product.lowest_price.toLocaleString() : '-';
+                const card = `
                     <div class="col">
                         <a href="/product/${product.product_id}" class="text-decoration-none">
                             <div class="card h-100 border-0 shadow-sm hover-shadow">
@@ -652,61 +656,60 @@ document.addEventListener('DOMContentLoaded', async function () {
                         </a>
                     </div>
                 `;
-                    container.innerHTML += card;
-                });
-            } else {
-                emptyState.classList.remove('d-none');
-            }
-        } catch (error) {
-            console.error('최근 본 상품 조회 실패:', error);
-            loading.classList.add('d-none');
-            emptyState.classList.remove('d-none');
+                if (container) container.innerHTML += card;
+            });
         }
-    });
+    } catch (error) {
+        console.error('최근 본 상품 조회 실패:', error);
+        if (loading) loading.classList.add('d-none');
+        if (emptyState) emptyState.classList.remove('d-none');
+    }
+});
 
 /* =========================================================================
    [teams.js]
 ========================================================================= */
 
 /* particles */
-        (function () {
-          const colors = ['#d4522a', '#2563a8', '#2d8a5e', '#b07d2c', '#e8824a'];
-          const wrap = document.getElementById('lkParticles');
-          for (let i = 0; i < 18; i++) {
-            const el = document.createElement('div');
-            el.className = 'lk-particle';
-            const s = Math.random() * 8 + 3;
-            el.style.cssText = `width:${s}px;height:${s}px;left:${Math.random() * 100}%;background:${colors[i % colors.length]};--d:${Math.random() * 13 + 9}s;--dl:${Math.random() * 9}s;`;
-            wrap.appendChild(el);
-          }
-        })();
+(function () {
+    const colors = ['#d4522a', '#2563a8', '#2d8a5e', '#b07d2c', '#e8824a'];
+    const wrap = document.getElementById('lkParticles');
+    for (let i = 0; i < 18; i++) {
+        const el = document.createElement('div');
+        el.className = 'lk-particle';
+        const s = Math.random() * 8 + 3;
+        el.style.cssText = `width:${s}px;height:${s}px;left:${Math.random() * 100}%;background:${colors[i % colors.length]};--d:${Math.random() * 13 + 9}s;--dl:${Math.random() * 9}s;`;
+        wrap.appendChild(el);
+    }
+})();
 
-        /* scroll reveal */
-        const io = new IntersectionObserver(en => { en.forEach(e => { if (e.isIntersecting) e.target.classList.add('on'); }); }, { threshold: .08 });
-        document.querySelectorAll('.rv,.rvl,.rvr').forEach(el => io.observe(el));
+/* scroll reveal */
+const io = new IntersectionObserver(en => { en.forEach(e => { if (e.isIntersecting) e.target.classList.add('on'); }); }, { threshold: .08 });
+document.querySelectorAll('.rv,.rvl,.rvr').forEach(el => io.observe(el));
 
-        /* tab switching */
-        document.querySelectorAll('.pipe-tab').forEach(btn => {
-          btn.addEventListener('click', () => {
-            document.querySelectorAll('.pipe-tab').forEach(b => b.classList.remove('active'));
-            document.querySelectorAll('.pipe-panel').forEach(p => p.classList.add('hidden'));
-            btn.classList.add('active');
-            document.getElementById('tab-' + btn.dataset.tab).classList.remove('hidden');
-          });
-        });
+/* tab switching */
+document.querySelectorAll('.pipe-tab').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.pipe-tab').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.pipe-panel').forEach(p => p.classList.add('hidden'));
+        btn.classList.add('active');
+        const panel = document.getElementById('tab-' + btn.dataset.tab);
+        if (panel) panel.classList.remove('hidden');
+    });
+});
 
-        const so = new IntersectionObserver(en => {
-          en.forEach(e => {
-            if (e.isIntersecting) {
-              e.target.querySelectorAll('.stat-num').forEach((n, i) => {
+const so = new IntersectionObserver(en => {
+    en.forEach(e => {
+        if (e.isIntersecting) {
+            e.target.querySelectorAll('.stat-num').forEach((n, i) => {
                 setTimeout(() => {
-                  n.style.transition = 'transform .38s cubic-bezier(.34,1.56,.64,1)';
-                  n.style.transform = 'scale(1.16)';
-                  setTimeout(() => { n.style.transform = 'scale(1)'; }, 380);
+                    n.style.transition = 'transform .38s cubic-bezier(.34,1.56,.64,1)';
+                    n.style.transform = 'scale(1.16)';
+                    setTimeout(() => { n.style.transform = 'scale(1)'; }, 380);
                 }, i * 90);
-              });
-              so.unobserve(e.target);
-            }
-          });
-        }, { threshold: .5 });
-        document.querySelectorAll('.stat-strip').forEach(el => so.observe(el));
+            });
+            so.unobserve(e.target);
+        }
+    });
+}, { threshold: .5 });
+document.querySelectorAll('.stat-strip').forEach(el => so.observe(el));

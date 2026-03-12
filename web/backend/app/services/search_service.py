@@ -13,6 +13,7 @@ ML 파이프라인 완성 후 ml_product_scores 딕셔너리를 넘기는 것으
 """
 import logging
 from typing import Optional
+from ..database import get_pg_cursor
 
 logger = logging.getLogger(__name__)
 
@@ -105,7 +106,6 @@ def _hydrate_from_db(
     if not product_scores:
         return []
 
-    from ..database import get_pg_cursor
     product_ids = list(product_scores.keys())
     # 디버깅 포인트 1: ML이 넘긴 후보 개수(보통 24)
     logger.info(
@@ -215,8 +215,6 @@ def _search_by_db(category: Optional[str], gender: Optional[str], limit: int) ->
     PostgreSQL에서 상품을 조회합니다 (성별+카테고리 필터, RANDOM 정렬).
     ES가 불가하거나 초기 구동 상태일 때 항상 동작하는 안전망입니다.
     """
-    from ..database import get_pg_cursor
-
     category_code = category
 
     try:

@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 import threading
 import time
 from datetime import datetime
@@ -77,7 +78,6 @@ class KafkaLogConsumer:
                 log_path = raw_message.get("log", {}).get("file", {}).get("path", "")
                 
                 # regex for container ID in path: /var/lib/docker/containers/<id>/<id>-json.log
-                import re
                 match = re.search(r'containers/([a-f0-9]{64})', log_path)
                 if match:
                     container_id = match.group(1)
@@ -86,7 +86,6 @@ class KafkaLogConsumer:
             # Fallback: Search for "-main" in raw message string
             if not container_name:
                 raw_str = json.dumps(raw_message)
-                import re
                 match = re.search(r'[\w-]+-main', raw_str)
                 if match:
                     container_name = match.group(0)

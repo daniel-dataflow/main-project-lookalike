@@ -3,6 +3,8 @@ import os
 import httpx
 from fastapi import APIRouter, File, HTTPException, UploadFile, Request
 
+from ..config import get_settings
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/yolo", tags=["YOLO Detection Proxy"])
@@ -15,7 +17,8 @@ async def detect_apparel(
     """
     ML 엔진의 YOLO 객체 탐지 API로 이미지를 단순 프록시 처리합니다.
     """
-    YOLO_ENGINE_URL = os.getenv("YOLO_ENGINE_URL", "http://ml-engine:8914/yolo/detect")
+    settings = get_settings()
+    YOLO_ENGINE_URL = settings.YOLO_ENGINE_URL
     try:
         data = await image.read()
         files = {"image": (image.filename or "detect.jpg", data, image.content_type or "image/jpeg")}

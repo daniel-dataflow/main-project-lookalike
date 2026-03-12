@@ -6,6 +6,7 @@ from kafka import KafkaConsumer
 from kafka.errors import KafkaError, NoBrokersAvailable
 from elasticsearch import helpers
 from ..core.elasticsearch_setup import get_es_client
+from ..config.logging import METRIC_INDEX_NAME
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +16,7 @@ class KafkaMetricConsumer:
         self.topic = "system-metrics"
         self.group_id = "metric-monitor-group"
         self.es_client = get_es_client()
-        self.index_name = "container-metrics"
+        self.index_name = METRIC_INDEX_NAME
         self.consumer = None
         self.running = False
 

@@ -8,6 +8,8 @@ from typing import Optional
 import docker
 from docker.errors import DockerException
 
+from .slack_notifier import get_slack_notifier
+
 logger = logging.getLogger(__name__)
 
 KST = timezone(timedelta(hours=9))
@@ -194,7 +196,6 @@ class AutoRecovery:
     def _notify_slack(self, container_name: str, service: str, action: str, reason: str, success: bool):
         """Slack 알림 전송"""
         try:
-            from .slack_notifier import get_slack_notifier
             notifier = get_slack_notifier()
             notifier.notify_auto_recovery(container_name, service, action, reason, success)
         except Exception as e:

@@ -1,4 +1,3 @@
-
 import asyncio
 import logging
 import hashlib
@@ -53,7 +52,7 @@ class LogCollector:
 
 
 
-    import re
+
 
     def _determine_level(self, message: str) -> str:
         """메시지 내용을 기반으로 로그 레벨 결정"""

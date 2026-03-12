@@ -12,9 +12,19 @@ import uvicorn
 import os
 import logging
 
+import asyncio
 from .config import get_settings
-from .database import init_all_databases, close_all_databases
+from .database import init_all_databases, close_all_databases, get_pg_cursor, _pg_pool, _mongo_client, _redis_client
 from .routers import auth_router, products_router, search_router, inquiries_router, admin_router, logs_router, metrics_router, yolo_router
+from .routers.auth import _get_session, _get_admin_session
+from .core.elasticsearch_setup import (
+    init_elasticsearch_index,
+    init_metric_index,
+    init_product_index,
+)
+from .services.log_collector import LogCollector
+from .services.metric_collector import MetricCollector
+from .services.kafka_metric_consumer import KafkaMetricConsumer
 
 # ──────────────────────────────────────
 # 로깅 설정
@@ -41,11 +51,6 @@ async def lifespan(app: FastAPI):
     # Elasticsearch 인덱스 초기화
     logger.info("📊 Elasticsearch 인덱스 초기화")
     try:
-        from .core.elasticsearch_setup import (
-            init_elasticsearch_index,
-            init_metric_index,
-            init_product_index,
-        )
         init_elasticsearch_index()    # container-logs
         init_metric_index()           # container-metrics
         init_product_index()          # products (ML 임베딩 + VLM 설명용)
@@ -54,10 +59,7 @@ async def lifespan(app: FastAPI):
     
     # 백그라운드 로그 및 메트릭 수집 서비스 시작
     logger.info("🔄 백그라운드 수집 서비스 시작")
-    import asyncio
-    from .services.log_collector import LogCollector
-    from .services.metric_collector import MetricCollector
-    from .services.kafka_metric_consumer import KafkaMetricConsumer
+
     
     log_collector = LogCollector()
     metric_collector = MetricCollector()
@@ -196,7 +198,6 @@ async def search_results(request: Request, q: str = ""):
 @app.get("/product/{product_id}", response_class=HTMLResponse)
 async def product_detail(request: Request, product_id: str):
     """상품 상세 페이지 (DB 연동)"""
-    from .database import get_pg_cursor
     
     try:
         with get_pg_cursor() as cur:
@@ -278,7 +279,6 @@ async def product_detail(request: Request, product_id: str):
 
 @app.get("/mypage", response_class=HTMLResponse)
 async def mypage(request: Request):
-    from .routers.auth import _get_session
     
     session = _get_session(request)
     if not session:
@@ -295,7 +295,6 @@ async def mypage(request: Request):
 # ──────────────────────────────────────
 def check_admin_access(request: Request):
     """어드민 권한 확인 헬퍼 - 권한이 없으면 /admin/login으로 리다이렉트"""
-    from .routers.auth import _get_admin_session
     
     session = _get_admin_session(request)
     if not session or not session.get("is_admin"):
@@ -306,7 +305,6 @@ def check_admin_access(request: Request):
 @app.get("/admin/login", response_class=HTMLResponse)
 async def admin_login_page(request: Request):
     """어드민 로그인 페이지"""
-    from .routers.auth import _get_admin_session
     # 이미 로그인된 경우 메인으로 리다이렉트
     session = _get_admin_session(request)
     if session and session.get("is_admin"):
@@ -374,7 +372,6 @@ async def inquiry_page(request: Request):
 
 @app.get("/recent", response_class=HTMLResponse)
 async def recent_viewed(request: Request):
-    from .routers.auth import _get_session
     
     session = _get_session(request)
     if not session:
@@ -385,7 +382,6 @@ async def recent_viewed(request: Request):
 
 @app.get("/likes", response_class=HTMLResponse)
 async def likes(request: Request):
-    from .routers.auth import _get_session
     
     session = _get_session(request)
     if not session:
@@ -434,7 +430,7 @@ async def health_check():
 @app.get("/api/status")
 async def api_status():
     """API 상태 및 DB 연결 상태 확인"""
-    from .database import _pg_pool, _mongo_client, _redis_client
+    
 
     db_status = {
         "postgresql": "connected" if _pg_pool else "disconnected",

@@ -66,6 +66,8 @@ class Settings(BaseSettings):
     THUMBNAIL_SIZE: int = 150
     THUMBNAIL_QUALITY: int = 85
     USE_MOCK_ML: bool = True
+    ML_ENGINE_URL: str = "http://ml-engine:8914/predict_vector"
+    YOLO_ENGINE_URL: str = "http://ml-engine:8914/yolo/detect"
 
     # === DB 커넥션 설정 ===
     POSTGRES_MIN_CONN: int = 2

@@ -19,6 +19,7 @@ class SearchByTextRequest(BaseModel):
     """텍스트 기반 유사 상품 검색"""
     query: str = Field(..., min_length=1, description="검색 텍스트")
     category: Optional[str] = Field(None, description="카테고리 필터")
+    gender: Optional[str] = Field(None, description="성별 필터")
     top_k: int = Field(10, ge=1, le=50, description="반환할 결과 수")
 
 
@@ -47,6 +48,7 @@ class SearchLogResponse(BaseModel):
     input_img_path: Optional[str] = None
     input_text: Optional[str] = None
     applied_category: Optional[str] = None
+    gender: Optional[str] = None
     create_dt: Optional[datetime] = None
 
 
@@ -89,6 +91,7 @@ class SearchHistoryItem(BaseModel):
     thumbnail_url: Optional[str] = None
     search_text: Optional[str] = None
     category: Optional[str] = None
+    gender: Optional[str] = None
     create_dt: Optional[datetime] = None
     result_count: int = 0
 

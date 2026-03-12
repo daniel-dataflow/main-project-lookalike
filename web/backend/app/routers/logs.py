@@ -2,11 +2,14 @@
 from fastapi import APIRouter, HTTPException, Query
 from typing import Optional, List, Dict
 from datetime import datetime, timedelta
-import time as _time
+import time
 from ..config.logging import LOG_INDEX_NAME, DASHBOARD_CACHE_TTL
 from ..core.elasticsearch_setup import get_es_client
-from kafka import KafkaConsumer
+from kafka import KafkaConsumer, KafkaAdminClient
 from kafka.errors import KafkaError
+from ..services.log_collector import LogCollector, set_global_purge_time
+from ..services.slack_notifier import get_slack_notifier
+from ..services.auto_recovery import get_auto_recovery
 
 router = APIRouter(
     prefix="/api/logs",
@@ -35,7 +38,7 @@ async def get_log_dashboard():
     """
     global _dashboard_cache, _dashboard_cache_time
 
-    now = _time.time()
+    now = time.time()
     if _dashboard_cache and now - _dashboard_cache_time < _DASHBOARD_CACHE_TTL:
         return _dashboard_cache
 
@@ -190,10 +193,8 @@ async def get_log_dashboard():
 @router.get("/pipeline-status")
 async def get_pipeline_status():
     """파이프라인 상태 확인 (캐시 30초 적용)"""
-    from ..services.log_collector import LogCollector
     
     # [성능 최적화] 30초 캐싱: Kafka 연결 타임아웃(최대 1초)을 반복 호출마다 지불하지 않도록
-    import time
     now = time.time()
     if (hasattr(get_pipeline_status, '_cache')
             and now - get_pipeline_status._cache_time < 30):
@@ -205,7 +206,6 @@ async def get_pipeline_status():
     # 1. Kafka Check (Real connection)
     # [성능 최적화] request_timeout_ms: 3000 → 1000 ms 단축
     try:
-        from kafka import KafkaAdminClient
         admin = KafkaAdminClient(
             bootstrap_servers="kafka:9092",
             request_timeout_ms=1000
@@ -657,7 +657,6 @@ class RecoveryConfigRequest(BaseModel):
 @router.get("/alerts/config")
 async def get_alert_config():
     """Slack 알림 전체 설정 조회"""
-    from ..services.slack_notifier import get_slack_notifier
     notifier = get_slack_notifier()
     return notifier.get_config()
 
@@ -665,7 +664,6 @@ async def get_alert_config():
 @router.post("/alerts/config")
 async def set_alert_config(req: SlackConfigRequest):
     """Slack 알림 설정 업데이트"""
-    from ..services.slack_notifier import get_slack_notifier
     notifier = get_slack_notifier()
 
     if req.webhook_url is not None:
@@ -688,7 +686,6 @@ async def set_alert_config(req: SlackConfigRequest):
 @router.post("/alerts/test")
 async def test_alert():
     """Slack 테스트 메시지 전송"""
-    from ..services.slack_notifier import get_slack_notifier
     notifier = get_slack_notifier()
     result = notifier.send_test_message()
     if not result["success"]:
@@ -699,7 +696,6 @@ async def test_alert():
 @router.get("/alerts/status")
 async def get_alert_status():
     """런타임 알림 상태 (에러 윈도우, 쿨다운, 이력)"""
-    from ..services.slack_notifier import get_slack_notifier
     notifier = get_slack_notifier()
     return notifier.get_status()
 
@@ -709,7 +705,6 @@ async def get_alert_status():
 @router.get("/recovery/config")
 async def get_recovery_config():
     """자동 복구 설정 조회"""
-    from ..services.auto_recovery import get_auto_recovery
     recovery = get_auto_recovery()
     return recovery.get_config()
 
@@ -717,7 +712,6 @@ async def get_recovery_config():
 @router.post("/recovery/config")
 async def set_recovery_config(req: RecoveryConfigRequest):
     """자동 복구 설정 업데이트"""
-    from ..services.auto_recovery import get_auto_recovery
     recovery = get_auto_recovery()
 
     if req.enabled is not None:
@@ -737,7 +731,6 @@ async def set_recovery_config(req: RecoveryConfigRequest):
 @router.get("/recovery/status")
 async def get_recovery_status():
     """자동 복구 런타임 상태 (에러 카운트, 재시작 이력)"""
-    from ..services.auto_recovery import get_auto_recovery
     recovery = get_auto_recovery()
     return recovery.get_status()
 
@@ -771,7 +764,6 @@ async def purge_all_logs():
         _dashboard_cache_time = 0
         
         # [중요 핵심부] 백그라운드 수집기가 과거 찌꺼기를 다시 퍼와서 10초 뒤 리스트에 부활시키는 좀비 현상 원천 차단
-        from ..services.log_collector import set_global_purge_time
         purge_time_utc_str = datetime.utcnow().isoformat() + 'Z'
         set_global_purge_time(purge_time_utc_str)
         

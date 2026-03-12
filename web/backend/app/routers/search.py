@@ -25,11 +25,12 @@ from ..services.image_service import (
     process_and_upload_thumbnail,
     read_thumbnail_from_hdfs,
 )
-from ..services.search_service import search_products
+from ..services.search_service import search_products, _category_filter_values
+
+from ..config import get_settings
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/search", tags=["검색"])
-ML_ENGINE_URL = os.getenv("ML_ENGINE_URL", "http://ml-engine:8914/predict_vector")
 
 
 # ──────────────────────────────────────
@@ -124,6 +125,8 @@ async def search_by_image(
                 )
 
             # ML 경로는 임베딩 + ES 검색까지 포함되므로 read timeout을 넉넉히 둔다.
+            settings = get_settings()
+            ML_ENGINE_URL = settings.ML_ENGINE_URL
             async with httpx.AsyncClient(
                 timeout=httpx.Timeout(timeout=60.0, connect=5.0, read=60.0)
             ) as client:
@@ -322,7 +325,7 @@ async def get_search_history(
             cur.execute(
                 """
                 SELECT log_id, thumbnail_path, input_text,
-                       applied_category, create_dt, result_count
+                       applied_category, gender, create_dt, result_count
                 FROM search_logs
                 WHERE user_id = %s
                 ORDER BY create_dt DESC
@@ -335,9 +338,10 @@ async def get_search_history(
         history = [
             SearchHistoryItem(
                 log_id=row["log_id"],
-                thumbnail_url=f"/api/search/thumbnail/{row['log_id']}",
+                thumbnail_url=f"/api/search/thumbnail/{row['log_id']}" if row["thumbnail_path"] else None,
                 search_text=row["input_text"],
                 category=row["applied_category"],
+                gender=row["gender"],
                 create_dt=row["create_dt"],
                 result_count=row["result_count"] or 0,
             )
@@ -376,7 +380,7 @@ async def get_search_history_detail(log_id: int, request: Request):
             cur.execute(
                 """
                 SELECT log_id, thumbnail_path, input_text,
-                       applied_category, create_dt, result_count, user_id
+                       applied_category, gender, create_dt, result_count, user_id
                 FROM search_logs WHERE log_id = %s
                 """,
                 (log_id,),
@@ -409,9 +413,10 @@ async def get_search_history_detail(log_id: int, request: Request):
         return {
             "success": True,
             "log_id": log_row["log_id"],
-            "thumbnail_url": f"/api/search/thumbnail/{log_row['log_id']}",
+            "thumbnail_url": f"/api/search/thumbnail/{log_row['log_id']}" if log_row["thumbnail_path"] else None,
             "search_text": log_row["input_text"],
             "category": log_row["applied_category"],
+            "gender": log_row["gender"],
             "create_dt": log_row["create_dt"].isoformat() if log_row["create_dt"] else None,
             "results": [
                 {
@@ -472,15 +477,31 @@ async def search_by_text(
     """텍스트 키워드 검색 (ML 연동 전 DB 검색으로 대체)"""
     try:
         with get_pg_cursor() as cur:
-            cur.execute(
-                """
+            # 기본 검색어 필터
+            conditions = ["prod_name ILIKE %s"]
+            params = [f"%{req.query}%"]
+
+            # 성별 필터 추가
+            if req.gender:
+                conditions.append("gender = %s")
+                params.append(req.gender.lower())
+
+            # 카테고리 필터 추가 (SearchByTextRequest에 존재하므로 지원 가능)
+            if req.category:
+                cat_vals = _category_filter_values(req.category)
+                if cat_vals:
+                    placeholders = ",".join(["%s"] * len(cat_vals))
+                    conditions.append(f"LOWER(category_code) IN ({placeholders})")
+                    params.extend(cat_vals)
+
+            params.append(req.top_k)
+            query = f"""
                 SELECT product_id, prod_name, base_price, img_hdfs_path
                 FROM products
-                WHERE prod_name ILIKE %s
+                WHERE {" AND ".join(conditions)}
                 ORDER BY product_id DESC LIMIT %s
-                """,
-                (f"%{req.query}%", req.top_k),
-            )
+            """
+            cur.execute(query, tuple(params))
             rows = cur.fetchall()
 
         results = [
@@ -497,8 +518,8 @@ async def search_by_text(
             try:
                 with get_pg_cursor() as cur:
                     cur.execute(
-                        "INSERT INTO search_logs (user_id, input_text, applied_category) VALUES (%s, %s, %s)",
-                        (user_id, req.query, req.category),
+                        "INSERT INTO search_logs (user_id, input_text, applied_category, gender) VALUES (%s, %s, %s, %s)",
+                        (user_id, req.query, req.category, req.gender),
                     )
             except Exception as log_err:
                 logger.warning(f"검색 로그 저장 실패: {log_err}")
@@ -524,7 +545,7 @@ async def get_search_logs(
             cur.execute(
                 """
                 SELECT log_id, user_id, input_img_path, input_text,
-                       applied_category, create_dt
+                       applied_category, gender, create_dt
                 FROM search_logs WHERE user_id = %s
                 ORDER BY create_dt DESC LIMIT %s
                 """,

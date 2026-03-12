@@ -2,7 +2,7 @@ import os
 from elasticsearch import Elasticsearch
 from elasticsearch.exceptions import RequestError
 import logging
-from ..config.logging import LOG_INDEX_NAME, METRIC_INDEX_NAME
+from ..config.logging import LOG_INDEX_NAME, METRIC_INDEX_NAME, PRODUCT_INDEX_NAME
 
 logger = logging.getLogger(__name__)
 
@@ -142,7 +142,7 @@ def init_product_index():
     ML 파이프라인 연동 전까지는 embedding 필드는 비워둠.
     """
     es = get_es_client()
-    index_name = "products"
+    index_name = PRODUCT_INDEX_NAME
 
     index_body = {
         "settings": {

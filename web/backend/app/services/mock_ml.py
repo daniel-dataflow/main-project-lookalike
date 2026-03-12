@@ -6,6 +6,7 @@
 """
 import logging
 from typing import Optional
+from ..database import get_pg_cursor
 
 logger = logging.getLogger(__name__)
 
@@ -21,8 +22,6 @@ def search_similar_products(category: Optional[str] = None, limit: int = 4) -> l
     Returns:
         list: 상품 정보 리스트 (product_id, product_name, brand, price, image_url 등)
     """
-    from ..database import get_pg_cursor
-    
     try:
         with get_pg_cursor() as cur:
             # 카테고리 필터링

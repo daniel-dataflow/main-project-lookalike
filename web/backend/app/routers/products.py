@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, Query, status, Request
 import math
 import logging
 
-from ..database import get_pg_cursor, get_mongo_db
+from ..database import get_pg_cursor, get_mongo_db, get_redis
 from ..models.product import (
     ProductCreateRequest,
     ProductResponse,
@@ -27,7 +27,6 @@ router = APIRouter(prefix="/api/products", tags=["상품"])
 # ──────────────────────────────────────
 def _get_user_from_session(request: Request) -> Optional[dict]:
     """Redis 세션에서 현재 로그인한 사용자 정보를 가져옵니다."""
-    from ..database import get_redis
     token = request.cookies.get("session_token")
     if not token:
         return None
