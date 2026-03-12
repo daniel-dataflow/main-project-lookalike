@@ -91,8 +91,8 @@ with DAG(
         final_rows = yolo_reorganize_dedup_upsert.override(task_id=f"yolo_{crawler_key}")(
             records=fetched,
             brand=crawler_key,
-            crop_tmp_dir="/opt/airflow/data/crops_tmp",
-            crop_final_dir="/opt/airflow/data/crops_final",
+            crop_tmp_dir="/opt/airflow/data-pipeline/database/yolo-output/crops_tmp",
+            crop_final_dir="/opt/airflow/data-pipeline/database/yolo-output/crops_final",
             model_path="/opt/airflow/model/best.pt",
         )
 
