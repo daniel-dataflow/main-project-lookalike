@@ -16,11 +16,7 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from PIL import Image
 
 from search_logic import SearchConfig, SearchService
-
-# YOLO 분리 설계 모듈
-from yolo_router import router as yolo_router
 from yolo_service import yolo_detector
-
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -265,8 +261,26 @@ class QueryRewriter:
 
 app = FastAPI(title="Lookalike ML Inference API", version="1.1.0")
 
-# 기존 라우터 말고 새로 만든 YOLO 라우터를 붙인다.
-app.include_router(yolo_router)
+@app.post("/yolo/detect")
+async def detect_apparel(image: UploadFile = File(...)):
+    """
+    이미지를 받아 YOLO 바운딩 박스 좌표 목록만 리턴합니다.
+    기존 검색 로직과 무관하게 동작합니다.
+    """
+    data = await image.read()
+    if not data:
+        raise HTTPException(status_code=400, detail="업로드된 이미지가 비어 있습니다.")
+    try:
+        pil_img = Image.open(BytesIO(data)).convert("RGB")
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="유효한 이미지 파일이 아닙니다.") from exc
+
+    try:
+        boxes = yolo_detector.detect_boxes(pil_img)
+        return {"success": True, "boxes": boxes}
+    except Exception as exc:
+        logger.error(f"YOLO 탐지 중 오류: {exc}")
+        raise HTTPException(status_code=500, detail="YOLO 객체 탐지 중 오류가 발생했습니다.")
 
 encoders = EncoderHub()
 rewriter = QueryRewriter()

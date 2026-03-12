@@ -620,7 +620,7 @@
             instruction.classList.add('d-none');
 
             try {
-                const response = await fetch('/api/search/detect', {
+                const response = await fetch('/api/yolo/detect', {
                     method: 'POST',
                     body: formData
                 });

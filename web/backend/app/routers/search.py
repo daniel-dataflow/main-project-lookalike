@@ -248,35 +248,6 @@ async def search_by_image(
 
 
 # ──────────────────────────────────────
-# YOLO 의류 객체 탐지 프록시 (UI 선택용)
-# ──────────────────────────────────────
-@router.post("/detect")
-async def detect_apparel(
-    request: Request,
-    image: UploadFile = File(..., description="의류를 탐지할 원본 이미지")
-):
-    """
-    ML 엔진의 YOLO 객체 탐지 API로 이미지를 단순히 전달(프록시)하고
-    바운딩 박스 목록(좌표)만 반환합니다.
-    """
-    # 설정: ML Engine의 새로운 YOLO 독립 라우터
-    YOLO_ENGINE_URL = os.getenv("YOLO_ENGINE_URL", "http://ml-engine:8914/yolo/detect")
-    
-    try:
-        data = await image.read()
-        files = {"image": (image.filename or "detect.jpg", data, image.content_type or "image/jpeg")}
-        
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.post(YOLO_ENGINE_URL, files=files)
-            resp.raise_for_status()
-            return resp.json()
-            
-    except Exception as e:
-        logger.error(f"YOLO 탐지 프록시 실패: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="객체 탐지 서버 통신 오류가 발생했습니다.")
-
-
-# ──────────────────────────────────────
 # 썸네일 이미지 조회 (HDFS에서 직접 읽기)
 # ──────────────────────────────────────
 @router.get("/thumbnail/{log_id}")
