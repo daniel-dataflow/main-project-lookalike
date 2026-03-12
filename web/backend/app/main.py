@@ -15,7 +15,7 @@ import logging
 import asyncio
 from .config import get_settings
 from .database import init_all_databases, close_all_databases, get_pg_cursor, _pg_pool, _mongo_client, _redis_client
-from .routers import auth_router, products_router, search_router, inquiries_router, admin_router, logs_router, metrics_router, yolo_router
+from .routers import auth_router, products_router, search_router, inquiries_router, admin_router, logs_router, metrics_router
 from .routers.auth import _get_session, _get_admin_session
 from .core.elasticsearch_setup import (
     init_elasticsearch_index,
@@ -179,7 +179,6 @@ app.include_router(inquiries_router)
 app.include_router(admin_router)
 app.include_router(logs_router)
 app.include_router(metrics_router)
-app.include_router(yolo_router.router)
 
 
 # ──────────────────────────────────────
