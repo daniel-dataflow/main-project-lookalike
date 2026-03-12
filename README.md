@@ -213,6 +213,7 @@ docker exec airflow-scheduler airflow dags trigger lookalike_batch_pipeline
 * **[통합 요약 명세서 (SUMMARY.md)](docs/SUMMARY.md)**: 전체 시스템 구조 Overview.
 * **[로컬 셋업 가이드 (SETUP.md)](docs/SETUP.md)**: 전체 인프라망 수동 디버그 및 셋업 매뉴얼.
 * **[코어 백엔드 시스템망 (core_backend_system.md)](docs/architecture/core_backend_system.md)**: API 설계, DB 스키마, Auth 종합 기술.
+* **[프론트엔드 UI 아키텍처망 (frontend_ui_system.md)](docs/architecture/frontend_ui_system.md)**: SSR/SPA 하이브리드 구조 및 통합 에셋 관리 규약.
 * **[머신러닝 및 검색망 (search_and_ml_system.md)](docs/architecture/search_and_ml_system.md)**: YOLO Crop 및 ES kNN 3단계 전략 맵.
 * **[통합 파이프라인망 (data_pipeline_system.md)](docs/architecture/data_pipeline_system.md)**: 에어플로우 기반 9단계 자동화 크롤링 적재.
 

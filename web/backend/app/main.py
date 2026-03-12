@@ -14,7 +14,7 @@ import logging
 
 from .config import get_settings
 from .database import init_all_databases, close_all_databases
-from .routers import auth_router, products_router, posts_router, search_router, inquiries_router, admin_router, logs_router, metrics_router
+from .routers import auth_router, products_router, posts_router, search_router, inquiries_router, admin_router, logs_router, metrics_router, yolo_router
 
 # ──────────────────────────────────────
 # 로깅 설정
@@ -178,6 +178,7 @@ app.include_router(inquiries_router)
 app.include_router(admin_router)
 app.include_router(logs_router)
 app.include_router(metrics_router)
+app.include_router(yolo_router.router)
 
 
 # ──────────────────────────────────────
@@ -333,11 +334,7 @@ async def admin_stats(request: Request):
     return templates.TemplateResponse("admin_dashboard.html", {"request": request})
 
 
-@app.get("/admin/infra_old", response_class=HTMLResponse)
-async def admin_infra_old(request: Request):
-    if auth_redirect := check_admin_access(request):
-        return auth_redirect
-    return templates.TemplateResponse("admin_infra_old.html", {"request": request})
+
 
 
 
@@ -355,10 +352,7 @@ async def admin_inquiry(request: Request):
     return templates.TemplateResponse("admin_inquiry.html", {"request": request})
 
 
-# 기존 로그 모니터링 (구버전 → _old 처리)
-# @app.get("/admin/logs_old", response_class=HTMLResponse)
-# async def admin_logs_old(request: Request):
-#     return templates.TemplateResponse("admin_logs_old.html", {"request": request})
+
 
 @app.get("/admin/logs", response_class=HTMLResponse)
 async def admin_logs(request: Request):
