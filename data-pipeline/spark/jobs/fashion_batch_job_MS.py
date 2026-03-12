@@ -1,43 +1,34 @@
-#  fashion_batch_job_MS.py
-
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import (lit, col, current_timestamp, concat, format_string, 
-                                   lower, element_at, coalesce, row_number)
+                                   lower, coalesce, row_number, input_file_name, 
+                                   regexp_extract, to_json)
 from pyspark.sql.window import Window
-import subprocess
 import psycopg2
 import datetime
-# 26.2.21
 import requests
 from hdfs import InsecureClient
+import sys
 
 # --- [1. 설정 정보] ---
 BRAND_NAME = "musinsa"
 BRAND_PREFIX = "MS"
-# 날짜를 오늘 날짜(20260211)로 수정하였습니다.
-TARGET_DATE = datetime.datetime.now().strftime("%Y%m%d")
-#TARGET_DATE = "20260211" 
 
-import os
+if len(sys.argv) > 1:
+    TARGET_DATE = sys.argv[1]
+else:
+    TARGET_DATE = datetime.datetime.now().strftime("%Y%m%d")
 
-# 26.2.16
-PG_HOST = os.environ.get("POSTGRES_HOST", "postgres-main")
-PG_DB = os.environ.get("POSTGRES_DB", "datadb")
-PG_USER = os.environ.get("POSTGRES_USER", "datauser")
-PG_PASS = os.environ.get("POSTGRES_PASSWORD", "")
+PG_HOST = "postgresql"
+PG_DB = "datadb"
+PG_USER = "datauser"
+PG_PASS = "DataPass2026!"
+MONGO_URI = "mongodb://datauser:DataPass2026!@mongo-main:27017"
 
-MONGO_USER = os.environ.get("MONGODB_USER", "datauser")
-MONGO_PASS = os.environ.get("MONGODB_PASSWORD", "")
-MONGO_URI = os.environ.get("MONGO_URI", f"mongodb://{MONGO_USER}:{MONGO_PASS}@mongo-main:27017")
 HDFS_BASE = "hdfs://namenode:9000"
-# [수정] 26.2.21 WebHDFS 접속용 URL 추가 (포트 9870)
-#HDFS_WEB_URL = "http://namenode:9870"
 HDFS_WEB_URL = "http://namenode-main:9870"
 RAW_PATH = f"/raw/{BRAND_NAME}/{TARGET_DATE}"
 IMAGE_DIR = f"/raw/{BRAND_NAME}/image"
-CONTAINER_NAME = "namenode-main"
 
-# 26.2.16
 spark = SparkSession.builder \
     .appName("FashionBatchJobMusinsa") \
     .config(
@@ -46,12 +37,6 @@ spark = SparkSession.builder \
         "org.mongodb.spark:mongo-spark-connector_2.12:10.1.1"
     ) \
     .getOrCreate()
-
-# 26. 2. 18
-# spark = SparkSession.builder \
-#     .appName(f"FashionBatchJob{BRAND_NAME}") \
-#     .getOrCreate()
-# print(f"🚀 Spark Session Created for {BRAND_NAME}!")
 
 # --- [2. 시퀀스 조회] ---
 seq_df = spark.read.format("jdbc") \
@@ -63,14 +48,12 @@ seq_df = spark.read.format("jdbc") \
     .load()
 
 row = seq_df.filter(col("brand_name") == BRAND_NAME.upper()).select("last_seq").collect()
-# 26.2.18
+
 if not row:
     print(f"✨ {BRAND_NAME} sequence not found. Registering new brand in DB...")
-    # 1. 새 데이터를 담은 DF 생성
     new_seq_data = [(BRAND_NAME.upper(), 0)]
     new_seq_df = spark.createDataFrame(new_seq_data, ["brand_name", "last_seq"])
     
-    # 2. DB에 실제 INSERT 수행 (이게 빠져있었습니다!)
     new_seq_df.write.format("jdbc") \
         .option("url", f"jdbc:postgresql://{PG_HOST}:5432/{PG_DB}") \
         .option("dbtable", "brand_sequences") \
@@ -83,33 +66,40 @@ if not row:
     start_seq = 1
 else:
     start_seq = row[0]['last_seq'] + 1
-##
-#start_seq = row[0]['last_seq'] + 1 if row else 1
+
 print(f"🚀 Starting {BRAND_NAME} job from sequence: {start_seq}")
 
 # --- [3. ETL 로직] ---
 input_path = f"{HDFS_BASE}{RAW_PATH}/*.json"
-raw_df = spark.read.option("multiLine", "true").json(input_path)
-windowSpec = Window.partitionBy(lit(BRAND_NAME)).orderBy(col("product_id"))
+raw_df = spark.read.option("multiLine", "true").json(input_path) \
+    .withColumn("file_path", input_file_name())
+
+raw_df = raw_df \
+    .withColumn("gender", regexp_extract(col("file_path"), f"{BRAND_NAME}_([^_]+)_", 1)) \
+    .withColumn("sub_category", regexp_extract(col("file_path"), f"{BRAND_NAME}_[^_]+_([^_]+)_", 1)) \
+    .withColumn("category_code", col("sub_category"))
+
+windowSpec = Window.partitionBy(lit(BRAND_NAME)).orderBy(col("goodsNo"))
 
 processed_df = raw_df.withColumn("idx", row_number().over(windowSpec)) \
-    .withColumn("internal_id", format_string(f"{BRAND_PREFIX}%04d", col("idx").cast("int") + start_seq - 1)) \
-    .withColumn("img_hdfs_path", concat(lit(IMAGE_DIR), lit("/"), col("product_id"), lit(".jpg"))) \
-    .withColumn("category_code", concat(lower(col("gender")), lit("_"), lower(col("category")))) \
-    .withColumn("detail_desc", lit("{}")) 
+    .withColumn("product_id", format_string(f"{BRAND_PREFIX}%04d", col("idx").cast("int") + start_seq - 1)) \
+    .withColumn("image_filename", concat(lit(f"{BRAND_NAME}_"), col("gender"), lit("_"), col("sub_category"), lit("_"), col("goodsNo"), lit(".jpg"))) \
+    .withColumn("img_hdfs_path", concat(lit(f"{IMAGE_DIR}/"), col("image_filename")))
 
 processed_df.cache()
 total_count = processed_df.count()
 
 # --- [4. PostgreSQL 적재] ---
 pg_data = processed_df.select(
-    col("internal_id").alias("product_id"),
-    col("product_id").alias("model_code"),
+    col("product_id"),
+    coalesce(col("product_code"), col("goodsNo")).alias("model_code"),
     lit(BRAND_NAME.upper()).alias("brand_name"),
-    col("product_name").alias("prod_name"),
-    col("category_code"),
+    col("goodsNm").alias("prod_name"),
     coalesce(col("price").cast("int"), lit(0)).alias("base_price"),
+    col("gender"),
+    col("category_code"),
     col("img_hdfs_path"),
+    coalesce(col("url"), col("scraped_url")).alias("origin_url"), 
     current_timestamp().alias("create_dt"),
     current_timestamp().alias("update_dt")
 )
@@ -121,14 +111,15 @@ pg_data.write.format("jdbc") \
     .option("password", PG_PASS) \
     .option("driver", "org.postgresql.Driver") \
     .mode("append").save()
+print("✅ PostgreSQL 적재 완료")
 
 # --- [5. MongoDB 적재] ---
 mongo_data = processed_df.select(
-    col("internal_id").alias("product_id"),
-    col("product_id").alias("model_code"),
+    col("product_id"),
+    coalesce(col("product_code"), col("goodsNo")).alias("model_code"),
     lit(BRAND_NAME.upper()).alias("brand_name"),
-    col("product_name").alias("prod_name"),
-    col("detail_desc"),
+    col("goodsNm").alias("prod_name"),
+    to_json(col("goodsMaterial")).alias("detail_desc"), # 핏, 계절감 등
     coalesce(col("price").cast("int"), lit(0)).alias("base_price"),
     col("img_hdfs_path"),
     current_timestamp().alias("create_dt")
@@ -144,41 +135,27 @@ mongo_data.write.format("mongodb") \
 print("✅ MongoDB 적재 완료")
 
 # --- [6. 이미지 처리 (HDFS)] ---
-# [변경] 26.2.21: subprocess/docker exec 방식을 버리고 hdfs 라이브러리 사용
-# subprocess.run(f"docker exec -i {CONTAINER_NAME} hdfs dfs -mkdir -p {IMAGE_DIR}", shell=True)
-# image_list = processed_df.select(element_at(col("images"), 1).alias("main_img"), col("product_id")).collect()
-
-# print(f"📸 이미지 다운로드 및 HDFS 전송 시작...")
-# for r in image_list:
-#     if r.main_img:
-#         hdfs_target_path = f"{IMAGE_DIR}/{r.product_id}.jpg"
-#         cmd = f"wget -qO- --header='User-Agent: Mozilla/5.0' '{r.main_img}' | docker exec -i {CONTAINER_NAME} hdfs dfs -put - {hdfs_target_path}"
-#         subprocess.run(cmd, shell=True)
-
 try:
     hdfs_client = InsecureClient(HDFS_WEB_URL, user="root")
     hdfs_client.makedirs(IMAGE_DIR)
     
-    image_list = processed_df.select(element_at(col("goodsImages"), 1).alias("main_img"), col("product_id")).collect()
+    image_list = processed_df.select(col("thumbnailImageUrl").alias("main_img"), col("image_filename")).collect()
     
     print(f"📸 이미지 다운로드 및 HDFS 직접 전송 시작 (총 {len(image_list)}건)...")
     success_img = 0
     for r in image_list:
         if r.main_img:
-            hdfs_target_path = f"{IMAGE_DIR}/{r.product_id}.jpg"
+            hdfs_target_path = f"{IMAGE_DIR}/{r.image_filename}"
             try:
-                # requests로 웹 이미지 다운로드
-                img_content = requests.get(r.main_img, timeout=10).content
-                # hdfs_client로 하둡에 직접 쓰기
+                img_content = requests.get(r.main_img, timeout=10, headers={'User-Agent': 'Mozilla/5.0'}).content
                 hdfs_client.write(hdfs_target_path, data=img_content, overwrite=True)
                 success_img += 1
             except Exception as e:
-                print(f"❌ {r.product_id} 저장 실패: {e}")
+                print(f"❌ {r.image_filename} 저장 실패: {e}")
     print(f"✅ 이미지 처리 완료: {success_img}건 저장 성공")
 
 except Exception as e:
     print(f"🚨 하둡 클라이언트 연결 실패: {e}")
-
 
 # --- [7. 시퀀스 업데이트] ---
 try:

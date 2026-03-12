@@ -22,7 +22,11 @@ BRAND_NAME = "8seconds"
 BRAND_PREFIX = "8S"
 
 kst = timezone('Asia/Seoul')
-TARGET_DATE = datetime.datetime.now(kst).strftime("%Y%m%d")
+
+if len(sys.argv) > 1:
+    TARGET_DATE = sys.argv[1]
+else:
+    TARGET_DATE = datetime.datetime.now().strftime("%Y%m%d")
 
 PG_HOST = os.environ.get("POSTGRES_HOST", "postgres-main")
 PG_DB = os.environ.get("POSTGRES_DB", "datadb")
@@ -131,17 +135,16 @@ print(f"📊 처리할 데이터: {total_count} 건")
 # --- [5. PostgreSQL 적재] ---
 pg_data = processed_df.select(
     col("product_id"),
-    col("goodsNo").alias("origine_prod_id"),
     col("goodsNo").alias("model_code"),
     lit(BRAND_NAME.upper()).alias("brand_name"),
     col("goodsNm").alias("prod_name"),
     coalesce(col("price").cast("int"), lit(0)).alias("base_price"),
+    col("gender"),
     col("category_code"),
     col("img_hdfs_path"),
+    col("url").alias("origin_url"),
     current_timestamp().alias("create_dt"),
-    current_timestamp().alias("update_dt"),
-    col("gender"),
-    col("url").alias("origin_url")
+    current_timestamp().alias("update_dt")
 )
 
 pg_data.write.format("jdbc") \

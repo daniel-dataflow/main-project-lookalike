@@ -1,166 +1,158 @@
 import os
 import asyncio
 import re
+import sys
 import json
 from datetime import datetime
 from playwright.async_api import async_playwright
-from hdfs import InsecureClient # pip install hdfs 필요
+from hdfs import InsecureClient
 
 # --- 설정 ---
 BRAND_NAME = "musinsa"
-LOCAL_OUTPUT_PATH = f"crawlers/data/{BRAND_NAME}_json_files"
-## 26.2.15
-TODAY_STR = datetime.now().strftime('%Y%m%d') # 20260215 형태
-##
+
+if len(sys.argv) > 1:
+    TODAY_STR = sys.argv[1]
+else:
+    TODAY_STR = datetime.now().strftime('%Y%m%d')
+
+# 로컬 저장 경로
+LOCAL_OUTPUT_PATH = f"data/{BRAND_NAME}/{TODAY_STR}"
+
+HDFS_NAMENODE_URL = "http://namenode-main:9870"  # WebHDFS 포트
+HDFS_USER = "root" 
+HDFS_ROOT_PATH = f"/raw/{BRAND_NAME}/{TODAY_STR}"
+
 TARGET_MAP = {
-    'MEN': {
-        'TOPS': ['https://www.musinsa.com/categories/item/001'],
-        'OUTER': ['https://www.musinsa.com/categories/item/002'],
-        'PANTS': ['https://www.musinsa.com/categories/item/003']
+    "Men": {
+        "Outer": [
+            "https://www.musinsa.com/brand/musinsastandard/products?categoryCode=002003&gf=A",
+            "https://www.musinsa.com/brand/musinsastandard/products?categoryCode=002002&gf=A",
+            "https://www.musinsa.com/brand/musinsastandard/products?categoryCode=002017&gf=A", 
+            "https://www.musinsa.com/brand/musinsastandard/products?categoryCode=002006&gf=A",
+            "https://www.musinsa.com/brand/musinsastandard/products?categoryCode=002007&gf=A",
+            "https://www.musinsa.com/brand/musinsastandard/products?categoryCode=002009&gf=A",
+            "https://www.musinsa.com/brand/musinsastandard/products?categoryCode=002024&gf=A",
+            "https://www.musinsa.com/brand/musinsastandard/products?categoryCode=002008&gf=A",
+            "https://www.musinsa.com/brand/musinsastandard/products?categoryCode=002020&gf=A"
+        ],
+        "Top": [
+            "https://www.musinsa.com/brand/musinsastandard/products?categoryCode=001006&gf=A",
+            "https://www.musinsa.com/brand/musinsastandard/products?categoryCode=001004&gf=A",
+            "https://www.musinsa.com/brand/musinsastandard/products?categoryCode=001005&gf=A",
+            "https://www.musinsa.com/brand/musinsastandard/products?categoryCode=001010&gf=A",
+            "https://www.musinsa.com/brand/musinsastandard/products?categoryCode=001001&gf=A",
+            "https://www.musinsa.com/brand/musinsastandard/products?categoryCode=001002&gf=A",
+            "https://www.musinsa.com/brand/musinsastandard/products?categoryCode=001011&gf=A",
+            "https://www.musinsa.com/brand/musinsastandard/products?categoryCode=001003&gf=A"
+        ],
+        "Bottom": [
+            "https://www.musinsa.com/brand/musinsastandard/products?categoryCode=003002&gf=A",
+            "https://www.musinsa.com/brand/musinsastandard/products?categoryCode=003004&gf=A",
+            "https://www.musinsa.com/brand/musinsastandard/products?categoryCode=003008&gf=A",
+            "https://www.musinsa.com/brand/musinsastandard/products?categoryCode=003007&gf=A",
+            "https://www.musinsa.com/brand/musinsastandard/products?categoryCode=003009&gf=A",
+            "https://www.musinsa.com/brand/musinsastandard/products?categoryCode=003006&gf=A"
+        ]
     },
-    'WOMEN': {
-        'TOPS': ['https://www.musinsa.com/categories/item/001?d_cat_cd=001'],
-        'PANTS': ['https://www.musinsa.com/categories/item/003?d_cat_cd=003']
+    "Women": {
+        "Outer": [
+            "https://www.musinsa.com/brand/musinsastandardwoman/products?categoryCode=002003&gf=A",
+            "https://www.musinsa.com/brand/musinsastandardwoman/products?categoryCode=002002&gf=A",
+            "https://www.musinsa.com/brand/musinsastandardwoman/products?categoryCode=002017&gf=A",
+            "https://www.musinsa.com/brand/musinsastandardwoman/products?categoryCode=002014&gf=A",
+            "https://www.musinsa.com/brand/musinsastandardwoman/products?categoryCode=002007&gf=A",
+            "https://www.musinsa.com/brand/musinsastandardwoman/products?categoryCode=002009&gf=A",
+            "https://www.musinsa.com/brand/musinsastandardwoman/products?categoryCode=002024&gf=A",
+            "https://www.musinsa.com/brand/musinsastandardwoman/products?categoryCode=002008&gf=A",
+            "https://www.musinsa.com/brand/musinsastandardwoman/products?categoryCode=002020&gf=A"
+        ],
+        "Top": [
+            "https://www.musinsa.com/brand/musinsastandardwoman/products?categoryCode=001006&gf=A",
+            "https://www.musinsa.com/brand/musinsastandardwoman/products?categoryCode=001004&gf=A",
+            "https://www.musinsa.com/brand/musinsastandardwoman/products?categoryCode=001005&gf=A",
+            "https://www.musinsa.com/brand/musinsastandardwoman/products?categoryCode=001010&gf=A",
+            "https://www.musinsa.com/brand/musinsastandardwoman/products?categoryCode=001001&gf=A",
+            "https://www.musinsa.com/brand/musinsastandardwoman/products?categoryCode=001002&gf=A",
+            "https://www.musinsa.com/brand/musinsastandardwoman/products?categoryCode=001011&gf=A",
+            "https://www.musinsa.com/brand/musinsastandardwoman/products?categoryCode=001008&gf=A",
+            "https://www.musinsa.com/brand/musinsastandardwoman/products?categoryCode=001003&gf=A"
+        ],
+        "Bottom": [
+            "https://www.musinsa.com/brand/musinsastandardwoman/products?categoryCode=003002&gf=A",
+            "https://www.musinsa.com/brand/musinsastandardwoman/products?categoryCode=003004&gf=A",
+            "https://www.musinsa.com/brand/musinsastandardwoman/products?categoryCode=003008&gf=A",
+            "https://www.musinsa.com/brand/musinsastandardwoman/products?categoryCode=003007&gf=A",
+            "https://www.musinsa.com/brand/musinsastandardwoman/products?categoryCode=003005&gf=A",
+            "https://www.musinsa.com/brand/musinsastandardwoman/products?categoryCode=003009&gf=A",
+            "https://www.musinsa.com/brand/musinsastandardwoman/products?categoryCode=003006&gf=A"
+        ]
     }
 }
-## 26.2.15 
-# --- 하둡 설정 (Spark 프로그램과 경로 통일) ---
-HDFS_URL = "http://namenode:9870"  # Docker 내부 통신용
-HDFS_USER = "root"                 
-DATE_STR = datetime.now().strftime('%Y%m%d')
-
-# [중요] Spark가 읽는 경로(/raw/...)와 정확히 일치시켰습니다.
-HDFS_BASE_PATH = f"/raw/{BRAND_NAME}/{TODAY_STR}"
-
-# 하둡 클라이언트 초기화
-try:
-    hdfs_client = InsecureClient(HDFS_URL, user=HDFS_USER)
-    # 시작 전 하둡 디렉토리 미리 생성
-    hdfs_client.makedirs(HDFS_BASE_PATH)
-    print(f"✅ 하둡 경로 확인 완료: {HDFS_BASE_PATH}")
-except Exception as e:
-    print(f"⚠️ 하둡 연결 초기화 실패: {e}")
 
 visited_products = set()
-sem = asyncio.Semaphore(4) # 4
+sem = asyncio.Semaphore(4) 
+
 async def extract_attribute_focus_data(page):
     try:
-        # [1] 가벼운 스크롤 (속성 정보 로딩용)
-        await page.evaluate("window.scrollTo(0, document.body.scrollHeight * 0.4)")
-        await asyncio.sleep(0.5)
-        await page.evaluate("window.scrollTo(0, document.body.scrollHeight * 0.7)")
         await asyncio.sleep(1.0)
 
         data = await page.evaluate("""() => {
             const result = {};
             result.scraped_url = location.href;
 
-            // --- A. 기본 정보 ---
-            let goodsInfo = {};
-            try {
-                const script = document.getElementById('__NEXT_DATA__');
-                if (script) {
-                    const nextData = JSON.parse(script.innerText);
-                    const state = nextData.props?.pageProps?.initialState || 
-                                  nextData.props?.pageProps?.dehydratedState?.queries?.[0]?.state?.data || {};
-                    goodsInfo = state.products?.goods || state.goods || {};
-                }
-            } catch(e) {}
+            const script = document.getElementById('__NEXT_DATA__');
+            if (!script) return { error: "No __NEXT_DATA__ script found" };
 
-            result.product_id = goodsInfo.goodsNo || location.href.match(/\d+/)[0];
+            const nextData = JSON.parse(script.innerText);
+            const metaData = nextData?.props?.pageProps?.meta?.data || {};
 
-            // [핵심] 상품명 깔끔하게 정제
-            let rawName = document.querySelector('meta[property="og:title"]')?.content || document.title;
-            rawName = rawName.split(' - ')[0].trim(); // 뒷부분 제거
+            result.goodsNo = metaData.goodsNo ? String(metaData.goodsNo) : location.href.match(/\\d+/)[0];
+            result.product_code = metaData.styleNo || "";
             
-            result.product_name = rawName
-                .replace(/^\[?무신사\s?스탠다드.*?\]?\s*/, '')   // [무신사 스탠다드] 제거
-                .replace(/\(MUSINSA STANDARD\)\s*/i, '')     // (MUSINSA STANDARD) 제거
-                .replace(/^\[?쿨탠다드.*?\]?\s*/, '')          // [쿨탠다드] 제거
+            let rawName = metaData.goodsNm || document.title.split(' - ')[0];
+            result.goodsNm = rawName
+                .replace(/^\\[?무신사\\s?스탠다드.*?\\]?\\s*/, '')
+                .replace(/\\(MUSINSA STANDARD\\)\\s*/i, '')
+                .replace(/^\\[?쿨탠다드.*?\\]?\\s*/, '')
                 .trim();
 
-            result.product_code = goodsInfo.goodsCode || "";
-            if (!result.product_code) {
-                // 품번 텍스트 찾기
-                const dt = Array.from(document.querySelectorAll('dt, th, span')).find(e => e.innerText.trim() === '품번');
-                if (dt) {
-                    const val = dt.nextElementSibling || dt.parentElement.querySelector('dd');
-                    if (val) result.product_code = val.innerText.trim();
+            result.brandName = metaData.brandInfo?.brandName || "MUSINSA";
+            result.price = metaData.goodsPrice?.salePrice || metaData.goodsPrice?.normalPrice || 0;
+
+            let thumbUrl = metaData.thumbnailImageUrl || "";
+            if (!thumbUrl && metaData.goodsImages && metaData.goodsImages.length > 0) {
+                thumbUrl = metaData.goodsImages[0].imageUrl;
+            }
+            if (thumbUrl.startsWith('//')) thumbUrl = 'https:' + thumbUrl;
+            else if (thumbUrl.startsWith('/')) thumbUrl = 'https://image.msscdn.net' + thumbUrl;
+            
+            result.thumbnailImageUrl = thumbUrl;
+            result.url = result.scraped_url;
+
+            const detailImages = [];
+            if (metaData.goodsContents) {
+                const imgRegex = /<img[^>]+src=["']([^"']+)["']/gi;
+                let match;
+                while ((match = imgRegex.exec(metaData.goodsContents)) !== null) {
+                    let src = match[1];
+                    if (src.startsWith('//')) src = 'https:' + src;
+                    else if (src.startsWith('/')) src = 'https://image.msscdn.net' + src;
+                    detailImages.push(src);
                 }
             }
+            result.detailImages = detailImages;
 
-            // 가격
-            let p = goodsInfo.salePrice || goodsInfo.goodsPrice || 0;
-            if (typeof p === 'object') p = p.salePrice || 0;
-            if (!p || p === 0) {
-                 const metaPrice = document.querySelector('meta[property="product:price:amount"]')?.content;
-                 if (metaPrice) p = parseInt(metaPrice);
-            }
-            result.price = p;
-
-            // --- B. 이미지 ---
-            const images = [];
-            const ogImg = document.querySelector('meta[property="og:image"]')?.content;
-            if (ogImg) images.push(ogImg);
-
-            document.querySelectorAll('img').forEach(img => {
-                const alt = img.alt || "";
-                if (alt.includes('content-img')) {
-                    let src = img.getAttribute('data-src') || img.src;
-                    if (src && !src.startsWith('data:')) {
-                        images.push(src.startsWith('//') ? 'https:' + src : src);
-                    }
-                }
-            });
-            result.images = [...new Set(images)];
-
-            // --- C. [핵심] 핏/계절감/두께 추출 (Key-Value 매핑 강화) ---
             const attributes = {};
-            const targetKeys = ['핏', '촉감', '신축성', '비침', '두께', '계절', '안감'];
-            
-            // 1. 테이블 형태 (th -> td) 스캔
-            document.querySelectorAll('tr').forEach(tr => {
-                const th = tr.querySelector('th');
-                const td = tr.querySelector('td');
-                if (th && td) {
-                    const key = th.innerText.trim();
-                    if (targetKeys.includes(key)) {
-                        attributes[key] = td.innerText.trim();
-                    }
-                }
-            });
-
-            // 2. 선택형 UI (무신사 특유의 .hausPV 클래스) 스캔
-            // 각 섹션(ul, div)을 순회하며 헤더와 선택된 값을 찾음
-            if (Object.keys(attributes).length === 0) {
-                document.querySelectorAll('.MaterialInfo__MaterialWrap-sc-o69dy9-2, ul, div').forEach(container => {
-                    const header = container.querySelector('li, span, th, dt');
-                    if (header) {
-                        const key = header.innerText.trim();
-                        if (targetKeys.includes(key)) {
-                            // 해당 컨테이너(Row) 안에서 'hausPV' (선택된 값) 찾기
-                            const selected = container.querySelector('.hausPV');
-                            if (selected) {
-                                attributes[key] = selected.innerText.trim();
-                            }
-                        }
+            if (metaData.goodsMaterial && metaData.goodsMaterial.materials) {
+                metaData.goodsMaterial.materials.forEach(mat => {
+                    const key = mat.name; 
+                    const selectedItem = mat.items.find(item => item.isSelected);
+                    if (selectedItem) {
+                        attributes[key] = selectedItem.name.replace(/\\|/g, ' '); 
                     }
                 });
             }
-            
-            // 3. 그래도 없으면 텍스트 기반 보정 (형제 요소 확인)
-            if (Object.keys(attributes).length === 0) {
-                document.querySelectorAll('dt, th, span').forEach(el => {
-                     const txt = el.innerText.trim();
-                     if (targetKeys.includes(txt) && !attributes[txt]) {
-                         const val = el.nextElementSibling;
-                         if (val) attributes[txt] = val.innerText.trim();
-                     }
-                });
-            }
-
-            result.attributes = attributes;
-            // 사이즈 테이블은 제거됨
+            result.goodsMaterial = attributes;
 
             return result;
         }""")
@@ -174,81 +166,156 @@ async def process_product(product_id, gender, category, context):
     if product_id in visited_products: return
     visited_products.add(product_id)
     
+    filename = f"{BRAND_NAME}_{gender.lower()}_{category.lower()}_{product_id}.json"
+    local_file_path = os.path.join(LOCAL_OUTPUT_PATH, filename)
+    
+    if os.path.exists(local_file_path):
+        print(f"   ⏩ {product_id} 이미 저장됨 (스킵)")
+        return
+
     async with sem:
         url = f"https://www.musinsa.com/products/{product_id}"
-        p_page = await context.new_page()
+        max_retries = 3 
         
-        # 리소스 최적화
-        await p_page.route("**/*review*", lambda route: route.abort())
-        await p_page.route("**/*recommend*", lambda route: route.abort())
-        
-        try:
-            print(f"   🔎 {product_id} 분석 중...")
-            await p_page.goto(url, timeout=60000, wait_until="domcontentloaded")
-            raw_data = await extract_attribute_focus_data(p_page)
+        for attempt in range(max_retries):
+            p_page = await context.new_page()
             
-            if raw_data and 'product_id' in raw_data:
-                raw_data['gender'] = gender
-                raw_data['category'] = category
+            await p_page.route("**/*review*", lambda route: route.abort())
+            await p_page.route("**/*recommend*", lambda route: route.abort())
+            
+            try:
+                if attempt == 0:
+                    print(f"   🔎 {product_id} 분석 중...")
                 
-                # 1. 로컬에 임시 파일 생성
-                if not os.path.exists(LOCAL_OUTPUT_PATH): os.makedirs(LOCAL_OUTPUT_PATH)
-                filename = f"musinsa_{product_id}.json"
-                local_file_path = os.path.join(LOCAL_OUTPUT_PATH, filename)
+                await p_page.goto(url, timeout=60000, wait_until="domcontentloaded")
+                raw_data = await extract_attribute_focus_data(p_page)
                 
-                with open(local_file_path, 'w', encoding='utf-8') as f:
-                    json.dump(raw_data, f, ensure_ascii=False, indent=4)
-                
-                # 2. 하둡 업로드 및 로컬 삭제
-                try:
-                    hdfs_full_path = f"{HDFS_BASE_PATH}/{filename}"
-                    # overwrite=True: 이미 있으면 덮어쓰기
-                    hdfs_client.upload(hdfs_full_path, local_file_path, overwrite=True)
+                if raw_data and not raw_data.get('error') and raw_data.get('goodsNo'):
+                    with open(local_file_path, 'w', encoding='utf-8') as f:
+                        json.dump(raw_data, f, ensure_ascii=False, indent=4)
                     
-                    # 업로드 성공 시 로컬 삭제
-                    if os.path.exists(local_file_path):
-                        os.remove(local_file_path)
-                        save_status = "HDFS 업로드 완료 & 로컬 삭제"
-                except Exception as he:
-                    save_status = f"HDFS 전송 실패: {str(he)[:30]}"
-                
-                attr_str = ", ".join(list(raw_data.get('attributes', {}).keys()))
-                print(f"   ✅ {product_id} | {save_status} | 속성: [{attr_str}]")
-                
-        except Exception as e:
-            print(f"   ❌ {product_id} 에러: {str(e)[:50]}")
-        finally:
-            await p_page.close()
+                    attr_str = ", ".join([f"{k}:{v}" for k, v in raw_data.get('goodsMaterial', {}).items()])
+                    print(f"   ✅ [저장완료] {filename} | 속성: [{attr_str}]")
+                    break
+                    
+                else:
+                    print(f"   ⚠️ {product_id} 데이터 추출 실패 (품절 등)")
+                    break
+                    
+            except Exception as e:
+                error_msg = str(e)
+                if "ERR_NAME_NOT_RESOLVED" in error_msg or "Timeout" in error_msg:
+                    print(f"   ⏳ {product_id} 네트워크 지연 ({attempt+1}/{max_retries}). 5초 대기 후 재시도...")
+                    await asyncio.sleep(5.0)
+                else:
+                    print(f"   ❌ {product_id} 치명적 에러: {error_msg[:50]}")
+                    break
+                    
+            finally:
+                if not p_page.is_closed():
+                    await p_page.close()
+        
+        await asyncio.sleep(1.0)
 
-async def crawl_category(gender, category, url, context):
-    print(f"\n>>> 🎯 [{gender}-{category}] 목록 검색")
-    page = await context.new_page()
+async def crawl_category(gender, category, base_url, context):
+    print(f"\n>>> 🎯 [{gender} - {category.upper()}] 목록 검색 시작: {base_url}")
     product_ids = set()
+    page = await context.new_page()
+    
     try:
-        await page.goto(url, timeout=60000)
-        for _ in range(3): 
-            await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
-            await asyncio.sleep(1.0)
-        hrefs = await page.evaluate("""() => Array.from(document.querySelectorAll('a')).map(a => a.href)""")
-        for h in hrefs:
-            m = re.search(r'(?:goods|products)\/(\d+)', h)
-            if m: product_ids.add(m.group(1))
+        await page.goto(base_url, timeout=60000, wait_until="domcontentloaded")
+        await asyncio.sleep(3.0)
+        
+        last_height = await page.evaluate("document.body.scrollHeight")
+        no_change_count = 0
+        
+        while True:
+            hrefs = await page.evaluate("() => Array.from(document.querySelectorAll('a')).map(a => a.href)")
+            for h in hrefs:
+                m = re.search(r'(?:goods|products)\/(\d+)', h)
+                if m: product_ids.add(m.group(1))
+            
+            await page.evaluate("window.scrollBy(0, 600)")
+            await asyncio.sleep(0.5)
+            
+            is_bottom = await page.evaluate("window.innerHeight + window.scrollY >= document.body.scrollHeight - 10")
+            
+            if is_bottom:
+                await asyncio.sleep(1.5)
+                new_height = await page.evaluate("document.body.scrollHeight")
+                
+                if new_height == last_height:
+                    no_change_count += 1
+                    if no_change_count >= 3:
+                        print(f"   ⬇️ 더 이상 로딩되는 상품이 없습니다. 스크롤 종료.")
+                        break
+                else:
+                    no_change_count = 0 
+                    last_height = new_height
+            else:
+                no_change_count = 0
+
+        print(f"   💡 최종 수집 대기열: {len(product_ids)}개 확인 완료. 상세 정보 추출 시작...")
         await page.close()
-        await asyncio.gather(*[process_product(pid, gender, category, context) for pid in list(product_ids)])
+        
+        if product_ids:
+            await asyncio.gather(*[process_product(pid, gender, category, context) for pid in list(product_ids)])
+            
     except Exception as e:
-        print(f"   ❌ 목록 실패: {e}")
-        await page.close()
+        print(f"   ❌ 목록 페이지 실패: {e}")
+        if not page.is_closed(): await page.close()
 
 async def run():
-    print("--- [START] 무신사 핏/계절감 집중 크롤러 ---")
+    print(f"--- [START] {BRAND_NAME.upper()} 크롤링 시작 (로컬 저장 + HDFS 연동) ---")
+    
+    os.makedirs(LOCAL_OUTPUT_PATH, exist_ok=True)
+    
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
         context = await browser.new_context(viewport={"width": 1920, "height": 1080})
+        
         for gender, categories in TARGET_MAP.items():
             for category, urls in categories.items():
-                for url in urls: await crawl_category(gender, category, url, context)
+                for url in urls: 
+                    await crawl_category(gender, category, url, context)
+        
         await browser.close()
-    print(f"\n✨ 수집 종료")
+    
+    if os.path.exists(LOCAL_OUTPUT_PATH):
+        local_files = [f for f in os.listdir(LOCAL_OUTPUT_PATH) if f.endswith('.json')]
+        if local_files:
+            print(f"\n📦 로컬 수집 완료 ({len(local_files)}건). HDFS 저장을 시작합니다...")
+            try:
+                client = InsecureClient(HDFS_NAMENODE_URL, user=HDFS_USER)
+                
+                # HDFS 폴더 생성
+                try:
+                    client.makedirs(HDFS_ROOT_PATH)
+                    print(f"   📁 HDFS 타겟 디렉토리 확인: {HDFS_ROOT_PATH}")
+                except Exception as e:
+                    print(f"   ℹ️ HDFS 디렉토리 메시지: {e}")
+
+                saved_count = 0
+                for filename in local_files:
+                    local_file_path = os.path.join(LOCAL_OUTPUT_PATH, filename)
+                    hdfs_file_path = f"{HDFS_ROOT_PATH}/{filename}"
+                    
+                    try:
+                        # 파일 업로드 (덮어쓰기 허용)
+                        client.upload(hdfs_file_path, local_file_path, overwrite=True)
+                        saved_count += 1
+                    except Exception as e:
+                        print(f"   ❌ HDFS 저장 실패 ({filename}): {e}")
+
+                print(f"\n✨ 총 {saved_count}개 파일 HDFS 업로드 성공!")
+                print(f"   👉 저장 위치: {HDFS_ROOT_PATH}")
+
+            except Exception as e:
+                print(f"\n🚨 HDFS 연결/접근 오류: {e}")
+        else:
+            print("\n❌ 로컬에 수집된 파일이 없어 HDFS 업로드를 생략합니다.")
+    else:
+        print("\n❌ 저장 디렉토리를 찾을 수 없습니다.")
 
 if __name__ == "__main__":
     asyncio.run(run())

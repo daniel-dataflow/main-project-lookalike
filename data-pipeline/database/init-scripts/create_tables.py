@@ -167,7 +167,7 @@ def init_postgresql():
             CREATE TABLE search_results (
                 result_id SERIAL PRIMARY KEY,
                 log_id INTEGER REFERENCES search_logs(log_id) ON DELETE CASCADE,
-                product_id VARCHAR(50),
+                product_id VARCHAR(20),
                 rank INTEGER,
                 create_dt TIMESTAMP DEFAULT NOW()
             );

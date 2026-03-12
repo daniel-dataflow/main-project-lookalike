@@ -1,23 +1,54 @@
 import os
 import asyncio
+import sys
 import re
 import json
-import shutil
-import subprocess
 from datetime import datetime
 from playwright.async_api import async_playwright
+from hdfs import InsecureClient
 
-# 설정
+# --- [설정] ---
 BRAND_NAME = "uniqlo"
-TODAY_STR = datetime.now().strftime('%Y%m%d')
 
-LOCAL_TEMP_DIR = f"data/{BRAND_NAME}/{TODAY_STR}"
+if len(sys.argv) > 1:
+    TODAY_STR = sys.argv[1]
+else:
+    TODAY_STR = datetime.now().strftime('%Y%m%d')
+
+LOCAL_SAVE_DIR = f"data/{BRAND_NAME}/{TODAY_STR}"
+
+HDFS_NAMENODE_URL = "http://namenode-main:9870"
+HDFS_USER = "root" 
 HDFS_ROOT_PATH = f"/raw/{BRAND_NAME}/{TODAY_STR}"
 
 TARGET_MAP = {
-    "women": {
+    "Men": {
         "Outer": [
-            "https://www.uniqlo.com/kr/ko/women/outerwear"
+            "https://www.uniqlo.com/kr/ko/men/outerwear/jackets",
+            "https://www.uniqlo.com/kr/ko/men/outerwear/coats",
+            "https://www.uniqlo.com/kr/ko/men/sweaters-and-knitwear"
+        ],
+        "Top": [
+            "https://www.uniqlo.com/kr/ko/men/tops/sweatshirts-and-hoodies?path=%2C%2C58040%2C",
+            "https://www.uniqlo.com/kr/ko/men/tops/t-shirts?path=%2C%2C58039%2C",
+            "https://www.uniqlo.com/kr/ko/men/shirts-and-polo-shirts"     
+        ],
+        "Bottom": [
+            "https://www.uniqlo.com/kr/ko/men/bottoms"
+        ]
+    },
+    "Women": {
+        "Outer": [
+            "https://www.uniqlo.com/kr/ko/women/outerwear/jackets",
+            "https://www.uniqlo.com/kr/ko/women/outerwear/coats",
+            "https://www.uniqlo.com/kr/ko/women/sweaters-and-knitwear"
+        ],
+        "Top": [
+            "https://www.uniqlo.com/kr/ko/women/tops",
+            "https://www.uniqlo.com/kr/ko/women/shirts-and-blouses"
+        ],
+        "Bottom": [
+            "https://www.uniqlo.com/kr/ko/women/bottoms"
         ]
     }
 }
@@ -31,7 +62,6 @@ async def extract_product_base_data(page, product_id):
         await page.mouse.wheel(0, 1000)
         await asyncio.sleep(1.0)
         
-        # 아코디언 개방
         await page.evaluate("""() => {
             document.querySelectorAll('.rah-static, [aria-hidden="true"]').forEach(el => {
                 el.style.display = 'block'; el.style.height = 'auto'; el.style.visibility = 'visible';
@@ -127,7 +157,7 @@ async def extract_current_images(page):
         galleryImgs.forEach(img => {
             let src = img.getAttribute('data-src') || img.src;
             if (src && src.includes('uniqlo.com')) {
-                src = src.split('?')[0]; // 고해상도 원본 유지를 위해 쿼리 제거
+                src = src.split('?')[0];
                 images.push(src);
             }
         });
@@ -148,82 +178,108 @@ async def process_product(product_id, gender, category, context):
     if product_id in visited_products: return
     visited_products.add(product_id)
 
+    clean_id = product_id.split('?')[0]
+    
+    if os.path.exists(LOCAL_SAVE_DIR):
+        existing_files = os.listdir(LOCAL_SAVE_DIR)
+        if any(clean_id in f for f in existing_files):
+            print(f"   ⏩ {clean_id} 이미 수집됨 (스킵)")
+            return
+
     async with sem:
-        clean_id = product_id.split('?')[0]
         url = f"https://www.uniqlo.com/kr/ko/products/{clean_id}"
+        max_retries = 3
         
-        p_page = await context.new_page()
-        try:
-            print(f"   🔎 {clean_id} 접속 중...")
-            await p_page.goto(url, timeout=60000, wait_until="domcontentloaded")
+        for attempt in range(max_retries):
+            p_page = await context.new_page()
             
-            # 1. 공통 데이터 추출
-            base_data = None
-            for _ in range(2):
-                base_data = await extract_product_base_data(p_page, clean_id)
-                if base_data: break
-                await asyncio.sleep(1)
-
-            if base_data:
-                if not os.path.exists(LOCAL_TEMP_DIR): os.makedirs(LOCAL_TEMP_DIR)
-                colors = base_data.get('colors', [])
+            # 리소스 최적화
+            await p_page.route("**/*review*", lambda route: route.abort())
+            await p_page.route("**/*recommend*", lambda route: route.abort())
+            
+            try:
+                if attempt == 0:
+                    print(f"   🔎 {clean_id} 접속 중...")
+                    
+                await p_page.goto(url, timeout=60000, wait_until="domcontentloaded")
                 
-                # 2. 색상이 여러 개면 하나씩 클릭하며 이미지 추출
-                if colors:
-                    print(f"   🎨 {clean_id} 색상 {len(colors)}개 발견. 개별 이미지 스캔 중...")
-                    for color in colors:
-                        color_code = color['color_code']
-                        
-                        # 화면에서 해당 색상 버튼 클릭
-                        await p_page.evaluate(f"""(code) => {{
-                            const btns = document.querySelectorAll('.collection-list-horizontal button.chip, .color-chip button');
-                            for (let btn of btns) {{
-                                if (btn.value === code || btn.id.includes(code)) {{
-                                    btn.click();
-                                    break;
-                                }}
-                            }}
-                        }}""", color_code)
+                # 1. 공통 데이터 추출
+                base_data = None
+                for _ in range(2):
+                    base_data = await extract_product_base_data(p_page, clean_id)
+                    if base_data: break
+                    await asyncio.sleep(1)
 
-                        await asyncio.sleep(0.8) 
-                        
-                        # 현재 바뀐 화면의 이미지 긁어오기
-                        current_images = await extract_current_images(p_page)
-                        
-                        # 최종 데이터 조립
-                        final_data = base_data.copy()
-                        final_data['color_name'] = color['color_name'] 
-                        final_data['goodsNo'] = f"{clean_id}_{color_code}" 
-                        final_data['url'] = f"{url}?colorDisplayCode={color_code}"
-                        final_data['goodsImages'] = current_images
-                        final_data['scraped_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                        if color['icon_url']: 
-                            final_data['thumbnailImageUrl'] = color['icon_url']
-                        
-                        filename = f"{BRAND_NAME}_{gender.lower()}_{category.lower()}_{final_data['goodsNo']}.json"
-                        filepath = os.path.join(LOCAL_TEMP_DIR, filename)
+                if base_data:
+                    os.makedirs(LOCAL_SAVE_DIR, exist_ok=True)
+                    colors = base_data.get('colors', [])
+                    
+                    # 2. 색상이 여러 개면 하나씩 클릭하며 이미지 추출
+                    if colors:
+                        print(f"   🎨 {clean_id} 색상 {len(colors)}개 발견. 개별 스캔 중...")
+                        for color in colors:
+                            color_code = color['color_code']
+                            
+                            # 색상 버튼 클릭
+                            await p_page.evaluate(f"""(code) => {{
+                                const btns = document.querySelectorAll('.collection-list-horizontal button.chip, .color-chip button');
+                                for (let btn of btns) {{
+                                    if (btn.value === code || btn.id.includes(code)) {{
+                                        btn.click();
+                                        break;
+                                    }}
+                                }}
+                            }}""", color_code)
+
+                            await asyncio.sleep(0.8) 
+                            
+                            current_images = await extract_current_images(p_page)
+                            
+                            # 최종 데이터 조립
+                            final_data = base_data.copy()
+                            final_data['color_name'] = color['color_name'] 
+                            final_data['goodsNo'] = f"{clean_id}_{color_code}" 
+                            final_data['url'] = f"{url}?colorDisplayCode={color_code}"
+                            final_data['goodsImages'] = current_images
+                            final_data['scraped_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                            if color['icon_url']: 
+                                final_data['thumbnailImageUrl'] = color['icon_url']
+                            
+                            filename = f"{BRAND_NAME}_{gender.lower()}_{category.lower()}_{final_data['goodsNo']}.json"
+                            filepath = os.path.join(LOCAL_SAVE_DIR, filename)
+                            
+                            with open(filepath, 'w', encoding='utf-8') as f:
+                                json.dump(final_data, f, ensure_ascii=False, indent=4)
+                    
+                    # 색상이 단일인 경우
+                    else:
+                        base_data['goodsImages'] = await extract_current_images(p_page)
+                        base_data['scraped_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                        filename = f"{BRAND_NAME}_{gender.lower()}_{category.lower()}_{clean_id}.json"
+                        filepath = os.path.join(LOCAL_SAVE_DIR, filename)
                         
                         with open(filepath, 'w', encoding='utf-8') as f:
-                            json.dump(final_data, f, ensure_ascii=False, indent=4)
+                            json.dump(base_data, f, ensure_ascii=False, indent=4)
+                    
+                    print(f"   ✅ [저장 완료] {clean_id} 및 파생 옵션")
+                    break # 성공 시 재시도 루프 탈출
                 
-                # 색상이 단일인 경우
                 else:
-                    base_data['goodsImages'] = await extract_current_images(p_page)
-                    base_data['scraped_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-                    filename = f"{BRAND_NAME}_{gender.lower()}_{category.lower()}_{clean_id}.json"
-                    filepath = os.path.join(LOCAL_TEMP_DIR, filename)
-                    
-                    with open(filepath, 'w', encoding='utf-8') as f:
-                        json.dump(base_data, f, ensure_ascii=False, indent=4)
-                    
-                print(f"   ✅ [수집 완료] {clean_id}")
-            else:
-                print(f"   ⚠️ {clean_id} 데이터 추출 실패")
+                    print(f"   ⚠️ {clean_id} 데이터 추출 실패 (페이지 없음/로딩 오류)")
+                    break # 구조적 문제면 탈출
 
-        except Exception as e:
-            print(f"   ❌ {clean_id} 에러: {str(e)[:50]}")
-        finally:
-            await p_page.close()
+            except Exception as e:
+                error_msg = str(e)
+                if "ERR_NAME_NOT_RESOLVED" in error_msg or "Timeout" in error_msg:
+                    print(f"   ⏳ {clean_id} 네트워크 지연 ({attempt+1}/{max_retries}). 5초 대기 후 재시도...")
+                    await asyncio.sleep(5.0)
+                else:
+                    print(f"   ❌ {clean_id} 치명적 에러: {error_msg[:50]}")
+                    break
+            finally:
+                if not p_page.is_closed(): await p_page.close()
+                
+        await asyncio.sleep(1.0)
 
 async def crawl_category(gender, category_name, target_url, context):
     print(f"\n>>> 🎯 [{gender}-{category_name}] 목록 수집 시작")
@@ -232,9 +288,15 @@ async def crawl_category(gender, category_name, target_url, context):
     
     try:
         await page.goto(target_url, timeout=60000, wait_until="domcontentloaded")
-        for _ in range(5):
-            await page.evaluate("window.scrollBy(0, document.body.scrollHeight)")
-            await asyncio.sleep(1.0)
+        
+        last_height = await page.evaluate("document.body.scrollHeight")
+        for _ in range(15): 
+            await page.evaluate("window.scrollBy(0, 1000)")
+            await asyncio.sleep(0.8)
+            new_height = await page.evaluate("document.body.scrollHeight")
+            if new_height == last_height:
+                break # 더 이상 늘어나지 않으면 스크롤 중지
+            last_height = new_height
         
         content = await page.content()
         matches = re.findall(r"/products/([A-Z0-9-]+)", content)
@@ -242,17 +304,22 @@ async def crawl_category(gender, category_name, target_url, context):
             if len(pid) >= 5 and "review" not in pid:
                 product_ids.add(pid)
         
+        print(f"   💡 총 {len(product_ids)}개 상품 발견 완료")
         await page.close()
-        tasks = [process_product(pid, gender, category_name, context) for pid in list(product_ids)]
-        await asyncio.gather(*tasks)
+        
+        if product_ids:
+            tasks = [process_product(pid, gender, category_name, context) for pid in list(product_ids)]
+            await asyncio.gather(*tasks)
 
     except Exception as e:
         print(f"   ❌ 목록 수집 실패: {e}")
         if not page.is_closed(): await page.close()
 
 async def run():
-    print(f"--- [START] UNIQLO 크롤링 시작 ---")
+    print(f"--- [START] {BRAND_NAME.upper()} 크롤링 시작 (로컬 저장 + HDFS 연동) ---")
     
+    os.makedirs(LOCAL_SAVE_DIR, exist_ok=True)
+
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True, args=["--start-maximized"]) 
         context = await browser.new_context(
@@ -267,37 +334,42 @@ async def run():
                     await crawl_category(gender, category, url, context)
         
         await browser.close()
-    if os.path.exists(LOCAL_TEMP_DIR) and os.listdir(LOCAL_TEMP_DIR):
-        print(f"\n📦 크롤링 완료! HDFS({HDFS_ROOT_PATH})에 업로드 시작...")
-        
-        try:
-            # 1. 파이썬 HDFS 클라이언트 불러오기
-            from hdfs import InsecureClient
-            import glob
+    
+    if os.path.exists(LOCAL_SAVE_DIR):
+        local_files = [f for f in os.listdir(LOCAL_SAVE_DIR) if f.endswith('.json')]
+        if local_files:
+            print(f"\n📦 로컬 수집 완료 ({len(local_files)}건). HDFS 저장을 시작합니다...")
+            try:
+                client = InsecureClient(HDFS_NAMENODE_URL, user=HDFS_USER)
+                
+                # 디렉토리 생성 시도
+                try:
+                    client.makedirs(HDFS_ROOT_PATH)
+                    print(f"   📁 HDFS 타겟 디렉토리 확인: {HDFS_ROOT_PATH}")
+                except Exception as e:
+                    print(f"   ℹ️ HDFS 디렉토리 메시지: {e}")
 
-            # 2. 하둡 네임노드 주소 설정 (WebHDFS 포트 9870 사용)
-            client = InsecureClient('http://namenode-main:9870', user='root')
+                saved_count = 0
+                for filename in local_files:
+                    local_file_path = os.path.join(LOCAL_SAVE_DIR, filename)
+                    hdfs_file_path = f"{HDFS_ROOT_PATH}/{filename}"
+                    
+                    try:
+                        # 로컬 파일을 HDFS로 업로드 (덮어쓰기 허용)
+                        client.upload(hdfs_file_path, local_file_path, overwrite=True)
+                        saved_count += 1
+                    except Exception as e:
+                        print(f"   ❌ HDFS 저장 실패 ({filename}): {e}")
 
-            # 3. HDFS 폴더 생성
-            client.makedirs(HDFS_ROOT_PATH)
+                print(f"\n✨ 총 {saved_count}개 파일 HDFS 업로드 성공!")
+                print(f"   👉 저장 위치: {HDFS_ROOT_PATH}")
 
-            # 4. 로컬의 모든 JSON 파일을 하나씩 업로드
-            json_files = glob.glob(f"{LOCAL_TEMP_DIR}/*.json")
-            for file_path in json_files:
-                file_name = os.path.basename(file_path)
-                hdfs_dest = f"{HDFS_ROOT_PATH}/{file_name}"
-                client.upload(hdfs_dest, file_path, overwrite=True)
-            
-            print(f"✅ HDFS 업로드 성공! -> {HDFS_ROOT_PATH} (총 {len(json_files)}건)")
-            
-            # (선택사항) 업로드 성공 후 로컬 임시 파일 삭제
-            # shutil.rmtree(LOCAL_TEMP_DIR)
-
-        except Exception as e:
-            print(f"❌ HDFS 파이썬 업로드 에러: {e}")
-
+            except Exception as e:
+                print(f"\n🚨 HDFS 연결/접근 오류: {e}")
+        else:
+            print("\n❌ 로컬에 수집된 파일이 없어 HDFS 업로드를 생략합니다.")
     else:
-        print("\n❌ 저장된 데이터가 없습니다.")
+        print("\n❌ 저장 디렉토리를 찾을 수 없습니다.")
 
 if __name__ == "__main__":
     asyncio.run(run())

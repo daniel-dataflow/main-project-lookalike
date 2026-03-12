@@ -13,12 +13,16 @@ import datetime
 # 26.2.21
 import requests
 from hdfs import InsecureClient
+import sys
 
 # --- [1. 설정 정보] ---
 BRAND_NAME = "topten"  # 소문자로 통일 (HDFS 경로용)
 BRAND_PREFIX = "TT"    # Topten의 약어
-TARGET_DATE = datetime.datetime.now().strftime("%Y%m%d")
-#TARGET_DATE = "20260210" 
+
+if len(sys.argv) > 1:
+    TARGET_DATE = sys.argv[1]
+else:
+    TARGET_DATE = datetime.datetime.now().strftime("%Y%m%d")
 
 import os
 
@@ -33,7 +37,6 @@ MONGO_PASS = os.environ.get("MONGODB_PASSWORD", "")
 MONGO_URI = os.environ.get("MONGO_URI", f"mongodb://{MONGO_USER}:{MONGO_PASS}@mongo-main:27017")
 
 HDFS_BASE = "hdfs://namenode-main:9000"
-# [수정] 26.2.21 WebHDFS 접속용 URL 추가 (포트 9870)
 #HDFS_WEB_URL = "http://namenode:9870"
 HDFS_WEB_URL = "http://namenode-main:9870"
 RAW_PATH = f"/raw/{BRAND_NAME}/{TARGET_DATE}"
@@ -46,7 +49,6 @@ spark = SparkSession.builder \
     .getOrCreate()
 
 # --- [2. UDF 정의: Topten용 필터링 (필요시 사용, 현재는 모두 유지)] ---
-# 모든 정보를 넣기로 하셨으므로, JSON 직렬화만 안전하게 처리합니다.
 def process_topten_material(material_json_str):
     if not material_json_str:
         return "{}"
@@ -67,9 +69,7 @@ seq_df = spark.read.format("jdbc") \
     .option("driver", "org.postgresql.Driver") \
     .load()
 
-# DB에는 'TOPTEN'으로 저장되어 있을 가능성이 큽니다.
 row = seq_df.filter(col("brand_name") == BRAND_NAME.upper()).select("last_seq").collect()
-# 26.2.18
 if not row:
     print(f"✨ {BRAND_NAME} sequence not found. Registering new brand in DB...")
     # 1. 새 데이터를 담은 DF 생성
@@ -102,8 +102,6 @@ raw_df = spark.read.option("multiLine", "true") \
 
 windowSpec = Window.partitionBy(lit(BRAND_NAME)).orderBy(col("goodsNo"))
 
-# Topten 파일명 예시: topten_men_outer_MSF4KG1001BR.json
-# 그룹 1: men, 그룹 2: outer
 processed_df = raw_df.withColumn("idx", row_number().over(windowSpec)) \
     .withColumn("product_id", format_string(f"{BRAND_PREFIX}%04d", col("idx").cast("int") + start_seq - 1)) \
     .withColumn("img_hdfs_path", concat(lit(IMAGE_DIR), lit("/"), col("goodsNo"), lit(".jpg"))) \
@@ -142,7 +140,6 @@ mongo_data = processed_df.select(
     col("goodsNo").alias("model_code"),
     lit(BRAND_NAME.upper()).alias("brand_name"),
     col("goodsNm").alias("prod_name"),
-    # goodsMaterial 전체를 JSON으로 변환하여 적재
     to_json(col("goodsMaterial")).alias("detail_desc"),
     coalesce(col("price").cast("int"), lit(0)).alias("base_price"),
     col("img_hdfs_path"),
@@ -160,23 +157,6 @@ print("✅ MongoDB 적재 완료")
 
 # --- [7. 이미지 처리] ---
 
-# 7-1. HDFS 이미지 디렉토리 생성 (없을 경우에만 생성)
-# -p 옵션을 주면 부모 디렉토리(/raw/topten/20260210)가 있어도 에러 없이 하위 폴더까지 생성합니다.
-# mkdir_cmd = f"docker exec -i {CONTAINER_NAME} hdfs dfs -mkdir -p {IMAGE_DIR}"
-# subprocess.run(mkdir_cmd, shell=True)
-# print(f"📂 HDFS 경로 확인 및 생성 완료: {IMAGE_DIR}")
-
-# image_list = processed_df.select(element_at(col("goodsImages"), 1).alias("main_img"), col("goodsNo")).collect()
-
-# for r in image_list:
-#     if r.main_img and r.goodsNo:
-#         hdfs_target_path = f"{IMAGE_DIR}/{r.goodsNo}.json" # 파일명에 맞춰 저장
-#         # -qO- 옵션으로 표준출력으로 보낸 뒤 docker를 통해 HDFS에 바로 저장
-#         cmd = f"wget -qO- --header='User-Agent: Mozilla/5.0' '{r.main_img}' | docker exec -i {CONTAINER_NAME} hdfs dfs -put -f - {IMAGE_DIR}/{r.goodsNo}.jpg"
-#         subprocess.run(cmd, shell=True)
-
-# print(f"📸 {total_count}개의 이미지 파일이 {IMAGE_DIR}에 저장되었습니다.")
-try:
     hdfs_client = InsecureClient(HDFS_WEB_URL, user="root")
     hdfs_client.makedirs(IMAGE_DIR)
     

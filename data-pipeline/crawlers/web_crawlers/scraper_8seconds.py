@@ -1,25 +1,57 @@
 import os
+import sys
 import asyncio
 import json
 import shutil
 from datetime import datetime
 from playwright.async_api import async_playwright
-from hdfs import InsecureClient # 🌟 Python 전용 HDFS 라이브러리 추가
+from hdfs import InsecureClient
 
 # --- [설정] ---
 BRAND_NAME = "8seconds"
-TODAY_STR = datetime.now().strftime('%Y%m%d')
+
+if len(sys.argv) > 1:
+    TODAY_STR = sys.argv[1]
+else:
+    TODAY_STR = datetime.now().strftime('%Y%m%d')
 
 LOCAL_TEMP_DIR = f"data/{BRAND_NAME}/{TODAY_STR}"
 HDFS_ROOT_PATH = f"/raw/{BRAND_NAME}/{TODAY_STR}"
 
-# WebHDFS 주소 (VLM 코드에서 쓰셨던 포트 9870 사용)
 HDFS_URL = "http://namenode:9870" 
 
 TARGET_MAP = {
     "Men": {
         "Outer": [
-            "https://www.ssfshop.com/8seconds/LeatherJacket/list?dspCtgryNo=SFMA42A05A06&brandShopNo=BDMA07A01&brndShopId=8SBSS"
+            "https://www.ssfshop.com/8seconds/Coats/list?dspCtgryNo=SFMA42A05A02&brandShopNo=BDMA07A01&brndShopId=8SBSS",
+            "https://www.ssfshop.com/8seconds/LeatherJacket/list?dspCtgryNo=SFMA42A05A06&brandShopNo=BDMA07A01&brndShopId=8SBSS",
+            "https://www.ssfshop.com/8seconds/DenimJacket/list?dspCtgryNo=SFMA42A05A07&brandShopNo=BDMA07A01&brndShopId=8SBSS",
+            "https://www.ssfshop.com/8seconds/Jackets/list?dspCtgryNo=SFMA42A19A01&brandShopNo=BDMA07A01&brndShopId=8SBSS",
+            "https://www.ssfshop.com/8seconds/Cardigans/list?dspCtgryNo=SFMA42A03A02&brandShopNo=BDMA07A01&brndShopId=8SBSS"
+        ],
+        "Top": [
+            "https://www.ssfshop.com/8seconds/T-Shirts/list?dspCtgryNo=SFMA42A01&brandShopNo=BDMA07A01&brndShopId=8SBSS",
+            "https://www.ssfshop.com/8seconds/Pullovers/list?dspCtgryNo=SFMA42A03A01&brandShopNo=BDMA07A01&brndShopId=8SBSS",
+            "https://www.ssfshop.com/8seconds/Shirts/list?dspCtgryNo=SFMA42A02&brandShopNo=BDMA07A01&brndShopId=8SBSS"
+        ],
+        "Bottom": [
+            "https://www.ssfshop.com/8seconds/Pants-Trousers/list?dspCtgryNo=SFMA42A04&brandShopNo=BDMA07A01&brndShopId=8SBSS"
+        ]
+    },
+    "Women": {
+        "Outer": [
+            "https://www.ssfshop.com/8seconds/Jackets/list?dspCtgryNo=SFMA41A21A01&brandShopNo=BDMA07A01&brndShopId=8SBSS",
+            "https://www.ssfshop.com/8seconds/Leather-Jackets/list?dspCtgryNo=SFMA41A21A04&brandShopNo=BDMA07A01&brndShopId=8SBSS",
+            "https://www.ssfshop.com/8seconds/Coats/list?dspCtgryNo=SFMA41A07A02&brandShopNo=BDMA07A01&brndShopId=8SBSS",
+            "https://www.ssfshop.com/8seconds/Cardigans/list?dspCtgryNo=SFMA41A03A02&brandShopNo=BDMA07A01&brndShopId=8SBSS"
+        ],
+        "Top": [
+            "https://www.ssfshop.com/8seconds/Pullovers/list?dspCtgryNo=SFMA41A03A01&brandShopNo=BDMA07A01&brndShopId=8SBSS",
+            "https://www.ssfshop.com/8seconds/T-shirts/list?dspCtgryNo=SFMA41A01&brandShopNo=BDMA07A01&brndShopId=8SBSS",
+            "https://www.ssfshop.com/8seconds/Shirts-Blouses/list?dspCtgryNo=SFMA41A02&brandShopNo=BDMA07A01&brndShopId=8SBSS"
+        ],
+        "Bottom": [
+            "https://www.ssfshop.com/8seconds/Pants-Trousers/list?dspCtgryNo=SFMA41A04&brandShopNo=BDMA07A01&brndShopId=8SBSS"
         ]
     }
 }
@@ -165,7 +197,6 @@ async def process_product(product_id, gender, category, context):
         p_page = await context.new_page()
         try:
             print(f"    🔍 [접속 시도 중...] {product_id}")
-            # 🌟 30초 룰 & 로딩 최적화
             await p_page.goto(url, timeout=30000, wait_until="domcontentloaded")
             product_dict = await extract_product_data_from_dom(p_page)
             
@@ -181,7 +212,6 @@ async def process_product(product_id, gender, category, context):
                     
                 print(f"    ✅ [수집/로컬저장 완료] {filename}")
                 
-                # 🌟 데드락 방지: 모아서 한 번에 리턴
                 new_found_ids = product_dict.get('other_color_ids', [])
                     
         except Exception as e:
@@ -205,7 +235,6 @@ async def crawl_category(gender, category_name, target_url, context):
         """)
         await page.close()
         
-        # 🌟 꼬리물기 크롤링 (데드락 완벽 방어)
         pending_codes = list(set(codes))
         while pending_codes:
             tasks = [process_product(code, gender, category_name, context) for code in pending_codes]
@@ -236,7 +265,6 @@ async def run():
                     await crawl_category(gender, category, url, context)
         await browser.close()
 
-    # --- 🌟 파이썬 HDFS 라이브러리를 통한 일괄 업로드 ---
     if os.path.exists(LOCAL_TEMP_DIR) and os.listdir(LOCAL_TEMP_DIR):
         print(f"\n📦 수집 완료. HDFS({HDFS_ROOT_PATH}) 업로드 시작...")
         try:
