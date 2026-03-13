@@ -703,8 +703,9 @@ document.addEventListener('DOMContentLoaded', async function () {
 
 /* particles */
 (function () {
-    const colors = ['#d4522a', '#2563a8', '#2d8a5e', '#b07d2c', '#e8824a'];
     const wrap = document.getElementById('lkParticles');
+    if (!wrap) return;
+    const colors = ['#d4522a', '#2563a8', '#2d8a5e', '#b07d2c', '#e8824a'];
     for (let i = 0; i < 18; i++) {
         const el = document.createElement('div');
         el.className = 'lk-particle';
