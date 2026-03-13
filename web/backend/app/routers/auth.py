@@ -440,19 +440,11 @@ async def oauth_login(provider: str, request: Request):
 
     config = OAUTH_CONFIGS[provider]
     
-    # 동적 리다이렉트 URI 생성 (접속한 도메인 기준)
-    # request.url_for는 http/https 스킴을 자동으로 처리함 (프록시 설정 필요할 수 있음)
-    redirect_uri = str(request.url_for("oauth_callback", provider=provider))
-    
-    # Docker/Nginx 환경에서 scheme이 반영되지 않을 경우를 대비해 강제로 설정이 필요할 수도 있음.
-    # 여기서는 일단 request.url_for 결과를 신뢰하되, 외부 접속 문제 해결을 위해 
-    # request.headers["host"]를 사용하여 직접 구성하는 방식을 혼용할 수도 있으나
-    # 가장 표준적인 request.url_for를 우선 사용.
-    
-    # 만약 http/https 문제가 발생하면 아래와 같이 직접 구성:
-    # scheme = request.headers.get("x-forwarded-proto", "http")
-    # host = request.headers.get("host")
-    # redirect_uri = f"{scheme}://{host}/api/auth/oauth/{provider}/callback"
+    # 프록시(Nginx 등) 환경에서 request.url_for 사용 시 http로 강제되는 현상을 막기 위해
+    # 접속한 브라우저의 실제 헤더(scheme, host)를 기반으로 redirect_uri를 동적 생성함
+    scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
+    host = request.headers.get("x-forwarded-host", request.headers.get("host", request.url.hostname))
+    redirect_uri = f"{scheme}://{host}/api/auth/oauth/{provider}/callback"
 
     # 클라이언트 ID 가져오기
     client_id = getattr(settings, f"{provider.upper()}_CLIENT_ID")
@@ -525,8 +517,10 @@ async def oauth_callback(
 
     config = OAUTH_CONFIGS[provider]
     
-    # 토큰 교환 시에도 동일한 redirect_uri를 보내야 함
-    redirect_uri = str(request.url_for("oauth_callback", provider=provider))
+    # 토큰 교환 시에도 동일한 방식을 사용하여 redirect_uri 불일치 방지
+    scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
+    host = request.headers.get("x-forwarded-host", request.headers.get("host", request.url.hostname))
+    redirect_uri = f"{scheme}://{host}/api/auth/oauth/{provider}/callback"
     
     client_id = getattr(settings, f"{provider.upper()}_CLIENT_ID")
     client_secret = getattr(settings, f"{provider.upper()}_CLIENT_SECRET")
