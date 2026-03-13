@@ -54,7 +54,7 @@ class QueryRewriter:
             self._tokenizer = AutoTokenizer.from_pretrained(self._model_name)
             self._model = AutoModelForCausalLM.from_pretrained(
                 self._model_name,
-                torch_dtype="auto",
+                dtype="auto",
             )
             logger.info("Query rewrite model loaded.")
 

@@ -21,7 +21,7 @@ class YoloDetector:
     """
     def __init__(self, model_name: str | None = None):
         # 환경변수로 가중치 경로를 바꿀 수 있다.
-        self.model_name = model_name or os.getenv("YOLO_WEIGHTS_PATH", "../weights/best.pt")
+        self.model_name = model_name or os.getenv("YOLO_WEIGHTS_PATH", "../../weights/best.pt")
         self.model = None
 
     def load(self):
@@ -32,7 +32,10 @@ class YoloDetector:
             from ultralytics import YOLO
 
             base_dir = os.path.dirname(__file__)
-            primary_path = os.path.abspath(os.path.join(base_dir, self.model_name))
+            if os.path.isabs(self.model_name):
+                primary_path = self.model_name
+            else:
+                primary_path = os.path.abspath(os.path.join(base_dir, self.model_name))
 
             weight_path = primary_path
             if not os.path.exists(weight_path):
