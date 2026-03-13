@@ -1,56 +1,61 @@
 let adminCurrentPage = 1;
-    let adminCurrentFilter = '';
+let adminCurrentFilter = '';
 
-    document.addEventListener('DOMContentLoaded', function () {
-        loadAdminInquiries();
-        initAnswerForm();
-    });
+document.addEventListener('DOMContentLoaded', function () {
+    loadAdminInquiries();
+    initAnswerForm();
+});
 
-    // 문의 목록 로드 (관리자)
-    async function loadAdminInquiries(page = 1) {
-        adminCurrentPage = page;
-        try {
-            let url = `/api/inquiries/admin/list?page=${page}&page_size=10`;
-            if (adminCurrentFilter) {
-                url += `&status_filter=${adminCurrentFilter}`;
-            }
+/**
+ * 관리자 권한으로 전체 사용자가 올린 최신 1:1 문의글 목록을 RDBMS에서 조회하여 테이블 형태로 렌더링함.
+ * 필터링(대기중/완료) 버튼에 따라 조건을 다르게 하여 미처리된 CS 업무만 골라볼 수 있게 지원.
+ * @param {number} page 조회할 페이지(Offset), 미입력시 1페이지
+ * @returns {Promise<void>}
+ */
+async function loadAdminInquiries(page = 1) {
+    adminCurrentPage = page;
+    try {
+        let url = `/api/inquiries/admin/list?page=${page}&page_size=10`;
+        if (adminCurrentFilter) {
+            url += `&status_filter=${adminCurrentFilter}`;
+        }
 
-            const resp = await fetch(url, { credentials: 'same-origin' });
-            if (!resp.ok) {
-                console.error('관리자 문의 목록 조회 실패:', resp.status);
-                return;
-            }
-            const data = await resp.json();
+        const resp = await fetch(url, { credentials: 'same-origin' });
+        if (!resp.ok) {
+            console.error('관리자 문의 목록 조회 실패:', resp.status);
+            return;
+        }
+        const data = await resp.json();
 
-            // 카운트 업데이트
-            document.getElementById('adminTotalCount').textContent = data.total || 0;
-            let pending = 0, answered = 0;
-            if (data.items) {
-                data.items.forEach(i => {
-                    if ((i.comment_count || 0) > 0) answered++;
-                    else pending++;
-                });
-            }
-            // 전체를 로드했을 때만 카운트 업데이트
-            if (!adminCurrentFilter) {
-                document.getElementById('adminPendingCount').textContent = pending;
-                document.getElementById('adminAnsweredCount').textContent = answered;
-            }
-            document.getElementById('adminResultInfo').textContent = `총 ${data.total}건`;
+        // 카운트 업데이트
+        document.getElementById('adminTotalCount').textContent = data.total || 0;
+        let pending = 0, answered = 0;
+        if (data.items) {
+            data.items.forEach(i => {
+                if ((i.comment_count || 0) > 0) answered++;
+                else pending++;
+            });
+        }
+        // 전체를 로드했을 때만 카운트 업데이트
+        if (!adminCurrentFilter) {
+            document.getElementById('adminPendingCount').textContent = pending;
+            document.getElementById('adminAnsweredCount').textContent = answered;
+        }
+        document.getElementById('adminResultInfo').textContent = `총 ${data.total}건`;
 
-            const listEl = document.getElementById('adminInquiryList');
-            const emptyEl = document.getElementById('adminEmptyState');
+        const listEl = document.getElementById('adminInquiryList');
+        const emptyEl = document.getElementById('adminEmptyState');
 
-            if (!data.items || data.items.length === 0) {
-                listEl.innerHTML = '';
-                emptyEl.classList.remove('d-none');
-                return;
-            }
+        if (!data.items || data.items.length === 0) {
+            listEl.innerHTML = '';
+            emptyEl.classList.remove('d-none');
+            return;
+        }
 
-            emptyEl.classList.add('d-none');
-            listEl.innerHTML = data.items.map(item => {
-                const hasAnswer = (item.comment_count || 0) > 0;
-                return `
+        emptyEl.classList.add('d-none');
+        listEl.innerHTML = data.items.map(item => {
+            const hasAnswer = (item.comment_count || 0) > 0;
+            return `
             <tr class="inquiry-row" onclick="viewAdminInquiry(${item.inquiry_board_id})">
                 <!-- [데스크탑] 번호 -->
                 <td class="text-center text-muted d-none d-md-table-cell">${item.inquiry_board_id}</td>
@@ -92,8 +97,8 @@ let adminCurrentPage = 1;
                 <td class="text-center d-none d-md-table-cell">
                     <span class="admin-status-badge ${hasAnswer ? 'admin-status-answered' : 'admin-status-pending'}">
                         ${hasAnswer
-                        ? '<i class="fas fa-check-circle"></i> 답변완료'
-                        : '<i class="fas fa-clock"></i> 대기중'}
+                    ? '<i class="fas fa-check-circle"></i> 답변완료'
+                    : '<i class="fas fa-clock"></i> 대기중'}
                     </span>
                 </td>
                 
@@ -111,188 +116,196 @@ let adminCurrentPage = 1;
                 </td>
             </tr>
             `;
-            }).join('');
+        }).join('');
 
-            // 페이지네이션
-            renderAdminPagination(data.total_pages, page);
+        // 페이지네이션
+        renderAdminPagination(data.total_pages, page);
 
-        } catch (e) {
-            console.error('관리자 문의 목록 로드 실패:', e);
+    } catch (e) {
+        console.error('관리자 문의 목록 로드 실패:', e);
+    }
+}
+
+// 상태 필터
+function filterInquiries(status) {
+    adminCurrentFilter = status;
+
+    document.querySelectorAll('#statusFilter .nav-link').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.filter === status) btn.classList.add('active');
+    });
+
+    loadAdminInquiries(1);
+}
+
+/**
+ * 특정 유저가 작성한 문의글 원문과 그 하위에 달린 답변 이력을 불러와 상세 페이지를 단일 페이지 내(SPA)에서 동적으로 생성함.
+ * 목록 컨테이너를 숨김하고 상세 컨텍스트를 드러내는 방식.
+ * @param {number} postId 확인할 문의글 고유 ID
+ * @returns {Promise<void>}
+ */
+async function viewAdminInquiry(postId) {
+    try {
+        const resp = await fetch(`/api/inquiries/admin/${postId}`, { credentials: 'same-origin' });
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const item = data.post;
+        const comments = data.comments || [];
+        const hasAnswer = comments.length > 0;
+
+        // 목록 숨기고 상세 보기
+        document.getElementById('adminInquiryListSection').classList.add('d-none');
+        document.querySelectorAll('.row.g-3.mb-4')[0].classList.add('d-none');
+        document.querySelector('.bg-white.rounded-4.shadow-sm.p-3.mb-4').classList.add('d-none');
+        document.getElementById('adminDetailSection').classList.remove('d-none');
+
+        // 데이터 채우기
+        const statusEl = document.getElementById('adminDetailStatus');
+        statusEl.className = `admin-status-badge ${hasAnswer ? 'admin-status-answered' : 'admin-status-pending'}`;
+        statusEl.innerHTML = hasAnswer
+            ? '<i class="fas fa-check-circle"></i> 답변완료'
+            : '<i class="fas fa-clock"></i> 대기중';
+
+        document.getElementById('adminDetailTitle').textContent = item.title;
+        document.getElementById('adminDetailAuthor').innerHTML =
+            `<i class="far fa-user me-1"></i>${escapeHtml(item.author_name || item.author_id || '-')}`;
+        document.getElementById('adminDetailDate').textContent = formatDate(item.create_dt);
+        document.getElementById('adminDetailContent').textContent = item.content || '';
+        document.getElementById('answerInquiryId').value = postId;
+
+        // 기존 답변 (댓글)
+        const existingSection = document.getElementById('existingAnswerSection');
+        const formSection = document.getElementById('answerFormSection');
+
+        if (hasAnswer) {
+            existingSection.classList.remove('d-none');
+            formSection.classList.add('d-none');
+            // 최신 댓글 표시
+            const latestComment = comments[comments.length - 1];
+            document.getElementById('existingAnswer').textContent = latestComment.comment_text || '';
+            document.getElementById('existingAnswerMeta').innerHTML =
+                `<i class="far fa-user me-1"></i>${escapeHtml(latestComment.author_name || '관리자')} · ${formatDate(latestComment.create_dt)}`;
+        } else {
+            existingSection.classList.add('d-none');
+            formSection.classList.remove('d-none');
+            document.getElementById('answerContent').value = '';
         }
+
+    } catch (e) {
+        console.error('관리자 문의 상세 조회 실패:', e);
     }
+}
 
-    // 상태 필터
-    function filterInquiries(status) {
-        adminCurrentFilter = status;
+function showRewriteForm() {
+    const existing = document.getElementById('existingAnswer').textContent;
+    document.getElementById('answerContent').value = existing;
+    document.getElementById('existingAnswerSection').classList.add('d-none');
+    document.getElementById('answerFormSection').classList.remove('d-none');
+    document.getElementById('answerContent').focus();
+}
 
-        document.querySelectorAll('#statusFilter .nav-link').forEach(btn => {
-            btn.classList.remove('active');
-            if (btn.dataset.filter === status) btn.classList.add('active');
-        });
+function adminBackToList() {
+    document.getElementById('adminDetailSection').classList.add('d-none');
+    document.getElementById('adminInquiryListSection').classList.remove('d-none');
+    document.querySelectorAll('.row.g-3.mb-4')[0].classList.remove('d-none');
+    document.querySelector('.bg-white.rounded-4.shadow-sm.p-3.mb-4').classList.remove('d-none');
+    loadAdminInquiries(adminCurrentPage);
+}
 
-        loadAdminInquiries(1);
-    }
+/**
+ * 상세 보기 화면의 '답변 달기' 에디터 폼의 Submit 이벤트를 가로챔.
+ * 입력된 답변 텍스트를 서버로(POST) 전송하여 DB의 Comments 테이블에 저장하고, 실시간으로 상세 화면을 리프레시해 방금 단 답변을 노출함.
+ */
+function initAnswerForm() {
+    const form = document.getElementById('answerForm');
+    if (!form) return;
 
-    // 문의 상세 보기 (관리자)
-    async function viewAdminInquiry(postId) {
-        try {
-            const resp = await fetch(`/api/inquiries/admin/${postId}`, { credentials: 'same-origin' });
-            if (!resp.ok) return;
-            const data = await resp.json();
-            const item = data.post;
-            const comments = data.comments || [];
-            const hasAnswer = comments.length > 0;
+    form.addEventListener('submit', async function (e) {
+        e.preventDefault();
 
-            // 목록 숨기고 상세 보기
-            document.getElementById('adminInquiryListSection').classList.add('d-none');
-            document.querySelectorAll('.row.g-3.mb-4')[0].classList.add('d-none');
-            document.querySelector('.bg-white.rounded-4.shadow-sm.p-3.mb-4').classList.add('d-none');
-            document.getElementById('adminDetailSection').classList.remove('d-none');
+        const inquiryId = document.getElementById('answerInquiryId').value;
+        const answer = document.getElementById('answerContent').value.trim();
 
-            // 데이터 채우기
-            const statusEl = document.getElementById('adminDetailStatus');
-            statusEl.className = `admin-status-badge ${hasAnswer ? 'admin-status-answered' : 'admin-status-pending'}`;
-            statusEl.innerHTML = hasAnswer
-                ? '<i class="fas fa-check-circle"></i> 답변완료'
-                : '<i class="fas fa-clock"></i> 대기중';
-
-            document.getElementById('adminDetailTitle').textContent = item.title;
-            document.getElementById('adminDetailAuthor').innerHTML =
-                `<i class="far fa-user me-1"></i>${escapeHtml(item.author_name || item.author_id || '-')}`;
-            document.getElementById('adminDetailDate').textContent = formatDate(item.create_dt);
-            document.getElementById('adminDetailContent').textContent = item.content || '';
-            document.getElementById('answerInquiryId').value = postId;
-
-            // 기존 답변 (댓글)
-            const existingSection = document.getElementById('existingAnswerSection');
-            const formSection = document.getElementById('answerFormSection');
-
-            if (hasAnswer) {
-                existingSection.classList.remove('d-none');
-                formSection.classList.add('d-none');
-                // 최신 댓글 표시
-                const latestComment = comments[comments.length - 1];
-                document.getElementById('existingAnswer').textContent = latestComment.comment_text || '';
-                document.getElementById('existingAnswerMeta').innerHTML =
-                    `<i class="far fa-user me-1"></i>${escapeHtml(latestComment.author_name || '관리자')} · ${formatDate(latestComment.create_dt)}`;
-            } else {
-                existingSection.classList.add('d-none');
-                formSection.classList.remove('d-none');
-                document.getElementById('answerContent').value = '';
-            }
-
-        } catch (e) {
-            console.error('관리자 문의 상세 조회 실패:', e);
-        }
-    }
-
-    function showRewriteForm() {
-        const existing = document.getElementById('existingAnswer').textContent;
-        document.getElementById('answerContent').value = existing;
-        document.getElementById('existingAnswerSection').classList.add('d-none');
-        document.getElementById('answerFormSection').classList.remove('d-none');
-        document.getElementById('answerContent').focus();
-    }
-
-    function adminBackToList() {
-        document.getElementById('adminDetailSection').classList.add('d-none');
-        document.getElementById('adminInquiryListSection').classList.remove('d-none');
-        document.querySelectorAll('.row.g-3.mb-4')[0].classList.remove('d-none');
-        document.querySelector('.bg-white.rounded-4.shadow-sm.p-3.mb-4').classList.remove('d-none');
-        loadAdminInquiries(adminCurrentPage);
-    }
-
-    // 답변 폼
-    function initAnswerForm() {
-        const form = document.getElementById('answerForm');
-        if (!form) return;
-
-        form.addEventListener('submit', async function (e) {
-            e.preventDefault();
-
-            const inquiryId = document.getElementById('answerInquiryId').value;
-            const answer = document.getElementById('answerContent').value.trim();
-
-            if (!answer) {
-                alert('답변 내용을 입력해주세요.');
-                return;
-            }
-
-            const btn = document.getElementById('submitAnswerBtn');
-            const spinner = document.getElementById('answerSpinner');
-            const btnText = btn.querySelector('.btn-text');
-
-            btn.disabled = true;
-            spinner.classList.remove('d-none');
-            btnText.classList.add('d-none');
-
-            try {
-                const resp = await fetch(`/api/inquiries/admin/${inquiryId}/answer`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'same-origin',
-                    body: JSON.stringify({ answer }),
-                });
-
-                if (resp.ok) {
-                    alert('답변이 등록되었습니다!');
-                    viewAdminInquiry(inquiryId);
-                } else {
-                    const err = await resp.json();
-                    alert(err.detail || '답변 등록에 실패했습니다.');
-                }
-            } catch (e) {
-                alert('서버 연결에 실패했습니다.');
-            } finally {
-                btn.disabled = false;
-                spinner.classList.add('d-none');
-                btnText.classList.remove('d-none');
-            }
-        });
-    }
-
-    // 페이지네이션
-    function renderAdminPagination(totalPages, currentPage) {
-        const pagEl = document.getElementById('adminPagination');
-
-        if (totalPages <= 1) {
-            pagEl.innerHTML = '';
+        if (!answer) {
+            alert('답변 내용을 입력해주세요.');
             return;
         }
 
-        let html = '';
-        html += `<li class="page-item ${currentPage <= 1 ? 'disabled' : ''}">
+        const btn = document.getElementById('submitAnswerBtn');
+        const spinner = document.getElementById('answerSpinner');
+        const btnText = btn.querySelector('.btn-text');
+
+        btn.disabled = true;
+        spinner.classList.remove('d-none');
+        btnText.classList.add('d-none');
+
+        try {
+            const resp = await fetch(`/api/inquiries/admin/${inquiryId}/answer`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'same-origin',
+                body: JSON.stringify({ answer }),
+            });
+
+            if (resp.ok) {
+                alert('답변이 등록되었습니다!');
+                viewAdminInquiry(inquiryId);
+            } else {
+                const err = await resp.json();
+                alert(err.detail || '답변 등록에 실패했습니다.');
+            }
+        } catch (e) {
+            alert('서버 연결에 실패했습니다.');
+        } finally {
+            btn.disabled = false;
+            spinner.classList.add('d-none');
+            btnText.classList.remove('d-none');
+        }
+    });
+}
+
+// 페이지네이션
+function renderAdminPagination(totalPages, currentPage) {
+    const pagEl = document.getElementById('adminPagination');
+
+    if (totalPages <= 1) {
+        pagEl.innerHTML = '';
+        return;
+    }
+
+    let html = '';
+    html += `<li class="page-item ${currentPage <= 1 ? 'disabled' : ''}">
         <a class="page-link" href="#" onclick="loadAdminInquiries(${currentPage - 1}); return false;">‹</a>
     </li>`;
 
-        for (let i = 1; i <= totalPages; i++) {
-            html += `<li class="page-item ${i === currentPage ? 'active' : ''}">
+    for (let i = 1; i <= totalPages; i++) {
+        html += `<li class="page-item ${i === currentPage ? 'active' : ''}">
             <a class="page-link" href="#" onclick="loadAdminInquiries(${i}); return false;">${i}</a>
         </li>`;
-        }
+    }
 
-        html += `<li class="page-item ${currentPage >= totalPages ? 'disabled' : ''}">
+    html += `<li class="page-item ${currentPage >= totalPages ? 'disabled' : ''}">
         <a class="page-link" href="#" onclick="loadAdminInquiries(${currentPage + 1}); return false;">›</a>
     </li>`;
 
-        pagEl.innerHTML = html;
-    }
+    pagEl.innerHTML = html;
+}
 
-    // 유틸
-    function escapeHtml(str) {
-        const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
-        return str.replace(/[&<>"']/g, c => map[c]);
-    }
+// 유틸
+function escapeHtml(str) {
+    const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+    return str.replace(/[&<>"']/g, c => map[c]);
+}
 
-    function formatDate(dtStr) {
-        if (!dtStr) return '';
-        const d = new Date(dtStr);
-        const now = new Date();
-        const diff = now - d;
+function formatDate(dtStr) {
+    if (!dtStr) return '';
+    const d = new Date(dtStr);
+    const now = new Date();
+    const diff = now - d;
 
-        if (diff < 60000) return '방금 전';
-        if (diff < 3600000) return `${Math.floor(diff / 60000)}분 전`;
-        if (diff < 86400000) return `${Math.floor(diff / 3600000)}시간 전`;
+    if (diff < 60000) return '방금 전';
+    if (diff < 3600000) return `${Math.floor(diff / 60000)}분 전`;
+    if (diff < 86400000) return `${Math.floor(diff / 3600000)}시간 전`;
 
-        return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
-    }
+    return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`;
+}

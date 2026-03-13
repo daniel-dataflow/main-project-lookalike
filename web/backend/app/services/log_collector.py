@@ -1,3 +1,9 @@
+"""
+도커 컨테이너 로그 수집 및 Elasticsearch 영구 저장을 담당하는 서비스 모듈.
+- 백그라운드 태스크로 동작하며, 지정된 모니터링 대상 컨테이너들의 로그를 주기적으로 수거.
+- 파싱된 로그 라인을 기반으로 슬랙 알림(에러 감지) 및 자동 복구 작업을 연계 수행함.
+- 수동 Purge(초기화) 명령이 수행된 지점(_GLOBAL_PURGE_TIMESTAMP) 이전의 로그는 무시하여 오래된 상태가 부활하는 문제를 차단.
+"""
 import asyncio
 import logging
 import hashlib
@@ -6,10 +12,11 @@ from datetime import datetime
 import docker
 from docker.errors import DockerException
 from elasticsearch import Elasticsearch, helpers
+import json
+
 from ..core.elasticsearch_setup import get_es_client
 from .slack_notifier import get_slack_notifier
 from .auto_recovery import get_auto_recovery
-import json
 from ..config.logging import SERVICE_MAP, LOG_INDEX_NAME
 
 logger = logging.getLogger(__name__)
@@ -19,10 +26,19 @@ logger = logging.getLogger(__name__)
 _GLOBAL_PURGE_TIMESTAMP = None
 
 def set_global_purge_time(iso_timestamp_str: str):
+    """
+    운영 화면 등의 요청으로 인해 초기화(Purge)를 켰을 때 발생하는 좀비 로그 부활 현상을 방지하고자 전역 시간 마커를 세팅함.
+
+    Args:
+        iso_timestamp_str (str): 리셋 기준으로 삼을 UTC ISO8601 포맷 문자열.
+    """
     global _GLOBAL_PURGE_TIMESTAMP
     _GLOBAL_PURGE_TIMESTAMP = iso_timestamp_str
 
 class LogCollector:
+    """
+    컨테이너 로그 수거 및 인덱싱 처리, 부가 작업(알림, 자동복구) 연동을 총괄하는 비즈니스 클래스.
+    """
     def __init__(self):
         try:
             self.docker_client = docker.from_env()
@@ -71,8 +87,14 @@ class LogCollector:
 
     def _parse_log_line(self, message: str) -> tuple[str, str]:
         """
-        로그 라인 파싱 및 레벨 결정
-        Returns: (level, parsed_message)
+        도커에서 추출한 로우(Raw) 텍스트를 파싱하여 메시지 내용과 심각도(레벨)를 분리함.
+        MongoDB 방식 등 알려진 JSON 구조일 경우 특정 필드 포맷을 파싱해 구조화함.
+
+        Args:
+            message (str): 도커 컨테이너에서 찍힌 한 줄 텍스트.
+
+        Returns:
+            tuple[str, str]: 추출된 로깅 레벨("INFO", "ERROR" 등)과 본문 메시지 튜플.
         """
         try:
             # JSON 파싱 시도
@@ -105,7 +127,16 @@ class LogCollector:
             return self._determine_level(message), message
 
     def collect_container_logs(self, container_name: str, tail: int = 200) -> list:
-        """특정 컨테이너의 로그 수집"""
+        """
+        특정 단일 컨테이너에 대해 최근 찍힌 로그(tail 수량)를 검색하여 정제된 포맷의 배열로 반환함.
+
+        Args:
+            container_name (str): 도커 서비스 컨테이너 이름.
+            tail (int, optional): 수집할 최대 라인 수. 기본값 200.
+
+        Returns:
+            list: 정제된 로그 딕셔너리(`timestamp`, `level`, `message` 등 포함) 배열. 파싱 혹은 도커 클라이언트 오류 시 빈 리스트 반환.
+        """
         if not self.docker_client:
             return []
             
@@ -157,7 +188,13 @@ class LogCollector:
             return []
 
     def bulk_index_to_elasticsearch(self, logs: list):
-        """Elasticsearch에 로그 벌크 인덱싱"""
+        """
+        다수의 로그 기록을 Elasticsearch에 일괄(Bulk) 인덱싱함.
+        네트워크 I/O 최적화를 위해 수행. 동일 시간에 도달한 중복 메시지를 방지하기 위해 컨테이너+시간+본문해시 기반의 고유 Doc ID를 생성함.
+
+        Args:
+            logs (list): 인덱싱 대상 로그 객체 목록.
+        """
         if not logs:
             return
             
@@ -182,7 +219,10 @@ class LogCollector:
             logger.error(f"로그 벌크 인덱싱 실패: {e}")
 
     def run_collection_cycle(self):
-        """모든 모니터링 대상 컨테이너에 대해 수집 주기 실행"""
+        """
+        전체 모니터링 대상 컨테이너에 대해 단일 로그 수집 주기(Loop)를 실행함.
+        수집, ES 적재, Slack 알림 체크, Error 자동복구 체크 절차를 순서대로 진행함.
+        """
         all_logs = []
         for container_name in self.monitored_containers:
             logs = self.collect_container_logs(container_name)
@@ -198,7 +238,10 @@ class LogCollector:
                     self.auto_recovery.track_error(log)
 
     async def start_background_collection(self):
-        """로그 수집 백그라운드 태스크 시작"""
+        """
+        애플리케이션 생명주기와 함께 동작하는 백그라운드 로그 수집 코루틴.
+        주기마다(10초) 쓰레드로 수거 작업을 보내 블락킹 현상을 막음.
+        """
         logger.info("백그라운드 로그 수집 서비스 시작...")
         while True:
             try:

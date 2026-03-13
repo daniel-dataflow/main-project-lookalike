@@ -1,8 +1,7 @@
 """
-이미지 처리 서비스
-- 파일 검증, 메모리에서 썸네일 생성, WebHDFS 업로드
-- 원본 이미지는 저장하지 않음 (용량 절약)
-- 로컬 파일 시스템에는 아무것도 저장하지 않음
+이미지 파일 검증 및 HDFS 업로드 비즈니스 로직 처리 모듈.
+- 서버 로컬 파일시스템(디스크) 부하를 방지하기 위해 파일 쓰기 없이 전 과정을 메모리(BytesIO) 상에서 처리함.
+- 비용 절감 및 용량 제어를 위해 원본 이미지는 폐기하고 썸네일(최적화)된 파일만 HDFS에 보관함.
 """
 import uuid
 import logging
@@ -20,8 +19,20 @@ logger = logging.getLogger(__name__)
 
 
 class ImageService:
+    """
+    이미지 검증 및 HDFS 통신 서비스 로직.
+    업로드 자원의 용량 제한 및 안정적인 리사이징을 담당함.
+    """
     def validate_image_file(self, file: UploadFile) -> None:
-        """이미지 파일 검증 (확장자, MIME 타입)"""
+        """
+        보안 및 프로세싱 오류 방지를 위해 업로드된 이미지 파일의 확장자와 MIME 타입을 검사.
+
+        Args:
+            file (UploadFile): FastAPI에서 수신한 파일 업로드 데이터 객체.
+
+        Raises:
+            HTTPException: 확장자가 jpg, jpeg, png가 아니거나 MIME 타입이 이미지가 아닐 경우 (400) 발생.
+        """
         allowed_extensions = {".jpg", ".jpeg", ".png"}
         file_ext = Path(file.filename or "unknown.jpg").suffix.lower()
 
@@ -36,11 +47,19 @@ class ImageService:
 
     async def process_and_upload_thumbnail(self, file: UploadFile, user_id: str) -> dict:
         """
-        이미지를 메모리에서 처리하고 썸네일만 HDFS에 업로드.
-        원본은 저장하지 않음.
+        메모리 상에서 이미지를 썸네일로 변환하고 결과물만 HDFS에 전송.
+        로컬 디스크 I/O 없이 처리 속도를 높이고 스토리지 비용을 최소화하기 위해 사용.
+
+        Args:
+            file (UploadFile): 클라이언트가 전송한 원본 이미지 객체.
+            user_id (str): 저장 경로 식별 및 권한 확인을 위한 사용자 ID.
 
         Returns:
-            dict: image_id, hdfs_thumb_path, file_size, width, height
+            dict: 생성된 썸네일 경로, 이미지 고유 ID, 크기 및 해상도 메타데이터.
+                  (hdfs_uploaded 키를 통해 업로드 성공 여부 판별 가능)
+
+        Raises:
+            HTTPException: 업로드된 파일이 환경변수(MAX_UPLOAD_SIZE_MB) 제한을 초과할 경우 (400) 발생.
         """
         settings = get_settings()
         image_id = str(uuid.uuid4())

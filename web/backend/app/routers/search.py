@@ -1,5 +1,7 @@
 """
-검색 라우터 - 이미지 기반 유사 상품 검색 + 검색 로그/히스토리
+상품 검색 관련 외부 API 통신 및 DB 기록을 담당하는 라우터 모듈.
+- 클라이언트(프론트엔드)의 복합 조건(이미지, 텍스트, 카테고리 등) 검색 요청 처리를 위해 구성.
+- 의존성 서비스들을 조합하여 실제 비즈니스 흐름(검색 -> DB 로깅 -> 응답)을 완성함.
 """
 from fastapi import APIRouter, HTTPException, Query, UploadFile, File, Form, Request
 from fastapi.responses import Response
@@ -33,7 +35,16 @@ router = APIRouter(prefix="/api/search", tags=["검색"])
 # 헬퍼: Redis 세션에서 user_id 추출
 # ──────────────────────────────────────
 def _get_user_from_session(request: Request) -> Optional[dict]:
-    """Redis 세션에서 현재 로그인한 사용자 정보를 가져옵니다."""
+    """
+    HTTP Request 쿠키에 저장된 세션 토큰으로 Redis 캐시에서 사용자 정보를 복원함.
+    비로그인 사용자도 검색 기능을 이용할 수 있으므로, 세션 유무만 판별하여 반환.
+
+    Args:
+        request (Request): FastAPI HTTP Request 객체.
+
+    Returns:
+        Optional[dict]: Redis에서 가져온 사용자 데이터. 세션이 만료되거나 없으면 None 반환.
+    """
     token = request.cookies.get("session_token")
     if not token:
         return None
@@ -59,10 +70,22 @@ async def search_by_image(
     category: Optional[str] = Form(None, description="의류 카테고리 필터"),
 ):
     """
-    이미지 또는 텍스트 기반 상품 검색
-    - 이미지만: 이미지 업로드 → 썸네일 생성 → HDFS 저장 → ML 검색
-    - 텍스트만: 상품명/설명 텍스트 검색
-    - 이미지+텍스트: 복합 검색
+    클라이언트의 다중 인자로 상품 유사도 검색을 수행하고 조회 로그를 남김.
+    - AI 모델 파이프라인(ML Engine)과 DB(PostgreSQL/HDFS) 전략을 결합하기 위해 사용.
+    - 검색 처리 속도 최적화를 위해 이미지 업로드와 머신러닝 벡터 추론 작업을 비동기로 처리.
+
+    Args:
+        request (Request): 세션 정보에 접근하기 위한 Request 객체.
+        image (Optional[UploadFile]): 사용자가 업로드한 기준 이미지.
+        search_text (Optional[str]): 텍스트로 된 추가 검색 조건(예: '하객룩').
+        gender (Optional[str]): 노출 상품 성별 제한(men, women).
+        category (Optional[str]): 노출 상품 카테고리 제한(top, bottom 등).
+
+    Returns:
+        ImageSearchResponse: 병합된 최종 검색 결과와 추후 이력을 조회할 수 있는 로그 ID.
+
+    Raises:
+        HTTPException: 검색어와 이미지 보두 누락된 경우(400) 또는 내부 서비스(ML, DB) 에러 발생 시(500).
     """
     session = _get_user_from_session(request)
     user_id = session.get("user_id") if session else None

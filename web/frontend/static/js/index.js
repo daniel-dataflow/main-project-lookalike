@@ -31,7 +31,16 @@ document.addEventListener('DOMContentLoaded', function () {
     let originalImageSize = { w: 0, h: 0 };
     let originalImageObj = null;
 
-    // YOLO 라벨을 검색 category 값으로 정규화한다.
+    // ==========================================
+    // 자동 탐지(YOLO) 시나리오용 헬퍼 함수
+    // ==========================================
+
+    /**
+     * YOLO 서버가 뱉는 라벨('top', '하의' 등)을 클라이언트의 검색 필터 기준인 Category 상수값으로 정규화함.
+     * 자연어 모델 결과를 파서블한 DB Enum 필드로 맞춰주기 위한 전처리 과정임.
+     * @param {string} label 비전 모델 추론 결과 클래스명
+     * @returns {string|null} 매핑된 정규 분류값('top', 'bottom', 'outer')
+     */
     function mapYoloLabelToCategory(label) {
         const normalized = String(label || '').trim().toLowerCase();
         if (!normalized) return null;
@@ -41,6 +50,12 @@ document.addEventListener('DOMContentLoaded', function () {
         return null;
     }
 
+    /**
+     * 사용자가 직접 Category 버튼을 클릭하거나, 
+     * 자동 탐지된 바운딩 박스를 클릭했을 때 활성화된 카테고리를 동기화함.
+     * UI 버튼 상태(active)와 전역 상태(selectedClothes)를 일치시켜 직관적인 검색 조건을 유지.
+     * @param {string} categoryValue 버튼 클릭 또는 매핑으로부터 주입되는 분류값
+     */
     function applyCategorySelection(categoryValue) {
         if (!categoryValue) return;
         selectedClothes = categoryValue;
@@ -193,7 +208,12 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-    // 이미지의 실제 렌더링 영역 좌표(offset)와 스케일(비율) 계산 유틸리티
+    /**
+     * 이미지 뷰어의 실제 CSS 크기(width/height) 대비 원본 이미지(natural Width)가 
+     * object-fit 속성에 의해 어느 정도 Scale 다운되었고, 어딘가 여백(Offset)이 생겼는지 역산함.
+     * 마우스 드래그 좌표계를 실제 이미지의 1:1 픽셀 공간 좌표계로 환산하기 위해 꼭 필요한 행렬 변환임.
+     * @returns {Object|null} 오프셋(x,y), 렌더링된 크기, 스케일 비율 객체
+     */
     function getRenderedImageRect() {
         if (!originalImageObj) return null;
 
@@ -376,6 +396,11 @@ document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('bboxInstruction').classList.add('d-none');
     });
 
+    /**
+     * 파일 업로드 시 파일 포맷, 용량을 1차 검증하고, FileReader를 이용해 Blob 프리뷰 이미지를 로드.
+     * ML 비전 추론 모델로 자동 검사하기 위해 렌더링 준비 후 곧바로 `detectApparel` 함수를 파이프라이닝.
+     * @param {File} file 업로드된 이미지 객체
+     */
     function handleFileSelect(file) {
         // 파일 형식 체크
         const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg'];
@@ -423,6 +448,14 @@ document.addEventListener('DOMContentLoaded', function () {
         searchBtn.disabled = false;
     }
 
+    /**
+     * YOLO 서버에 사용자가 업로드한 이미지를 전송하고 객체 바운딩 박스를 반환 및 화면에 렌더링함.
+     * 검색 시나리오 중 이미지 내의 상품 위치를 특정하기 위해 수행되는 선행 작업.
+     * 
+     * @param {File} file - 업로드 폼에서 추출한 렌더링될 이미지 파일 객체.
+     * @returns {Promise<void>} 비동기 작업이며, 결과는 직접 DOM에 렌더링되어 별도 반환값 없음.
+     * @throws {Error} 네트워크 통신 실패 또는 API 에러 응답 시 (콘솔에 출력).
+     */
     async function detectApparel(file) {
         const formData = new FormData();
         formData.append('image', file);
@@ -459,6 +492,11 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
+    /**
+     * YOLO 서버로부터 리턴받은 수치(Bounding Box 좌표 리스트)들을 DOM 위의 투명 오버레이 박스로 그려냄.
+     * 이미지가 리사이징(Contain)된 비율 스케일을 역산해 본래 위치에 마스킹되도록 함.
+     * @param {Array} boxes 백엔드 응답(JSON)의 탐지 결과 리스트
+     */
     function drawBboxes(boxes) {
         const container = document.getElementById('bboxContainer');
         container.innerHTML = '';

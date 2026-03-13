@@ -80,6 +80,11 @@ document.addEventListener('DOMContentLoaded', function () {
 // ============================================
 // 로그인 상태 확인 (/api/auth/me)
 // ============================================
+/**
+ * 애플리케이션 초기 진입 시 서버(API)에 로그인 상태를 질의함.
+ * 세션 토큰(Cookie)을 기반으로 현재 접속한 유저의 인증 뷰를 렌더링하기 위함.
+ * @returns {Promise<void>} 
+ */
 async function checkLoginStatus() {
     try {
         const resp = await fetch('/api/auth/me', { credentials: 'same-origin' });
@@ -102,6 +107,11 @@ async function checkLoginStatus() {
 // ============================================
 // OAuth 제공자 활성화 확인
 // ============================================
+/**
+ * 백엔드 설정(`config/auth.py`)으로부터 사용 가능한 소셜 로그인 목록을 조회함.
+ * 관리자가 특정 OAuth 기능(예: Kakao)을 비활성화한 경우, UI 단에서 로그인 버튼을 선제적으로 비활성 조치하기 위함.
+ * @returns {Promise<void>}
+ */
 async function checkOAuthProviders() {
     try {
         const resp = await fetch('/api/auth/oauth/providers');
@@ -135,6 +145,11 @@ async function checkOAuthProviders() {
 // ============================================
 // UI 업데이트: 로그인 상태
 // ============================================
+/**
+ * 로그인 성공 시 프로필 위젯 영역을 유저 정보로 교체함.
+ * 드롭다운 메뉴 등을 활성화하여 마이페이지/로그아웃 기능을 제공하기 위함.
+ * @param {Object} user 로그인한 사용자 객체
+ */
 function updateUIForLoggedIn(user) {
     const authArea = document.getElementById('authArea');
     if (!authArea) return;
@@ -164,6 +179,9 @@ function updateUIForLoggedIn(user) {
     `;
 }
 
+/**
+ * 미로그인 혹은 세션 만료 시 호출되어 헤더 영역을 초기 상태(로그인 버튼)로 되돌림.
+ */
 function updateUIForLoggedOut() {
     const authArea = document.getElementById('authArea');
     if (!authArea) return;
@@ -189,6 +207,10 @@ function getProviderIcon(provider) {
 // ============================================
 // 이메일 로그인 처리
 // ============================================
+/**
+ * 이메일/비밀번호 입력 폼 전송을 블록하고, 백엔드('/api/auth/login')로 JSON 페이로드를 전달함.
+ * 응답 체계(Response) 분석을 통해 UI에 즉각적인 로그인 결과 알림(Toast)을 표시.
+ */
 function initLoginForm() {
     const form = document.getElementById('loginForm');
     if (!form) return;
@@ -238,6 +260,10 @@ function initLoginForm() {
 // ============================================
 // 이메일 회원가입 처리
 // ============================================
+/**
+ * 회원가입 모달 내 제출 동작 제어.
+ * 프론트엔드 단의 1차 유효성(비밀번호 길이, 일치 여부) 통과 후 백엔드에 사용자 생성을 요청함.
+ */
 function initSignupForm() {
     const form = document.getElementById('signupForm');
     if (!form) return;
@@ -293,6 +319,11 @@ function initSignupForm() {
 // ============================================
 // 로그아웃 처리
 // ============================================
+/**
+ * 드롭다운의 로그아웃 클릭 시 서버단에 세션 만료 지시를 내림.
+ * 완료 후 전역 객체(currentUser) 초기화와 함께 홈 페이지로 우회시켜 민감 정보 노출을 방지함.
+ * @param {Event} e 터치/클릭 이벤트 객체
+ */
 async function handleLogout(e) {
     if (e) e.preventDefault();
 

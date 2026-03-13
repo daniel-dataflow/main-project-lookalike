@@ -70,7 +70,10 @@ function applyUserName(name) {
     if (el2) el2.textContent = name;
 }
 
-// 사이드바 접기/펴기 토글 함수
+/**
+ * 모바일 환경이나 화면이 좁을 때 어드민 LNB(좌측 사이드바)를 접거나 펼치는 토글 기능.
+ * 뷰포트 영역을 최대로 확보하기 위해 사용되며, 상태는 로컬 스토리지에 영구 저장됨.
+ */
 function toggleSidebar() {
     const sidebar = document.getElementById('adminSidebar');
     const mainContent = document.getElementById('adminMainContent');
@@ -97,6 +100,11 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 });
 
+/**
+ * 어드민 전용 세션을 즉시 파기하고 로그인 페이지로 킥 아웃함.
+ * 업무 완료 후 보안을 유지하기 위해 필수적인 로그아웃 절차.
+ * @returns {Promise<void>}
+ */
 async function adminLogout() {
     try {
         await fetch('/api/auth/admin/logout', {
@@ -112,6 +120,12 @@ async function adminLogout() {
    [admin_login.js]
 ========================================================================= */
 
+/**
+ * 어드민 로그인 페이지(/admin/login)의 폼 데이터 전송을 가로채어 API 서버 단으로 자격 검증을 요청함.
+ * 어드민 계정은 사내 보안을 위해 OAuth에 의존하지 않고 별도의 Hash 기반 State를 지님.
+ * @param {Event} e 폼 submit 이벤트 객체
+ * @returns {Promise<void>}
+ */
 async function adminLogin(e) {
     e.preventDefault();
 

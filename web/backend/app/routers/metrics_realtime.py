@@ -1,3 +1,7 @@
+"""
+Docker 데몬을 통해 실시간 컨테이너 리소스를 조회하는 분리형 라우터 모듈.
+- Elasticsearch나 별도 수집 로직(Metric Collector)이 다운되거나 지연(Network Delay) 현상이 생길 경우에도 즉각적인 시스템 모니터링 수단을 확보하기 위해 구성됨.
+"""
 from fastapi import APIRouter
 from typing import List, Dict
 import docker
@@ -13,8 +17,11 @@ logger = logging.getLogger(__name__)
 @router.get("/realtime")
 async def get_realtime_metrics():
     """
-    실시간 Docker 컨테이너 메트릭 조회 (Elasticsearch 불필요)
-    백그라운드 수집 서비스 없이 직접 Docker에서 조회
+    백그라운드 모니터링 에이전트를 거치지 않고, Docker Engine API를 직접 호출해 가장 최신의 시스템 자원 할당량(Stats)을 연산함.
+    ES 의존성을 제거해 인프라 장애 시 원인 분석(Root Cause Analysis)의 정확도를 높임.
+
+    Returns:
+        dict: 활성화된 컨테이너 총 숫자와 각 컨테이너 별 평균적인 점유율(CPU, RAM, 등) 통계 데이터의 목록. 에러 시 빈 목록 반환.
     """
     try:
         client = docker.from_env()
@@ -60,7 +67,11 @@ async def get_realtime_metrics():
 @router.get("/stats")
 async def get_metric_stats():
     """
-    현재 실행 중인 컨테이너의 평균 통계 (실시간)
+    Docker 엔진에서 직접 산출한 시스템 스냅샷 데이터를 컨테이너를 넘어 전체 서비스 단위(App, DB 등)로 통합/평균 내어 제공함.
+    클러스터 수준에서의 성능 병목 구간을 신속하게 파악할 목적으로 사용.
+
+    Returns:
+        dict: 컨테이너명 접두사(서비스)를 키로 가지고 평균 CPU/Mem 값을 지니는 집계 객체.
     """
     try:
         realtime_data = await get_realtime_metrics()

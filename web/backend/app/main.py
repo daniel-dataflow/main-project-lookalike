@@ -1,6 +1,7 @@
 """
-Lookalike - FastAPI 메인 애플리케이션
-패션 유사 상품 검색 웹 서비스
+FastAPI 기반 백엔드 애플리케이션의 진입점(Entrypoint).
+- 서버 실행 시 필요한 라우터 등록, 미들웨어 설정, DB/Elasticsearch 연결 등의 생명주기 관리를 수행함.
+- 프론트엔드 연동을 위한 정적 파일(static) 및 HTML 템플릿(templates) 마운트 역할도 포함.
 """
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
@@ -41,7 +42,13 @@ logger = logging.getLogger(__name__)
 # ──────────────────────────────────────
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """앱 시작 시 DB 연결, 종료 시 DB 연결 해제"""
+    """
+    서버 구동/종료 시 의존 리소스들의 상태를 초기화하고 해제함.
+    DB 커넥션 부족을 방지하고 불필요한 리소스 누수를 막기 위함.
+
+    Args:
+        app (FastAPI): 애플리케이션 인스턴스.
+    """
     logger.info("🚀 앱 시작 - 데이터베이스 연결 초기화")
     try:
         init_all_databases()

@@ -44,7 +44,11 @@ async function refreshAll(showLoading = true) {
     ]);
 }
 
-// [성능 최적화] 통합 대시보드 API (ES msearch 1회 왕복)
+/**
+ * 실시간 로그 통합 대시보드의 주요 지표들(Top Errors, Trend, Stats)을 서버측 Aggregate API 하나로 묶어 호출함.
+ * 여러 개의 컴포넌트가 각각 쿼리를 날릴 경우 발생하는 ES 부하와 렌더링 지연을 해소하기 위한 성능 최적화 패턴.
+ * @returns {Promise<void>}
+ */
 async function fetchDashboard() {
     try {
         // [성능] 프리로드된 데이터가 있으면 재사용 (초기 로딩 시)
@@ -264,7 +268,12 @@ async function fetchPipelineStatus() {
     } catch (e) { console.error(e); }
 }
 
-// ── 로그 스트림 ──
+/**
+ * ElasticSearch에 적재된 실제 컨테이너 에러 로그 원문들을 조건(Service, Level) 필터링하여 스트리밍함.
+ * 화면상에 100건만 제한하여 DOM 과부하를 막고, 개발자가 빠르게 시스템 장애 원인을 식별하도록 도움.
+ * @param {boolean} showLoading 로딩 스피너 UI 표시 여부 (자동 갱신일 경우 false로 주어 깜빡임 방지)
+ * @returns {Promise<void>}
+ */
 async function fetchLogs(showLoading = true) {
     const tableBody = document.getElementById('logTableBody');
     const mobileList = document.getElementById('mobileLogList');
@@ -358,6 +367,11 @@ function renderMobileCards(logs, container) {
     });
 }
 
+/**
+ * 테이블이나 카드 레이아웃에서 특정 로그 단건을 눌렀을 때 팝업 모달로 세부 JSON 메시지를 펼쳐줌.
+ * 셀 너비 제한으로 인해 잘린긴 로그(Stack Trace 등) 원문을 전부 확인할 수 있게 함.
+ * @param {Object} log 서버로부터 받은 개별 Elasticsearch Log Document
+ */
 function showLogDetail(log) {
     const badge = document.getElementById('modalLevelBadge');
     badge.className = 'badge';
@@ -632,7 +646,12 @@ function downloadLogs() {
     window.location.href = url;
 }
 
-// ─── 과거 에러 로그 강제 초기화 (Purge) ───
+/**
+ * 어드민 액션: 현재까지 Elasticsearch에 쌓인 컨테이너 에러 로그 전체를 삭제함.
+ * 테스트 환경이나 샌드박스 단계에서 불필요하게 비대해진 ES 인덱스를 정리하고 용량을 확보하기 위함.
+ * 심각한 파괴적 작업이므로 브라우저 Confirm을 태워 의도된 호출임을 증명해야 함.
+ * @returns {Promise<void>}
+ */
 async function purgeAllLogs() {
     if (!confirm("⚠️ 정말로 기록된 모든 컨테이너 에러 로그를 삭제하시겠습니까?\n이 작업은 되돌릴 수 없으며 대시보드가 초기 상태로 돌아갑니다.")) {
         return;

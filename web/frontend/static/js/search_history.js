@@ -72,6 +72,12 @@ document.addEventListener('DOMContentLoaded', async function () {
         }
     });
 
+    /**
+     * 서버로부터 누적된 검색 사용자의 히스토리 데이터를 비동기로 Paging(Offset) 스트리밍함.
+     * 첫 로드 시 혹은 더 보기 버튼 클릭 시 호출되며, UI 멈춤 방지를 위해 로딩 스피너 제어가 동반됨.
+     * @param {boolean} append 기존 데이터에 추가 여부
+     * @returns {Promise<void>}
+     */
     async function loadHistory(append = false) {
         if (!append) {
             historyLoading.classList.remove('d-none');
@@ -108,6 +114,10 @@ document.addEventListener('DOMContentLoaded', async function () {
         }
     }
 
+    /**
+     * 로드된 `allHistory` 배열을 기준 필터(오늘, 일주일)에 맞춰 클라이언트 단에서 필터링 후 가상 DOM 노드로 렌더함.
+     * 서버에 반복 요청을 보내지 않고 기확보된 In-memory 리스트를 정제해 성능 저하를 방지함.
+     */
     function renderHistory() {
         historyLoading.classList.add('d-none');
 
@@ -239,7 +249,11 @@ function escapeHtml(str) {
     return div.innerHTML;
 }
 
-// 글로벌 함수: 검색 결과 상세 모달
+/**
+ * 특정 검색 로그 기록 카드를 눌렀을 때 팝업 모달을 띄우고 DB의 상세 결과를 렌더링함.
+ * 사용자가 이전에 어떤 결과 상품들을 확인했었는지 복기할 수 있도록 지원하는 UX 기능.
+ * @param {number|string} logId 백엔드에서 생성된 검색기록 테이블 PK
+ */
 async function showDetail(logId) {
     const modal = new bootstrap.Modal(document.getElementById('detailModal'));
     const modalBody = document.getElementById('detailModalBody');

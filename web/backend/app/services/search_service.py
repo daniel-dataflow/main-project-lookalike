@@ -1,15 +1,7 @@
 """
-검색 서비스 추상화 레이어 (전략 패턴)
---------------------------------------
-ML/Elasticsearch 연동을 고려한 검색 전략 선택:
-
-  1. ML 서버 검색        - ML 서버에서 받아온 {product_id: score} 목록이 있을 때 (ES kNN 포함)
-  2. ES 텍스트 검색      - ES 가용 + query_text만 있을 시 (향후 전환)
-  3. DB fallback         - 상기 조건 미충족 시 (현재 기본 동작)
-
-호출부(search.py)는 이 모듈만 바라보면 되며,
-ML 파이프라인 완성 후 ml_product_scores 딕셔너리를 넘기는 것으로 
-해당 ID들에 대한 실시간 DB 데이터(최저가 등) 조인을 자동 수행합니다.
+상품 검색 관련 비즈니스 로직 처리 모듈.
+- ML 엔진의 벡터 검색 방식과 DB 기반의 텍스트 검색(fallback) 전략 통합 관리.
+- 호출부(Router)에서 검색 전략의 내부 로직을 알 필요가 없도록 추상화함.
 """
 import logging
 from typing import Optional
@@ -19,6 +11,10 @@ logger = logging.getLogger(__name__)
 
 
 class SearchService:
+    """
+    유사 상품 검색 비즈니스 로직 처리 엔티티.
+    성능 최적화 및 코드 응집도 증가를 위해 객체 상태로 관리함.
+    """
     def _category_filter_values(self, category: str) -> list[str]:
         """입력 카테고리를 DB category_code 비교용 값 목록으로 확장한다."""
         key = (category or "").strip().lower()
@@ -40,7 +36,17 @@ class SearchService:
         limit: int = 6,
     ) -> list:
         """
-        유사 상품 검색 (전략 자동 선택)
+        사용자 요청에 따른 상품 검색 통합 진입점.
+
+        Args:
+            query_text (Optional[str]): 사용자가 입력한 검색어 키워드 (보조적 수단).
+            ml_product_scores (Optional[dict]): ML 모델에서 도출된 {product_id: score} 맵 자료구조. AI 엔진의 결과를 우선적으로 참조하기 위함.
+            category (Optional[str]): 대분류 필터 제한.
+            gender (Optional[str]): 성별 필터 제한.
+            limit (int, optional): 노출할 최종 상품 리스트 개수. UI 구성 상 기본 6개로 지정.
+
+        Returns:
+            list: 유사도가 높거나 무작위 추천된(fallback 시) 상품 정보 딕셔너리의 배열. (product_id, base_price, mall_url 등 포함)
         """
         if ml_product_scores is not None and len(ml_product_scores) > 0:
             try:

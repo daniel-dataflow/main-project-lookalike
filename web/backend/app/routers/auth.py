@@ -1,6 +1,7 @@
 """
-인증 라우터 - 소셜 로그인(구글/네이버/카카오) + 이메일 회원가입/로그인
-Redis 세션 기반 인증 관리
+사용자 세션 관리 및 인증(소셜 OAuth2, 이메일)을 총괄하는 핵심 라우터 모듈.
+- JWT 대신 Redis 기반 Stateful 세션을 채택하여 즉각적인 세션 무효화(로그아웃/어드민 밴) 요건을 충족.
+- 단일 진입점에서 여러 플랫폼(Google, Naver, Kakao, Email)의 로그인 상태를 규격화된 포맷으로 변환해 관리함.
 """
 from fastapi import APIRouter, HTTPException, Request, Response, status
 from fastapi.responses import RedirectResponse
@@ -50,7 +51,17 @@ def _verify_password(plain: str, hashed: str) -> bool:
 # Redis 세션 관리
 # ──────────────────────────────────────
 def _create_session(response: Response, user_data: dict) -> str:
-    """Redis에 세션을 생성하고 쿠키에 토큰을 설정"""
+    """
+    고유 난수 토큰을 발행해 사용자 사전 데이터를 Redis에 영속화(TTL)하고 이를 클라이언트 쿠키로 내려줌.
+    JWT의 한계를 보완하여 서버 측에서 세션의 라이프사이클을 통제하기 위함.
+
+    Args:
+        response (Response): 쿠키 값을 세팅할 응답 객체.
+        user_data (dict): 세션에 직렬화해 보관할 유저 메타 정보.
+
+    Returns:
+        str: 발급된 UUID4 형식의 세션 증명 토큰.
+    """
     settings = get_settings()
     token = str(uuid.uuid4())
     session_data = json.dumps(user_data, default=str, ensure_ascii=False)
@@ -78,7 +89,16 @@ def _create_session(response: Response, user_data: dict) -> str:
 
 
 def _get_session(request: Request) -> dict | None:
-    """쿠키에서 토큰을 읽어 Redis 세션 데이터 반환"""
+    """
+    모든 인증 필요 API가 호출될 때마다 유저를 식별하기 위해 쿠키에 담긴 토큰으로 Redis를 질의함.
+    성능을 위해 RDBMS Join 없이 인증을 마칠 수 있도록 설계됨.
+
+    Args:
+        request (Request): 쿠키가 포함된 HTTP 리퀘스트 객체.
+
+    Returns:
+        dict | None: 검증된 유저 정보. 캐시 미스거나 형용 불가 시 None.
+    """
     token = request.cookies.get("session_token")
     if not token:
         return None
@@ -95,7 +115,14 @@ def _get_session(request: Request) -> dict | None:
 
 
 def _delete_session(request: Request, response: Response):
-    """Redis 세션 삭제 + 쿠키 삭제"""
+    """
+    클라이언트 로그아웃 시 쿠키 클리어 및 Redis 스토어 내 해당 키를 즉각 파기함.
+    강제 로그아웃/만료 상태를 즉각 반영하여 보안을 강화.
+
+    Args:
+        request (Request): 세션 키 추출.
+        response (Response): Set-Cookie 만료일 초기화(삭제) 지시.
+    """
     token = request.cookies.get("session_token")
     if token:
         try:
@@ -111,7 +138,17 @@ def _delete_session(request: Request, response: Response):
 # Admin 전용 Redis 세션 관리
 # ──────────────────────────────────────
 def _create_admin_session(response: Response, user_data: dict) -> str:
-    """Redis에 어드민 세션을 생성하고 쿠키에 토큰을 설정"""
+    """
+    일반 유저 계정과 어드민 계정의 탈취 리스크를 분리하기 위한 독립된 Namespace(`admin_session:`) 세션 생성 함수.
+    이중 보안 및 강도 높은 권한 관리를 위해 사용.
+
+    Args:
+        response (Response): 클라이언트 쿠키 주입.
+        user_data (dict): 어드민 고유 권한 데이터.
+
+    Returns:
+        str: 발급된 어드민 전용 토큰값.
+    """
     settings = get_settings()
     token = str(uuid.uuid4())
     session_data = json.dumps(user_data, default=str, ensure_ascii=False)
@@ -139,7 +176,16 @@ def _create_admin_session(response: Response, user_data: dict) -> str:
 
 
 def _get_admin_session(request: Request) -> dict | None:
-    """쿠키에서 어드민 토큰을 읽어 Redis 세션 데이터 반환"""
+    """
+    백오피스 전용 라우터 진입 전용 미들웨어가 소비하는 함수.
+    기본 쿠키와 독립된 위치에서 검증하여 일반 사용자의 어드민 API 침투를 원천 봉쇄함.
+
+    Args:
+        request (Request): HTTP 요청.
+
+    Returns:
+        dict | None: 디코딩된 관리자 메타 객체.
+    """
     token = request.cookies.get("admin_session_token")
     if not token:
         return None
@@ -156,7 +202,13 @@ def _get_admin_session(request: Request) -> dict | None:
 
 
 def _delete_admin_session(request: Request, response: Response):
-    """Redis 어드민 세션 삭제 + 쿠키 삭제"""
+    """
+    어드민 대시보드 강제 로그아웃 또는 보안 검사 실패 시 백오피스 접근 권한을 즉시 파기함.
+    
+    Args:
+        request (Request): 제거할 세션 존재 확인.
+        response (Response): 쿠키 파기 응답.
+    """
     token = request.cookies.get("admin_session_token")
     if token:
         try:
@@ -185,7 +237,17 @@ def _user_row_to_dict(row: dict) -> dict:
 # ──────────────────────────────────────
 @router.post("/register", response_model=LoginResponse, status_code=status.HTTP_201_CREATED)
 async def register(req: UserRegisterRequest, response: Response):
-    """이메일 회원가입"""
+    """
+    네이티브 로그인(자체 회원가입) 사용자의 자격 증명을 암호화하여 DB에 적재함.
+    SNS가 아닌 이메일 기반 독자 플랫폼 회원을 유치하기 위함.
+
+    Args:
+        req (UserRegisterRequest): 클라이언트가 입력한 이메일/비밀번호/이름.
+        response (Response): 회원가입 즉시 로그인 처리용 쿠키.
+
+    Returns:
+        LoginResponse: 회원 객체 모델 반환.
+    """
     # 비밀번호 확인
     if req.password != req.password_confirm:
         raise HTTPException(
@@ -240,7 +302,16 @@ async def register(req: UserRegisterRequest, response: Response):
 # ──────────────────────────────────────
 @router.post("/login", response_model=LoginResponse)
 async def login(req: UserLoginRequest, response: Response):
-    """이메일 로그인"""
+    """
+    클라이언트 제출 평문 패스워드와 RDBMS의 해시 암호문 대조 후 인증 토큰(Redis Session)을 발행함.
+
+    Args:
+        req (UserLoginRequest): 검증 이메일과 패스워드.
+        response (Response): 검증 직후 세션을 구워낼 응답 객체.
+
+    Returns:
+        LoginResponse: 로그인 성공 여부 및 제한된 User 객체 (패스워드 제거).
+    """
     try:
         with get_pg_cursor() as cur:
             cur.execute(
@@ -284,7 +355,10 @@ async def login(req: UserLoginRequest, response: Response):
 # ──────────────────────────────────────
 @router.post("/logout")
 async def logout(request: Request, response: Response):
-    """로그아웃 - Redis 세션 삭제 + 쿠키 삭제"""
+    """
+    이전 로그인 흔적(Redis 스토어)을 모두 삭제 처리해 Stateless 환경에서의 상태 초기화를 수행함.
+    CSRF 공격 방어 및 공용 PC 보안 유지를 목적.
+    """
     _delete_session(request, response)
     return {"success": True, "message": "로그아웃 되었습니다"}
 
@@ -345,7 +419,17 @@ async def get_oauth_providers():
 
 @router.get("/oauth/{provider}")
 async def oauth_login(provider: str, request: Request):
-    """소셜 로그인 시작 - OAuth 제공자로 리다이렉트"""
+    """
+    소셜 인증 시작(Authorize) 지점. 사용자를 선택한 서드파티 제공자 서버의 인증 화면으로 우회(Redirect)시킴.
+    콜백 탈취를 막기 위한 OAuth 표준 CSRF State 토큰을 임시 캐시함.
+
+    Args:
+        provider (str): facebook, google, kakao 등 식별자.
+        request (Request): 동적 리다이렉트 Callback URI 연산을 위한 Host Request.
+
+    Returns:
+        RedirectResponse: Oauth 제공자 도메인으로의 강제 라우팅.
+    """
     settings = get_settings()
 
     if provider not in OAUTH_CONFIGS:
@@ -413,7 +497,22 @@ async def oauth_callback(
     error_description: str = None,
     response: Response = None,
 ):
-    """OAuth 콜백 - 토큰 교환 → 사용자 정보 조회 → 로그인/가입"""
+    """
+    서드파티 제공자(OAuth)로부터 인가 코드(Authorization Code)를 수신해 내부 서버 대 서버 통신으로 액세스 토큰을 교환함.
+    이후 토큰으로 프로필(이메일, 이름)을 가져와 RDBMS에 유저 정보를 Upsert(가입/로그인) 처리함.
+
+    Args:
+        provider (str): 호출한 소셜 로그인 제공자.
+        request (Request): 내부 Host 파싱용.
+        code (str, optional): OAuth Authorization Code.
+        state (str, optional): 보안용 상태 검증 난수.
+        error (str, optional): 제공자가 건네준 오류 코드.
+        error_description (str, optional): 상세 오류 메시지.
+        response (Response): 리다이렉트 시 세션 쿠키를 굽기 위함.
+
+    Returns:
+        RedirectResponse: 처리가 완료된 후 메인 페이지('/')로 이동.
+    """
     settings = get_settings()
 
     # OAuth 제공자가 에러를 반환한 경우
@@ -519,7 +618,17 @@ async def oauth_callback(
 
 
 def _parse_oauth_userinfo(provider: str, info: dict) -> tuple:
-    """제공자별 사용자 정보 파싱 → (provider_id, name, email, profile_image)"""
+    """
+    각 소셜 플랫폼마다 다른 프로필 응답 JSON 구조를 하나로 정규화(Normalize)함.
+    회원 관리 로직(DB Upsert 등)에서 플랫폼 의존성을 제거하기 위함.
+
+    Args:
+        provider (str): 로그인 제공자.
+        info (dict): 서드파티로부터 받은 Raw JSON.
+
+    Returns:
+        tuple: (식별자, 이름, 이메일, 프로필 이미지 URL)의 형태.
+    """
     if provider == "google":
         return (
             info.get("id"),
@@ -552,7 +661,16 @@ def _parse_oauth_userinfo(provider: str, info: dict) -> tuple:
 # ──────────────────────────────────────
 @router.get("/users/{user_id}", response_model=UserResponse)
 async def get_user(user_id: str):
-    """사용자 정보 조회"""
+    """
+    특정 1인의 상세 메타데이터를 RDBMS에서 꺼내 반환함.
+    어드민 대시보드 내 유저 관리 탭 또는 회원의 마이페이지 상세에서 이용됨.
+
+    Args:
+        user_id (str): 찾고자 하는 대상 PK.
+
+    Returns:
+        UserResponse: Pydantic 포맷의 인증 객체.
+    """
     try:
         with get_pg_cursor() as cur:
             cur.execute(
@@ -582,7 +700,19 @@ async def get_user(user_id: str):
 # ──────────────────────────────────────
 @router.put("/users/{user_id}", response_model=UserResponse)
 async def update_user(user_id: str, req: UserUpdateRequest, request: Request, response: Response):
-    """사용자 정보 수정 (비밀번호 변경만 가능, 이메일 사용자 전용)"""
+    """
+    네이티브 로그인 유저가 비밀번호를 갱신할 때 사용됨.
+    소셜 로그인 주체의 비밀번호는 당사에 없으므로 정책상 차단(403)함. 
+
+    Args:
+        user_id (str): 대상 유저.
+        req (UserUpdateRequest): 이전 비밀번호와 새 비밀번호.
+        request (Request): 소유권 증명을 위한 로그인 세션 참조.
+        response (Response): 비밀번호 변경 시 기존 세션 파괴용(로그아웃).
+
+    Returns:
+        UserResponse: 상태가 업데이트된 최신 정보.
+    """
     # 1. 세션 확인 (로그인 여부)
     session = _get_session(request)
     if not session or session.get("user_id") != user_id:

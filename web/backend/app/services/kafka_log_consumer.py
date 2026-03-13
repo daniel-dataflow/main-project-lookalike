@@ -1,3 +1,8 @@
+"""
+Kafka 토픽에서 Filebeat가 수집한 분산 컨테이너 로그를 구독 및 파싱하여 Elasticsearch에 저장하는 모듈.
+- 대규모 로그 트래픽을 안정적으로 처리하기 위해 버퍼링 및 Bulk 인덱싱 방식을 사용함.
+- 다양한 로그 포맷(Docker JSON-file 등)에서 정확히 어떤 컨테이너/서비스에서 발생한 로그인지 추적하는 복원 로직을 포함함.
+"""
 import json
 import logging
 import re
@@ -13,6 +18,10 @@ from .log_collector import LogCollector
 logger = logging.getLogger(__name__)
 
 class KafkaLogConsumer:
+    """
+    Kafka 스트림을 섭취해 Elasticsearch 문서 형태로 변환하는 비즈니스 클래스.
+    컨테이너 ID 기반의 캐싱 기법을 이용해 매 로우(Row)마다 Docker API를 찔러 생기는 병목을 해소함.
+    """
     def __init__(self):
         self.bootstrap_servers = ["kafka:9092"]
         self.topic = "container-logs"
@@ -26,7 +35,14 @@ class KafkaLogConsumer:
 
     def resolve_container_name(self, container_id: str) -> str:
         """
-        Resolve container name from ID using Docker API (cached)
+        주어진 컨테이너 ID(Hash)로부터 실제 사람이 읽을 수 있는 이름(예: 'fastapi-main')을 반환함.
+        Docker API I/O 비용을 줄이기 위해 내부 딕셔너리에 캐싱(Cache)된 값을 우선 접근함.
+
+        Args:
+            container_id (str): 도커 데몬에서 생성한 해시 ID.
+
+        Returns:
+            str: 해석된 도커 컨테이너 이름. 찾기 실패 시 빈 문자열.
         """
         if container_id in self.container_id_cache:
             return self.container_id_cache[container_id]
@@ -51,7 +67,14 @@ class KafkaLogConsumer:
 
     def parse_filebeat_message(self, raw_message: dict) -> dict:
         """
-        Filebeat 메시지 파싱 - Container Name 추출 로직 강화
+        여러 경로/형태로 유입될 수 있는 Filebeat JSON 객체를 단일화된 스키마로 가공.
+        도커 컨테이너 이름 구조나 Log File Path 패턴에 따라 휴리스틱하게 매칭 점검하여 누락된 메타데이터를 보정함.
+
+        Args:
+            raw_message (dict): Filebeat가 전달한 raw JSON 데이터.
+
+        Returns:
+            dict: 레벨(INFO/ERROR), 컨테이너명, 메시지를 포함하여 정형화된 사전 객체.
         """
         try:
             # Filebeat fields

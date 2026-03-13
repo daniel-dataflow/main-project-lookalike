@@ -1,4 +1,8 @@
-
+"""
+Elasticsearch에 누적된 시스템 로그를 조회 및 통계화하여 어드민 대시보드에 제공하는 뷰 라우터 모듈.
+- 단일/개별 API 통신으로 발생하는 오버헤드를 막기 위해 msearch 기반의 복합 쿼리 엔드포인트를 제공함.
+- 장애 대응 및 사후 분석을 위해 에러 빈도 추적, 실시간 스트림, CSV 다운로드 등의 연계 기능을 포함.
+"""
 from fastapi import APIRouter, HTTPException, Query
 from typing import Optional, List, Dict
 from datetime import datetime, timedelta
@@ -31,10 +35,11 @@ _DASHBOARD_CACHE_TTL = DASHBOARD_CACHE_TTL
 @router.get("/dashboard")
 async def get_log_dashboard():
     """
-    [성능 최적화] 대시보드 초기 로딩용 통합 API
-    - ES msearch로 stats/trend/top-errors/service-health를 1회 왕복으로 처리
-    - 30초 캐싱 적용
-    - stream(로그 목록)은 필터 의존성 때문에 별도 호출
+    모니터링 대시보드 초기 렌더링에 필요한 주요 통계(Stats, Trend, Top Errors, Health)를 한 번에 조회함.
+    Elasticsearch의 멀티 서치(msearch) 기능을 사용해 다수 쿼리를 통합 발송함으로써 I/O 비용을 획기적으로 낮춤.
+
+    Returns:
+        dict: 부문별(추이, 헬스, 통계 등) 파싱된 ES 응답 결괏값.
     """
     global _dashboard_cache, _dashboard_cache_time
 
@@ -192,7 +197,13 @@ async def get_log_dashboard():
 
 @router.get("/pipeline-status")
 async def get_pipeline_status():
-    """파이프라인 상태 확인 (캐시 30초 적용)"""
+    """
+    Kafka 연동 상태 및 Elasticsearch 엔진의 논리적 문서 개수/스토리지 크기를 진단해 반환함.
+    로그 파이프라인(Producer -> Kafka -> Consumer -> ES) 중 어느 구간에 병목이나 끊김이 발생했는지 추적하기 위함.
+
+    Returns:
+        dict: 파이프라인 구성 요소들의 활성화 상태 및 ES 데이터 볼륨 현황.
+    """
     
     # [성능 최적화] 30초 캐싱: Kafka 연결 타임아웃(최대 1초)을 반복 호출마다 지불하지 않도록
     now = time.time()
@@ -263,11 +274,17 @@ async def get_logs_stream(
     size: int = Query(100, le=500)
 ):
     """
-    실시간 로그 스트림 조회
-    - service: 서비스명 필터 (예: airflow, spark)
-    - level: 로그 레벨 필터 (예: ERROR, WARN)
-    - keyword: 메시지 키워드 검색
-    - size: 반환 개수 (기본 100, 최대 500)
+    실시간 발생하는 로그 내역들을 필터 조건(서비스, 레벨, 검색어)에 맞춰 페이지네이션 없이 단건 배열로 반환함.
+    장애 발생 시 특정 컨테이너나 키워드의 최신 발생 로그를 빠르게 검토하기 위한 용도.
+
+    Args:
+        service (Optional[str], optional): 서비스 명칭(예: API_BE). ALL은 전체 조회.
+        level (Optional[str], optional): 로그 중요도 (ERROR, WARN 등).
+        keyword (Optional[str], optional): 메시지에 포함될 자유 텍스트.
+        size (int, optional): 조회 크기 (최대 500개).
+
+    Returns:
+        dict: 조회된 전체 카운트와 도큐먼트 소스 배열.
     """
     must_conditions = []
     
@@ -316,8 +333,17 @@ async def get_logs_download(
     size: int = Query(10000, le=50000)
 ):
     """
-    로그 텍스트 추출 (다운로드용)
-    - size: 반환 개수 (기본 10000, 최대 50000)
+    대용량 로그를 스트리밍 방식으로 텍스트(txt) 파일 형태다운로드할 수 있도록 헤더를 변환함.
+    어드민 화면상에서 파악하기 힘든 방대한 양의 로그를 로컬 에디터에서 분석해야 할 때 사용.
+
+    Args:
+        service (Optional[str], optional): 서비스 명칭.
+        level (Optional[str], optional): 로그 등급.
+        keyword (Optional[str], optional): 검색 메시지.
+        size (int, optional): 수출할 라인 수 (최대 5만 개).
+
+    Returns:
+        StreamingResponse: Chunk 단위로 스트리밍 되는 raw text 응답 포맷.
     """
     must_conditions = []
     
@@ -368,9 +394,11 @@ async def get_logs_download(
 @router.get("/stats")
 async def get_log_stats():
     """
-    최근 1시간 기준 로그 통계 조회
-    - 서비스별 로그 건수
-    - 레벨별 로그 건수
+    최근 1시간 내에 생성된 로그의 레벨별, 서비스별 총 발생 건수 분포를 단순 조회함.
+    `get_log_dashboard`의 msearch에서 수행하는 범주와 일부 겹치지만, 부분적 컴포넌트 업데이트 시 재사용 가능함.
+
+    Returns:
+        dict: 서비스별 비율, 레벨별 발생 빈도 매핑 객체.
     """
     # 최근 1시간 범위 설정
     one_hour_ago = (datetime.utcnow() - timedelta(hours=1)).isoformat()
@@ -418,7 +446,14 @@ async def get_log_stats():
 @router.get("/errors")
 async def get_recent_errors(size: int = Query(50, le=100)):
     """
-    최근 에러 로그 조회 (ERROR, CRITICAL)
+    현재 시간 기준, 가장 상단에 위치한 에러/크리티컬 레벨의 로그만 추출하여 반환함.
+    오류 리포트 패널이나 알림 시스템의 검토용 소스로 활용하기 위함.
+
+    Args:
+        size (int, optional): 폴링 사이즈 제한.
+
+    Returns:
+        dict: 전체 에러 카운트와 해당 로그 배열.
     """
     body = {
         "query": {
@@ -452,8 +487,11 @@ async def get_recent_errors(size: int = Query(50, le=100)):
 @router.get("/trend")
 async def get_log_trend():
     """
-    최근 24시간 시간대별 로그 레벨 추이
-    - 1시간 단위로 ERROR, WARN, INFO 건수를 반환
+    24시간 타임라인에서 1시간 단위로 시계열 히스토그램을 작성하여 각 구간별 에러/경고 양을 반환함.
+    특정 스케줄러(Cron) 시간대에 에러가 집중되는지 상관관계(Trend)를 시각화하기 위해 사용.
+
+    Returns:
+        dict: 타임스탬프 문자열과 각 레벨별 카운팅을 지닌 객체 리스트.
     """
     twenty_four_hours_ago = (datetime.utcnow() - timedelta(hours=24)).isoformat()
 
@@ -498,8 +536,14 @@ async def get_log_trend():
 @router.get("/top-errors")
 async def get_top_errors(hours: int = Query(24, le=168)):
     """
-    최근 N시간 동안 가장 빈번한 에러 메시지 Top 5
-    동일한 메시지를 그룹핑하여 빈도순 정렬
+    최근 지정된 시간 내에 빈번히 나타난 치명적 오류 메시지(ERROR, CRITICAL)들의 패턴을 그룹핑하여 상위 리스트를 반환함.
+    반복되는 오류(예: DB 타임아웃, 포트 충돌)의 노이즈 속에서 가장 시급히 해결해야 할 메인 이슈를 특정하기 위해 사용.
+
+    Args:
+        hours (int, optional): 탐색할 시간 범위. 기본값 24.
+
+    Returns:
+        dict: 장애 원인 텍스트와 빈도수, 마지막 발견 시간이 포함된 Top 오류 배열.
     """
     since = (datetime.utcnow() - timedelta(hours=hours)).isoformat()
 
@@ -567,11 +611,11 @@ async def get_top_errors(hours: int = Query(24, le=168)):
 @router.get("/service-health")
 async def get_service_health():
     """
-    서비스별 헬스 상태 (최근 1시간 기준)
-    - total: 전체 로그 수
-    - errors: ERROR + CRITICAL 수
-    - error_rate: 에러율 (%)
-    - status: healthy / warning / critical
+    최근 1시간 기준으로 각 컴포넌트(서비스)들의 정상 동작 비율을 평가하여 상태 등급(Healthy, Warning, Critical)을 산정함.
+    마이크로서비스 환경에서 어떤 파드가 전체 시스템 결함의 진앙지인지 색상 구분(레드/옐로우)으로 렌더링하도록 프론트에 지표를 전송함.
+
+    Returns:
+        dict: 서비스별 에러 비율 및 판정된 헬스 상태 문자열.
     """
     one_hour_ago = (datetime.utcnow() - timedelta(hours=1)).isoformat()
 
@@ -656,14 +700,29 @@ class RecoveryConfigRequest(BaseModel):
 
 @router.get("/alerts/config")
 async def get_alert_config():
-    """Slack 알림 전체 설정 조회"""
+    """
+    현재 설정되어 동작 중인 Slack Webhook URL 및 알림 발생 임계치 등의 전역 환경변수(설정)를 조회함.
+    관리자가 어드민 뷰에서 수동으로 알림 민감도를 조정할 수 있도록 UI에 바인딩됨.
+
+    Returns:
+        dict: SlackNotifier 서비스 인스턴스의 설정 직렬화 객체.
+    """
     notifier = get_slack_notifier()
     return notifier.get_config()
 
 
 @router.post("/alerts/config")
 async def set_alert_config(req: SlackConfigRequest):
-    """Slack 알림 설정 업데이트"""
+    """
+    운영 환경 재시작 없이, 런타임 중에 Slack 알림 차단/오픈 및 각종 허들링(Cooldown, Threshold) 매개변수를 교체함.
+    새벽 시간대나 대대적 점검 시 무분별한 알림 핑(Ping)을 차단하기 위한 통제 수단.
+
+    Args:
+        req (SlackConfigRequest): 변경할 슬랙 관련 파라미터 셋.
+
+    Returns:
+        dict: 성공 여부 및 최신 설정값 스냅샷.
+    """
     notifier = get_slack_notifier()
 
     if req.webhook_url is not None:
@@ -685,7 +744,13 @@ async def set_alert_config(req: SlackConfigRequest):
 
 @router.post("/alerts/test")
 async def test_alert():
-    """Slack 테스트 메시지 전송"""
+    """
+    등록된 슬랙 채널에 정상적으로 메시지가 도달하는지 확인하기 위해 인위적 페이로드를 주입하여 훅 발송을 테스트함.
+    초기 구축 및 URL 변경 이후 온전한 연동 상황을 보장하기 위함.
+
+    Returns:
+        dict: 슬랙 API 전송 결과 및 세부 성공 맵.
+    """
     notifier = get_slack_notifier()
     result = notifier.send_test_message()
     if not result["success"]:
@@ -704,14 +769,28 @@ async def get_alert_status():
 
 @router.get("/recovery/config")
 async def get_recovery_config():
-    """자동 복구 설정 조회"""
+    """
+    자동 복구(재시작) 루틴을 수행하기 위한 백그라운드 봇의 활성화 상태 및 에러 허용 한계(Threshold) 설정치를 조회함.
+
+    Returns:
+        dict: AutoRecovery 인스턴스 전역 설정값.
+    """
     recovery = get_auto_recovery()
     return recovery.get_config()
 
 
 @router.post("/recovery/config")
 async def set_recovery_config(req: RecoveryConfigRequest):
-    """자동 복구 설정 업데이트"""
+    """
+    컨테이너 자동 재시작 정책을 On/Off 하거나, 서비스 장애에 따른 재기동 간격(Cooldown)을 런타임에 튜닝함.
+    코드 수정/배포 없이 즉석에서 잦은 강제 재기동에 따른 서비스 단절을 제어하기 위함.
+
+    Args:
+        req (RecoveryConfigRequest): 덮어씌울 복구 제한 기준(횟수/시간 등).
+
+    Returns:
+        dict: 변경 완료 메시지 및 최신 설정 내역.
+    """
     recovery = get_auto_recovery()
 
     if req.enabled is not None:
@@ -730,7 +809,13 @@ async def set_recovery_config(req: RecoveryConfigRequest):
 
 @router.get("/recovery/status")
 async def get_recovery_status():
-    """자동 복구 런타임 상태 (에러 카운트, 재시작 이력)"""
+    """
+    현재 AutoRecovery 시스템이 최근에 감지한 치명적 로그 수 및 실행했던 과거 재부팅 이력(History) 배열을 전달함.
+    모니터링 화면 내에서 '최근 재기동 내역' 컴포넌트에 사용.
+
+    Returns:
+        dict: 런타임 제어 상태(Queue) 및 복구 로그 이력.
+    """
     recovery = get_auto_recovery()
     return recovery.get_status()
 
@@ -741,8 +826,12 @@ async def get_recovery_status():
 @router.delete("/purge")
 async def purge_all_logs():
     """
-    Elasticsearch 내의 container-logs 인덱스 데이터를 모두 삭제합니다.
-    (과거의 에러들이 대시보드에 잔존하여 새 에러를 식별하기 어렵게 만드는 문제 해결용)
+    Elasticsearch 내 누적된 `container-logs` 도큐먼트들을 물리적으로 일괄 제거함.
+    배포 초기 디버깅 단계에서 의도적으로 발생한 테스트 에러들이 대시보드 통계를 흐리는 것을 방지하고, 다시 백지상태에서 새로운 오류들을 점검할 수 있게 하기 위한 강제 클리어 기능.
+    삭제 후, 수집기 인스턴스의 타임스탬프 커서를 리셋해 과거 좀비 데이터의 부활을 차단함.
+
+    Returns:
+        dict: 초기화 성공 여부와 지워진 데이터 양 통계.
     """
     try:
         # Match_all 쿼리로 인덱스 내의 모든 문서 삭제

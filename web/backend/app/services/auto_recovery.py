@@ -1,4 +1,8 @@
-
+"""
+서비스 장애 모니터링 및 자동 복구 로직을 수행하는 모듈.
+- 치명적 오류나 과도한 시스템 이상 징후 반복 시 자동으로 도커 컨테이너를 재부팅하여 가용성을 확보함.
+- 무한 재시작 루프에 빠지는 것을 막기 위해 쿨다운 및 최대 재시작 횟수 제한 로직을 포함함.
+"""
 import logging
 import time
 import threading
@@ -17,14 +21,8 @@ KST = timezone(timedelta(hours=9))
 
 class AutoRecovery:
     """
-    치명적 에러 발생 시 자동 복구 서비스
-
-    기능:
-    1. 서비스별 에러 카운트 추적 (슬라이딩 윈도우)
-    2. 임계치 초과 시 컨테이너 자동 재시작
-    3. 재시작 횟수 제한 (무한루프 방지)
-    4. 복구 이력 기록
-    5. Slack 알림 연동
+    치명적 에러 감지 시의 조치(도커 컨테이너 재시작) 상태를 메모리에 유지하고 제어하는 비즈니스 클래스.
+    무결성 보장 및 잦은 재시작(Thrashing) 방지를 위해 내부적으로 Lock과 Queue(sliding window)를 이용해 상태를 동기화함.
     """
 
     def __init__(self):
@@ -65,6 +63,12 @@ class AutoRecovery:
     # ─── 설정 관리 ───
 
     def set_enabled(self, enabled: bool):
+        """
+        관리자 설정에 따라 자동 복구 기능의 작동 여부를 즉시 전환함.
+
+        Args:
+            enabled (bool): 활성화 여부 참/거짓 값.
+        """
         self.enabled = enabled
         logger.info(f"자동 복구 {'활성화' if enabled else '비활성화'}")
 
@@ -105,7 +109,13 @@ class AutoRecovery:
     # ─── 에러 추적 ───
 
     def track_error(self, log_entry: dict):
-        """에러 로그를 추적하고 임계치 도달 시 복구 실행"""
+        """
+        수집된 에러 로그를 큐에 밀어 넣고, 임계치를 넘었는지 판단하여 재시작 트리거를 당김.
+        슬라이딩 윈도우 방식으로 오래된 에러 이력은 큐에서 제거함.
+
+        Args:
+            log_entry (dict): 에러 발생 상세 내역을 담은 로그 딕셔너리.
+        """
         if not self.enabled or not self.docker_client:
             return
 
@@ -207,6 +217,12 @@ _recovery_instance: Optional[AutoRecovery] = None
 
 
 def get_auto_recovery() -> AutoRecovery:
+    """
+    애플리케이션 전역에서 상태(에러 카운트 등)를 단방향으로 유지하기 위해 싱글톤(Singleton) 패턴으로 인스턴스를 반환.
+
+    Returns:
+        AutoRecovery: 단일 복구 서비스 인스턴스.
+    """
     global _recovery_instance
     if _recovery_instance is None:
         _recovery_instance = AutoRecovery()

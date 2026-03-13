@@ -1,4 +1,7 @@
-
+"""
+인프라 및 애플리케이션 상태를 관리자 워크스페이스(Slack)로 전파하는 알림 모듈.
+- 비즈니스 연속성을 해치는 에러 발생 시 신속한 대응을 위해 외부 메시징 채널과 연동함.
+"""
 import logging
 import time
 import json
@@ -28,19 +31,8 @@ def _parse_int_env(key: str) -> Optional[int]:
 
 class SlackNotifier:
     """
-    Slack Webhook 기반 알림 서비스
-
-    기능:
-    1. CRITICAL/ERROR 로그 발생 시 Slack 알림
-    2. 에러 급증 감지 시 요약 알림
-    3. 알림 레벨 필터 (CRITICAL만 / ERROR이상 / WARN이상)
-    4. 활성 시간대 설정 (업무시간만 알림)
-    5. 서비스별 제외 필터
-    6. 쿨다운으로 알림 폭주 방지
-    7. 전체 비활성화 토글
-    8. [NEW] 기동 유예 기간: 서비스 시작 후 N초간 알림 억제 (재부팅 노이즈 방지)
-    9. [NEW] 기동 노이즈 패턴 필터: Hadoop/Kafka/Airflow 초기화 에러 무시
-    10. [NEW] Global Rate Limiter + Circuit Breaker: 알림 폭주 자동 차단
+    모니터링 중 발생하는 각종 장애 및 임계점 초과 상황을 관리자 워크스페이스(Slack)로 전파하는 알림 서비스 클래스.
+    무분별한 알람으로 인한 피로도를 줄이기 위해, 노이즈 필터링/쿨다운/서킷 브레이커 등의 제어 로직을 내장함.
     """
 
     def __init__(self, webhook_url: Optional[str] = None):
@@ -121,7 +113,12 @@ class SlackNotifier:
         logger.info(f"Slack webhook URL {'설정됨' if self.enabled else '해제됨'}")
 
     def set_enabled(self, enabled: bool):
-        """알림 활성/비활성 토글"""
+        """
+        슬랙 알림 전송 기능의 전체 활성화 여부를 세팅함.
+
+        Args:
+            enabled (bool): 전환할 활성화 상태.
+        """
         self.enabled = enabled and bool(self.webhook_url)
         logger.info(f"Slack 알림 {'활성화' if self.enabled else '비활성화'}")
 
@@ -179,7 +176,9 @@ class SlackNotifier:
         )
 
     def get_config(self) -> dict:
-        """현재 설정 반환"""
+        """
+        현재 적용 중인 슬랙 서비스의 알림 조건값 및 필터 인자들을 반환함.
+        """
         return {
             "enabled": self.enabled,
             "webhook_url_set": bool(self.webhook_url),
@@ -203,7 +202,9 @@ class SlackNotifier:
         }
 
     def get_status(self) -> dict:
-        """현재 런타임 상태 반환"""
+        """
+        현재 시점의 알림 제한 동작(서킷 브레이커, 토큰 버킷 등) 상태를 모니터링하기 위해 반환함.
+        """
         now = time.time()
         grace_remaining = max(0.0, self._startup_grace_sec - (now - self._start_time))
 
