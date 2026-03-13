@@ -245,5 +245,4 @@ ml-models/api/app.py
 /weights
 
 # 평가지표 계산
-search_eval/cases/images/이미지쿼리_jpg
-search_eval/scripts/calc_metrics.py
+ml-models/search-evaluation/scripts

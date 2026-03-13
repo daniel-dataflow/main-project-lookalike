@@ -1,21 +1,21 @@
 import logging
 from io import BytesIO
-from typing import Optional
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from PIL import Image
 
-from yolo_service import yolo_detector
+from services.yolo_service import yolo_detector
 
 logger = logging.getLogger(__name__)
 
+# YOLO 탐지 엔드포인트를 묶는 라우터
 router = APIRouter(prefix="/yolo", tags=["YOLO Detection"])
 
 @router.post("/detect")
 async def detect_apparel(image: UploadFile = File(...)):
     """
-    이미지를 받아 YOLO 바운딩 박스 좌표 목록만 리턴합니다.
-    기존 검색 로직과 무관하게 동작합니다.
+    업로드된 이미지에서 YOLO 바운딩 박스를 추출해 반환한다.
+    유사상품 검색 파이프라인과는 독립적으로 동작한다.
     """
     data = await image.read()
     if not data:
