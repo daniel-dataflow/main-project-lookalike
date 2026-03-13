@@ -443,14 +443,3 @@ async def api_status():
         "databases": db_status,
     }
 
-
-# ──────────────────────────────────────
-# 직접 실행
-# ──────────────────────────────────────
-if __name__ == "__main__":
-    uvicorn.run(
-        "web.backend.app.main:app",
-        host="0.0.0.0",
-        port=8900,
-        reload=True,
-    )
