@@ -29,7 +29,6 @@ class SearchService:
 
     async def search_products(
         self,
-        query_text: Optional[str] = None,
         ml_product_scores: Optional[dict] = None,
         category: Optional[str] = None,
         gender: Optional[str] = None,
@@ -39,7 +38,6 @@ class SearchService:
         사용자 요청에 따른 상품 검색 통합 진입점.
 
         Args:
-            query_text (Optional[str]): 사용자가 입력한 검색어 키워드 (보조적 수단).
             ml_product_scores (Optional[dict]): ML 모델에서 도출된 {product_id: score} 맵 자료구조. AI 엔진의 결과를 우선적으로 참조하기 위함.
             category (Optional[str]): 대분류 필터 제한.
             gender (Optional[str]): 성별 필터 제한.
