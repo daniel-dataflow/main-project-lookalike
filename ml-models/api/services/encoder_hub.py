@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""검색용 임베딩 모델 로더."""
+"""검색용 임베딩 모델 로더"""
 
 from typing import Any, List
 
@@ -16,6 +16,8 @@ class EncoderHub:
         self._sbert_model: Any = None
 
     def load(self) -> None:
+        # 모듈 import 시점 실패를 피하기 위해
+        # 모델 의존성은 startup 시점에 지연 import한다.
         from fashion_clip.fashion_clip import FashionCLIP
         from sentence_transformers import SentenceTransformer
 

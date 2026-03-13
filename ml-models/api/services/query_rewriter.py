@@ -17,7 +17,6 @@ logger = logging.getLogger(__name__)
 class QueryRewriter:
     """짧은 패션 검색어를 지연 로딩과 캐시를 이용해 보정한다."""
 
-
     def __init__(self) -> None:
         self._enabled = os.getenv("ENABLE_QUERY_REWRITE", "false").lower() == "true"
         self._model_name = os.getenv("QUERY_REWRITE_MODEL", "Qwen/Qwen2.5-3B-Instruct")
@@ -47,6 +46,9 @@ class QueryRewriter:
                 return
 
             logger.info("Query rewrite model loading: %s", self._model_name)
+            
+            # 모듈 import 시점 실패를 피하기 위해
+            # 모델 의존성은 startup 시점에 지연 import한다.
             from transformers import AutoModelForCausalLM, AutoTokenizer
 
             self._tokenizer = AutoTokenizer.from_pretrained(self._model_name)

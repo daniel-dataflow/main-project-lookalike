@@ -1,5 +1,3 @@
-"""YOLO 탐지 엔드포인트에서 사용하는 추론 서비스."""
-
 import logging
 import os
 from PIL import Image
@@ -19,7 +17,6 @@ CATEGORY_MAP = {
 class YoloDetector:
     """
     YOLO 기반 의류 탐지 서비스.
-
     임베딩 검색 파이프라인과 분리된 채로 모델 로딩과 바운딩 박스 추론을 담당한다.
     """
     def __init__(self, model_name: str | None = None):
@@ -30,6 +27,8 @@ class YoloDetector:
     def load(self):
         """앱 시작 시 YOLO 가중치를 한 번만 로드한다."""
         try:
+            # 모듈 import 시점 실패를 피하기 위해
+            # 모델 의존성은 startup 시점에 지연 import한다.
             from ultralytics import YOLO
 
             base_dir = os.path.dirname(__file__)

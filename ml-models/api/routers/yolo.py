@@ -1,5 +1,3 @@
-"""YOLO 전용 HTTP 엔드포인트 모음."""
-
 import logging
 from io import BytesIO
 
@@ -10,6 +8,7 @@ from services.yolo_service import yolo_detector
 
 logger = logging.getLogger(__name__)
 
+# YOLO 탐지 엔드포인트를 묶는 라우터
 router = APIRouter(prefix="/yolo", tags=["YOLO Detection"])
 
 @router.post("/detect")

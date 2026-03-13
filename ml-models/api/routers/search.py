@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-"""검색 관련 HTTP 엔드포인트 모음."""
+"""검색 관련 HTTP 엔드포인트 모음"""
 
 from io import BytesIO
 from typing import Optional
