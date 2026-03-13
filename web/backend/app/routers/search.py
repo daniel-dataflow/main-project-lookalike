@@ -20,12 +20,8 @@ from ..models.search import (
     SearchHistoryItem,
     SearchHistoryListResponse,
 )
-from ..services.image_service import (
-    validate_image_file,
-    process_and_upload_thumbnail,
-    read_thumbnail_from_hdfs,
-)
-from ..services.search_service import search_products, _category_filter_values
+from ..services.image_service import image_service
+from ..services.search_service import search_service
 
 from ..config import get_settings
 
@@ -92,10 +88,10 @@ async def search_by_image(
         # 이미지가 있을 경우에만 처리
         if image:
             # 1. 파일 검증
-            validate_image_file(image)
+            image_service.validate_image_file(image)
 
             # 2. 메모리에서 썸네일 생성 + HDFS 업로드
-            result = await process_and_upload_thumbnail(image, user_id)
+            result = await image_service.process_and_upload_thumbnail(image, user_id)
             image_info.update(result)
             logger.info(
                 f"이미지 처리 완료: user={user_id}, id={image_info['image_id']}, "
@@ -143,7 +139,7 @@ async def search_by_image(
             )
 
         # 4. 검색 서비스 (전략 1: ML 검색 결과, 전략 2: 텍스트 검색, 전략 3: DB fallback)
-        ml_results = await search_products(
+        ml_results = await search_service.search_products(
             query_text=search_text,
             ml_product_scores=ml_scores,
             category=category,
@@ -310,7 +306,7 @@ async def get_thumbnail(log_id: int, request: Request):
             raise HTTPException(status_code=404, detail="썸네일이 없습니다")
 
         # HDFS에서 직접 읽기
-        image_data = await read_thumbnail_from_hdfs(thumb_path)
+        image_data = await image_service.read_thumbnail_from_hdfs(thumb_path)
         if image_data:
             return Response(
                 content=image_data,
