@@ -9,7 +9,7 @@
 [![Spark](https://img.shields.io/badge/Apache_Spark-3.5.3-E25A1C?style=flat-square&logo=apachespark)](https://spark.apache.org)
 [![Kafka](https://img.shields.io/badge/Kafka-7.5.0-231F20?style=flat-square&logo=apachekafka)](https://kafka.apache.org)
 [![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker)](https://docker.com)
-[![AWS](https://img.shields.io/badge/AWS-EC2_g4dn.xlarge-FF9900?style=flat-square&logo=amazonaws)](https://aws.amazon.com)
+[![GCP](https://img.shields.io/badge/GCP-Cloud_VM-4285F4?style=flat-square&logo=googlecloud)](https://cloud.google.com)
 
 ---
 
@@ -25,7 +25,18 @@
   
 ### 🗓 프로젝트 기간  
 **2026년 01월 12일 ~ 2026년 03월 11일**  
-**서비스 URL**: http://lookalike.duckdns.org:8900/
+**서비스 URL**: https://lookalike.duckdns.org
+
+---
+
+## 🏆 수상
+
+> **멀티캠퍼스 K-Digital Training · 데이터 엔지니어 부트캠프**  
+> 문제해결 프로젝트 경진대회 **최우수상** — 2026.03.13
+
+<div align="center">
+  <img src="docs/award_certificate.png" width="500" alt="최우수상 상장">
+</div>
 
 ---
 
@@ -235,5 +246,5 @@ docker exec airflow-scheduler airflow dags trigger lookalike_batch_pipeline
 ---
 
 <div align="center">
-  <b>작성자: 한대성</b> | 최종 업데이트: 2026-03-07
+  <b>작성자: 한대성</b> | 최종 업데이트: 2026-03-18
 </div>
