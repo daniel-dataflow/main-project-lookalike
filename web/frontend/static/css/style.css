@@ -1329,7 +1329,7 @@ body {
 }
 
 .team-card:hover .card-detail {
-    max-height: 800px;
+    max-height: 3000px;
     border-top-color: var(--border);
 }
 
@@ -1572,6 +1572,8 @@ body {
 
 .phase-items {
     list-style: none;
+    padding: 0;
+    margin: 0;
     display: flex;
     flex-direction: column;
     gap: 7px;
@@ -1580,19 +1582,21 @@ body {
 .phase-items li {
     font-size: 12.5px;
     color: var(--ink2);
-    padding-left: 13px;
-    position: relative;
     line-height: 1.5;
+    display: flex;
+    gap: 5px;
+    align-items: baseline;
 }
 
 .phase-items li::before {
     content: '—';
-    position: absolute;
-    left: 0;
     color: var(--accent);
     font-size: 10px;
-    top: 3px;
+    flex-shrink: 0;
+    line-height: 1.7;
 }
+
+
 
 /* ── PIPELINE BRANCH BOXES ── */
 .pipe-branch-wrap {

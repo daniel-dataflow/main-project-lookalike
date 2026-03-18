@@ -5,8 +5,8 @@
 {% block content %}
 <link rel="stylesheet" href="/static/css/teams.css?v={{ range(1, 999999) | random }}">
 
-  <div class="teams-wrapper">
-<div class="lk-particles" id="lkParticles"></div>
+<div class="teams-wrapper">
+  <div class="lk-particles" id="lkParticles"></div>
 
   <!-- ══ SECTION 1: OVERVIEW ══ -->
   <div id="lk-overview">
@@ -78,8 +78,8 @@
           <div class="stat-label">최저가 쇼핑몰 비교</div>
         </div>
         <div class="stat-cell">
-          <div class="stat-num">AWS</div>
-          <div class="stat-label">g4dn.xlarge GPU 서버</div>
+          <div class="stat-num">3가지</div>
+          <div class="stat-label">이미지·텍스트·복합 검색</div>
         </div>
       </div>
     </div>
@@ -171,11 +171,11 @@
           </div>
         </div>
         <div class="tech-group tg-env">
-          <div class="tg-pill">Server Env</div>
+          <div class="tg-pill">Monitoring &amp; Ops</div>
           <div class="tech-tags">
-            <span class="tech-tag">g4dn.xlarge</span><span class="tech-tag">Ubuntu 22.04</span>
-            <span class="tech-tag">NVIDIA T4 GPU</span><span class="tech-tag">PyTorch 2.9</span>
-            <span class="tech-tag">Jupyter</span>
+            <span class="tech-tag">Kafka Streaming</span><span class="tech-tag">Filebeat</span>
+            <span class="tech-tag">Auto-Recovery</span><span class="tech-tag">Slack Alert</span>
+            <span class="tech-tag">Elasticsearch ILM</span>
           </div>
         </div>
       </div>
@@ -819,61 +819,63 @@
 
         </div>
       </div>
+    </div>
+  </div>
 
-      <!-- ══ SECTION 5: PHASES ══ -->
-      <div id="lk-phases">
-        <div class="lk-section">
-          <div class="lk-eyebrow rv">Development Journey</div>
-          <h2 class="lk-h2 rv">개발 여정</h2>
-          <div class="lk-rule rv"></div>
-          <div class="phases-grid rv">
-            <div class="phase-card">
-              <div class="phase-num">01</div>
-              <div class="phase-title">기획 &amp; 설계</div>
-              <ul class="phase-items">
-                <li>주제 선정 및 타겟 소비자 조사</li>
-                <li>관련 논문 및 모델 리서치</li>
-                <li>기능 정의서 · 아키텍처 설계</li>
-                <li>화면 설계서 · 유스케이스 명세서</li>
-                <li>테이블 정의서 · ERD 설계</li>
-              </ul>
-            </div>
-            <div class="phase-card">
-              <div class="phase-num">02</div>
-              <div class="phase-title">환경 구축 &amp; 데이터</div>
-              <ul class="phase-items">
-                <li>AWS · Docker 인프라 환경 구성</li>
-                <li>크롤러 개발 (무신사·ZARA·탑텐)</li>
-                <li>Airflow DAG · Spark 파이프라인</li>
-                <li>Hadoop · PostgreSQL · MongoDB</li>
-                <li>Naver API 연동 최저가 수집</li>
-              </ul>
-            </div>
-            <div class="phase-card">
-              <div class="phase-num">03</div>
-              <div class="phase-title">AI 모델 개발</div>
-              <ul class="phase-items">
-                <li>YOLO-Seg 객체 탐지 파인튜닝</li>
-                <li>Fashion-CLIP 임베딩 구축</li>
-                <li>VLM (LLaVA) 프롬프트 설계</li>
-                <li>Elasticsearch 벡터 DB 적재</li>
-                <li>ML Pipeline 자동화 연결</li>
-              </ul>
-            </div>
-            <div class="phase-card">
-              <div class="phase-num">04</div>
-              <div class="phase-title">서비스 완성 &amp; 운영</div>
-              <ul class="phase-items">
-                <li>프론트엔드 전 페이지 완성</li>
-                <li>실시간 인프라·로그 모니터링</li>
-                <li>Slack 에러 알람 자동화</li>
-                <li>CI/CD 자동 배포 시스템</li>
-                <li>통합 테스트 · 최종 발표</li>
-              </ul>
-            </div>
-          </div>
+  <!-- ══ SECTION 5: PHASES ══ -->
+  <div id="lk-phases">
+    <div class="lk-section">
+      <div class="lk-eyebrow rv">Development Journey</div>
+      <h2 class="lk-h2 rv">개발 여정</h2>
+      <div class="lk-rule rv"></div>
+      <div class="phases-grid rv">
+        <div class="phase-card">
+          <div class="phase-num">01</div>
+          <div class="phase-title">기획 &amp; 설계</div>
+          <ul class="phase-items">
+            <li>주제 선정 및 타겟 소비자 조사</li>
+            <li>관련 논문 및 모델 리서치</li>
+            <li>기능 정의서 · 아키텍처 설계</li>
+            <li>화면 설계서 · 유스케이스 명세서</li>
+            <li>테이블 정의서 · ERD 설계</li>
+          </ul>
+        </div>
+        <div class="phase-card">
+          <div class="phase-num">02</div>
+          <div class="phase-title">환경 구축 &amp; 데이터</div>
+          <ul class="phase-items">
+            <li>AWS · Docker 인프라 환경 구성</li>
+            <li>크롤러 개발 (무신사·ZARA·탑텐)</li>
+            <li>Airflow DAG · Spark 파이프라인</li>
+            <li>Hadoop · PostgreSQL · MongoDB</li>
+            <li>Naver API 연동 최저가 수집</li>
+          </ul>
+        </div>
+        <div class="phase-card">
+          <div class="phase-num">03</div>
+          <div class="phase-title">AI 모델 개발</div>
+          <ul class="phase-items">
+            <li>YOLO-Seg 객체 탐지 파인튜닝</li>
+            <li>Fashion-CLIP 임베딩 구축</li>
+            <li>VLM (LLaVA) 프롬프트 설계</li>
+            <li>Elasticsearch 벡터 DB 적재</li>
+            <li>ML Pipeline 자동화 연결</li>
+          </ul>
+        </div>
+        <div class="phase-card">
+          <div class="phase-num">04</div>
+          <div class="phase-title">서비스 완성 &amp; 운영</div>
+          <ul class="phase-items">
+            <li>프론트엔드 전 페이지 완성</li>
+            <li>실시간 인프라·로그 모니터링</li>
+            <li>Slack 에러 알람 자동화</li>
+            <li>CI/CD 자동 배포 시스템</li>
+            <li>통합 테스트 · 최종 발표</li>
+          </ul>
         </div>
       </div>
+    </div>
+  </div>
 
 </div>
 {% endblock %}
