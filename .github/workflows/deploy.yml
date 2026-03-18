@@ -10,6 +10,25 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    - name: 변경 파일 목록 확인
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 2  # 이전 커밋과 비교하기 위해 2개 가져옴
+
+    - name: Dockerfile/requirements 변경 여부 감지
+      id: detect
+      run: |
+        CHANGED=$(git diff --name-only HEAD~1 HEAD)
+        echo "변경된 파일:"
+        echo "$CHANGED"
+        if echo "$CHANGED" | grep -qE "^Dockerfile|requirements.*\.txt$"; then
+          echo "needs_build=true" >> $GITHUB_OUTPUT
+          echo "→ 빌드 필요 (Dockerfile 또는 requirements 변경됨)"
+        else
+          echo "needs_build=false" >> $GITHUB_OUTPUT
+          echo "→ 빌드 불필요 (코드/설정 변경만)"
+        fi
+
     - name: GCP 접속 및 배포
       uses: appleboy/ssh-action@master
       with:
@@ -18,21 +37,27 @@ jobs:
         key: ${{ secrets.GCP_SSH_KEY }}
         port: 22
         script: |
-          # 1. 정확한 중립 구역(공용 폴더)으로 이동
           cd /opt/main-project-lookalike
-          
-          # 2. 강제 동기화 (권한 꼬임 방지를 위해 sudo 사용)
+
+          # 1. 최신 코드 동기화
           sudo git fetch origin main
           sudo git reset --hard origin/main
-          
-          # 3. 팀원 협업을 위한 권한 유지 (새로 다운받은 파일들도 다 같이 볼 수 있게 덮어쓰기)
+
+          # 2. 권한 유지
           sudo chown -R root:lookalike-devs .
           sudo chmod -R 2775 .
-          
-          # 4. 도커 컨테이너 빌드 및 재시작 (무중단 덮어쓰기 로직 적용)
-          docker compose build
-          docker compose up -d
-          
+
+          # 3. 조건부 빌드 + 무중단 재시작
+          # Dockerfile/requirements 변경 시만 빌드, 그 외엔 up -d 만으로 반영
+          if [ "${{ steps.detect.outputs.needs_build }}" = "true" ]; then
+            echo "=== Dockerfile/requirements 변경 감지: 빌드 후 재시작 ==="
+            docker compose build --parallel
+            docker compose up -d
+          else
+            echo "=== 코드 변경만: 빌드 없이 컨테이너 재시작 (볼륨 마운트 자동 반영) ==="
+            docker compose up -d --no-build
+          fi
+
 # jobs:
 #   deploy-aws:
 #     name: AWS EC2 배포
