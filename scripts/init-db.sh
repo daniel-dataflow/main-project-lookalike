@@ -86,11 +86,17 @@ psql -h postgresql -U "$POSTGRES_USER" -d "$POSTGRES_DB" <<-EOSQL
     CREATE TABLE IF NOT EXISTS naver_prices (
         nprice_id BIGSERIAL PRIMARY KEY,
         product_id VARCHAR(20) REFERENCES products(product_id),
+        brand VARCHAR(100),
+        model_code VARCHAR(100),
+        original_name VARCHAR(255),
+        original_price INTEGER,
         rank SMALLINT,
-        price INTEGER,
+        naver_title VARCHAR(255),
+        naver_price INTEGER,
         mall_name VARCHAR(100),
         mall_url VARCHAR(512),
         image_url VARCHAR(512),
+        similarity_score NUMERIC(5, 2),
         create_dt TIMESTAMP DEFAULT NOW(),
         update_dt TIMESTAMP DEFAULT NOW()
     );

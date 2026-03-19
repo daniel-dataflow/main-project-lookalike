@@ -121,12 +121,13 @@ def main():
 
     final_results = []
     SIMILARITY_THRESHOLD = 0.35 
+    TEST_LIMIT = 999999  # 테스트
 
     if not products:
         print(" 처리할 상품 데이터가 없습니다. 경로를 확인해주세요.")
         return
 
-    for idx, p_data in enumerate(products, start=1):
+    for idx, p_data in enumerate(products[:TEST_LIMIT], start=1):
         product_id = p_data["product_id"]
         brand_en = p_data["brand_en"]
         brand_ko = p_data["brand_ko"]

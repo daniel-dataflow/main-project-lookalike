@@ -70,7 +70,8 @@
                     </div>
                 </div>
                 <div class="text-end">
-                    <div class="fw-bold {% if loop.index == 1 %}text-danger{% endif %}">{{ "{:,}".format(price.price)
+                    <div class="fw-bold {% if loop.index == 1 %}text-danger{% endif %}">{{
+                        "{:,}".format(price.naver_price)
                         }}원</div>
                     {% if price.discount > 0 %}
                     <small class="text-success" style="font-size: 0.75rem;">{{ "{:,}".format(price.discount) }}원 절약 ({{

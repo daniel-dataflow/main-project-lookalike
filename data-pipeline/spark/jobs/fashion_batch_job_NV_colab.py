@@ -16,8 +16,8 @@ try:
     NAVER_CLIENT_ID = userdata.get("X_NAVER_CLIENT_ID")
     NAVER_CLIENT_SECRET = userdata.get("X_NAVER_CLIENT_SECRET")
 except:
-    NAVER_CLIENT_ID = "P8VMs8BhXzp3_B1W5H65"
-    NAVER_CLIENT_SECRET = "sss0tmNxwC"
+    NAVER_CLIENT_ID = "####################"
+    NAVER_CLIENT_SECRET = "#################"
 
 NAVER_URL = "https://openapi.naver.com/v1/search/shop.json"
 
@@ -73,40 +73,44 @@ products = []
 
 if JSON_DIR.exists():
     for json_path in JSON_DIR.glob('*.json'):
-        file_stem = json_path.stem
+        try:
+            file_stem = json_path.stem
 
-        with open(json_path, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-            item = data[0] if isinstance(data, list) else data
+            with open(json_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                item = data[0] if isinstance(data, list) else data
 
-        parts = file_stem.split('_')
-        if len(parts) >= 4:
-            brand = parts[0].lower()
-            model_code = "_".join(parts[3:])
-        else:
-            brand = item.get("brand", "zara").lower()
-            model_code = item.get("model_code", "unknown")
+            parts = file_stem.split('_')
+            if len(parts) >= 4:
+                brand = parts[0].lower()
+                model_code = "_".join(parts[3:])
+            else:
+                brand = item.get("brand", "zara").lower()
+                model_code = item.get("model_code", "unknown")
 
-        prod_name = item.get("prod_name", item.get("name", ""))
-        
-        raw_price = str(item.get("price", item.get("original_price", "0")))
-        clean_price_str = re.sub(r'[^0-9]', '', raw_price) 
-        original_price = int(clean_price_str) if clean_price_str else 0
+            prod_name = item.get("prod_name", item.get("name", ""))
+            
+            raw_price = str(item.get("price", item.get("original_price", "0")))
+            clean_price_str = re.sub(r'[^0-9]', '', raw_price) 
+            original_price = int(clean_price_str) if clean_price_str else 0
 
-        products.append({
-            "product_id": item.get("product_id", model_code),
-            "brand_en": brand,
-            "brand_ko": BRAND_KO_MAP.get(brand, brand),
-            "model_code": model_code,
-            "prod_name": prod_name,
-            "original_price": original_price
-        })
+            products.append({
+                "product_id": item.get("product_id", model_code),
+                "brand_en": brand,
+                "brand_ko": BRAND_KO_MAP.get(brand, brand),
+                "model_code": model_code,
+                "prod_name": prod_name,
+                "original_price": original_price
+            })
+        except Exception as e:
+            print(f"⚠️ 파일 읽기 에러 ({json_path.name}): {e}")
+            continue
 
 total_products = len(products)
 print(f"📦 총 {total_products}개의 상품 데이터를 성공적으로 읽어왔습니다!\n")
 
 final_results = []
-SIMILARITY_THRESHOLD = 0.6 
+SIMILARITY_THRESHOLD = 0.35
 
 # 3️⃣ 네이버 검색 및 다중 필터링
 if products:
@@ -160,7 +164,7 @@ if products:
 
                     # 방어 1: 가격 방어
                     if original_price > 0:
-                        if naver_price <= (original_price * 0.3) or naver_price >= (original_price * 2.0):
+                        if naver_price <= (original_price * 0.3) or naver_price >= (original_price * 2.5):
                             continue
                             
                     # 방어 2: 이름 유사도

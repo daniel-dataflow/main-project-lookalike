@@ -550,6 +550,36 @@ else
     echo "   ⏭️  search_logs.search_result 이미 존재 (스킵)"
 fi
 
+
+# ---- 13. naver_prices 테이블 스키마 확장 (fashion_batch_job_NV.py 신규 컬럼 반영) ----
+echo ""
+echo "1️⃣3️⃣  naver_prices 테이블 신규 컬럼 추가..."
+
+# price → naver_price 컬럼명 변경
+HAS_PRICE_COL=$($PG_CMD -U ${POSTGRES_USER} -d ${POSTGRES_DB} -tc \
+    "SELECT 1 FROM information_schema.columns WHERE table_name='naver_prices' AND column_name='price';" | tr -d ' ')
+if [ "$HAS_PRICE_COL" = "1" ]; then
+    echo "   ⚠️  naver_prices.price → naver_price 컬럼명 변경 중..."
+    $PG_CMD -U ${POSTGRES_USER} -d ${POSTGRES_DB} -c \
+        "ALTER TABLE naver_prices RENAME COLUMN price TO naver_price;"
+    echo "   ✅ price → naver_price 변경 완료"
+else
+    echo "   ⏭️  naver_prices.price 컬럼 없음 (이미 변경됐거나 신규 설치 — 스킵)"
+fi
+
+# 신규 컬럼 일괄 추가 (ADD COLUMN IF NOT EXISTS 로 멱등성 보장)
+echo "   ⚠️  naver_prices 신규 컬럼 추가 중..."
+$PG_CMD -U ${POSTGRES_USER} -d ${POSTGRES_DB} -c "
+    ALTER TABLE naver_prices ADD COLUMN IF NOT EXISTS brand VARCHAR(100);
+    ALTER TABLE naver_prices ADD COLUMN IF NOT EXISTS model_code VARCHAR(100);
+    ALTER TABLE naver_prices ADD COLUMN IF NOT EXISTS original_name VARCHAR(255);
+    ALTER TABLE naver_prices ADD COLUMN IF NOT EXISTS original_price INTEGER;
+    ALTER TABLE naver_prices ADD COLUMN IF NOT EXISTS naver_title VARCHAR(255);
+    ALTER TABLE naver_prices ADD COLUMN IF NOT EXISTS naver_price INTEGER;
+    ALTER TABLE naver_prices ADD COLUMN IF NOT EXISTS similarity_score NUMERIC(5, 2);
+"
+echo "   ✅ naver_prices 신규 컬럼 추가 완료"
+
 echo ""
 echo "============================================"
 echo "  ✅ 모든 DB 변경사항 적용 완료!"
@@ -565,9 +595,9 @@ echo "    ✅ search_results 테이블 (비정규화 유지)"
 echo "    ✅ products 테이블 brand_name, gender, origin_url 컬럼 추가 및 타입 수정"
 echo "    ✅ products 테이블 origine_prod_id 컬럼 삭제"
 echo "    ✅ naver_prices 테이블 mall_url 확장 및 update_dt 추가"
+echo "    ✅ naver_prices 테이블 스키마 확장 (brand, model_code, original_name, original_price, naver_title, naver_price, similarity_score)"
 echo "    ✅ product_features 테이블 crop_path 컬럼 추가"
 echo "    ✅ social_id → provider_id 컬럼명 변경"
 echo "    ✅ recent_views, likes 테이블 생성"
 echo "    ✅ brand_sequences 테이블 생성"
 echo "============================================"
-

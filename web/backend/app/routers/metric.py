@@ -10,7 +10,7 @@ from ..config.logging import METRIC_INDEX_NAME
 
 router = APIRouter(
     prefix="/api/metrics",
-    tags=["metrics"]
+    tags=["metric"]
 )
 
 es_client = get_es_client()

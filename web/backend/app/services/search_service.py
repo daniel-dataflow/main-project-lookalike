@@ -105,7 +105,7 @@ class SearchService:
                     SELECT
                         p.product_id, p.prod_name, p.brand_name,
                         p.base_price, p.img_hdfs_path, p.category_code,
-                        COALESCE(np.price, p.base_price) AS lowest_price,
+                        COALESCE(np.naver_price, p.base_price) AS lowest_price,
                         np.mall_name, np.mall_url
                     FROM products p
                     LEFT JOIN naver_prices np
@@ -187,7 +187,7 @@ class SearchService:
                     SELECT
                         p.product_id, p.prod_name, p.brand_name,
                         p.base_price, p.img_hdfs_path, p.category_code,
-                        COALESCE(np.price, p.base_price) AS lowest_price,
+                        COALESCE(np.naver_price, p.base_price) AS lowest_price,
                         np.mall_name, np.mall_url
                     FROM products p
                     LEFT JOIN naver_prices np

@@ -47,7 +47,7 @@ class NaverPriceResponse(BaseModel):
     nprice_id: str
     product_id: str
     rank: Optional[int] = None
-    price: Optional[int] = None
+    naver_price: Optional[int] = None
     mall_name: Optional[str] = None
     mall_url: Optional[str] = None
     create_dt: Optional[datetime] = None

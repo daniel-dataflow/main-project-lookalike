@@ -9,7 +9,7 @@ import logging
 
 router = APIRouter(
     prefix="/api/metrics",
-    tags=["metrics"]
+    tags=["metric"]
 )
 
 logger = logging.getLogger(__name__)

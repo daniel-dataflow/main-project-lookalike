@@ -85,7 +85,7 @@ async def get_recent_views(request: Request, limit: int = 20):
                     p.base_price,
                     p.img_hdfs_path,
                     p.category_code,
-                    COALESCE(np.price, p.base_price) as lowest_price,
+                    COALESCE(np.naver_price, p.base_price) as lowest_price,
                     np.mall_name,
                     rv.view_dt
                 FROM recent_views rv
@@ -153,7 +153,7 @@ async def get_likes(request: Request, limit: int = 20):
                     p.base_price,
                     p.img_hdfs_path,
                     p.category_code,
-                    COALESCE(np.price, p.base_price) as lowest_price,
+                    COALESCE(np.naver_price, p.base_price) as lowest_price,
                     np.mall_name,
                     l.create_dt
                 FROM likes l
@@ -287,7 +287,7 @@ async def get_product_detail(product_id: str):
             # 2. PostgreSQL: 네이버 가격 정보
             cur.execute(
                 """
-                SELECT nprice_id, product_id, rank, price, mall_name, mall_url, create_dt
+                SELECT nprice_id, product_id, rank, naver_price, mall_name, mall_url, create_dt
                 FROM naver_prices
                 WHERE product_id = %s
                 ORDER BY rank ASC

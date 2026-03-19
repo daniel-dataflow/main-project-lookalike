@@ -16,7 +16,7 @@ import logging
 import asyncio
 from .config import get_settings
 from .database import init_all_databases, close_all_databases, get_pg_cursor, _pg_pool, _mongo_client, _redis_client
-from .routers import auth_router, products_router, search_router, inquiries_router, admin_router, logs_router, metrics_router
+from .routers import auth_router, product_router, search_router, inquiry_router, admin_router, log_router, metric_router, metric_realtime_router
 from .routers.auth import _get_session, _get_admin_session
 from .core.elasticsearch_setup import (
     init_elasticsearch_index,
@@ -180,12 +180,13 @@ templates = Jinja2Templates(directory=os.path.join(FRONTEND_DIR, "templates"))
 # API 라우터 등록
 # ──────────────────────────────────────
 app.include_router(auth_router)
-app.include_router(products_router)
+app.include_router(product_router)
 app.include_router(search_router)
-app.include_router(inquiries_router)
+app.include_router(inquiry_router)
 app.include_router(admin_router)
-app.include_router(logs_router)
-app.include_router(metrics_router)
+app.include_router(log_router)
+app.include_router(metric_router)
+app.include_router(metric_realtime_router)
 
 
 # ──────────────────────────────────────
@@ -244,7 +245,7 @@ async def product_detail(request: Request, product_id: str):
                 """
                 SELECT 
                     mall_name,
-                    price,
+                    naver_price,
                     mall_url,
                     image_url,
                     rank
@@ -260,7 +261,7 @@ async def product_detail(request: Request, product_id: str):
         # 3. 할인율 계산
         base_price = product["base_price"]
         for price_info in prices:
-            discount = base_price - price_info["price"]
+            discount = base_price - price_info["naver_price"]
             discount_rate = int((discount / base_price) * 100) if base_price > 0 else 0
             price_info["discount"] = discount
             price_info["discount_rate"] = discount_rate

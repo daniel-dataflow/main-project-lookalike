@@ -1,7 +1,7 @@
 """
 검색 관련 Pydantic 모델
 """
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 from typing import Optional, List
 from datetime import datetime
 
@@ -60,7 +60,10 @@ class ProductResult(BaseModel):
     - similarity_score: ES 검색 시 유사도 점수 (0.0~1.0), DB fallback 시 None
     - search_source: 검색 전략 ("elasticsearch_knn" | "elasticsearch_text" | "db")
     """
+    model_config = ConfigDict(protected_namespaces=())
+
     product_id: str
+    model_code: Optional[str] = None
     product_name: str
     brand: str
     price: int

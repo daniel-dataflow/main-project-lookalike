@@ -17,7 +17,7 @@ from ..services.auto_recovery import get_auto_recovery
 
 router = APIRouter(
     prefix="/api/logs",
-    tags=["logs"],
+    tags=["log"],
     responses={404: {"description": "Not found"}},
 )
 
