@@ -1,5 +1,3 @@
-# fashion_batch_job_NV
-
 import os
 import requests
 import psycopg2
@@ -66,7 +64,7 @@ def search_naver_shopping_api(query: str, display: int = 100) -> list:
         "display": display,
         "start": 1,
         "sort": "sim",
-        "exclude": "used"
+        "exclude": "used"  # 중고 원천 차단
     }
     
     try:
@@ -90,9 +88,55 @@ try:
     conn.autocommit = False
     cur = conn.cursor()
 
-    print("DB 연결 성공")
+    print(" DB 연결 성공")
 
-    # 가격 방어 로직을 위해 base_price를 SELECT
+    # 테이블 스키마 자동 생성 및 업데이트 로직
+    print(" 테이블 구조 자동 점검 및 업데이트 중...")
+    
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS naver_price (
+            product_id VARCHAR(50),
+            brand VARCHAR(100),
+            model_code VARCHAR(100),
+            original_name VARCHAR(255),
+            original_price INTEGER,
+            rank INTEGER,
+            naver_title VARCHAR(255),
+            naver_price INTEGER,
+            mall_name VARCHAR(100),
+            mall_url TEXT,
+            image_url TEXT,
+            similarity_score NUMERIC(5, 2),
+            create_dt TIMESTAMP,
+            update_dt TIMESTAMP
+        );
+    """)
+    conn.commit()
+
+    try:
+        cur.execute("ALTER TABLE naver_prices RENAME COLUMN price TO naver_prices;")
+        conn.commit()
+    except psycopg2.Error:
+        conn.rollback()
+
+    alter_queries = [
+        "ALTER TABLE naver_prices ADD COLUMN IF NOT EXISTS brand VARCHAR(100);",
+        "ALTER TABLE naver_prices ADD COLUMN IF NOT EXISTS model_code VARCHAR(100);",
+        "ALTER TABLE naver_prices ADD COLUMN IF NOT EXISTS original_name VARCHAR(255);",
+        "ALTER TABLE naver_prices ADD COLUMN IF NOT EXISTS original_price INTEGER;",
+        "ALTER TABLE naver_prices ADD COLUMN IF NOT EXISTS naver_title VARCHAR(255);",
+        "ALTER TABLE naver_prices ADD COLUMN IF NOT EXISTS similarity_score NUMERIC(5, 2);"
+    ]
+    
+    for q in alter_queries:
+        try:
+            cur.execute(q)
+            conn.commit()
+        except psycopg2.Error:
+            conn.rollback()
+
+    print("테이블 구조 세팅 완료!")
+    
     cur.execute("""
         SELECT product_id, model_code, prod_name, brand_name, base_price
         FROM products
@@ -125,7 +169,9 @@ try:
             print(f"⚠ {product_id} 검색어 부족 → 패스")
             continue
 
-        # 검색 (코드 & 이름 병합)
+        print(f"\n▶ 대상: {brand_en.upper()} | 코드: {model_code} | 이름: {prod_name}")
+
+        # 다각도 스마트 검색 풀링
         clean_model_code = model_code.split('-')[0] if '-' in model_code else model_code
         clean_model_code = clean_model_code.split('_')[0] if '_' in clean_model_code else clean_model_code
         is_valid_code = len(clean_model_code) > 0 and len(clean_model_code) <= 10
@@ -160,15 +206,15 @@ try:
                     clean_title = item.get("title", "").replace("<b>", "").replace("</b>", "")
 
                     # 스팸 키워드 제거
-                    spam_keywords = ["구매대행", "중고", "구제", "병행수입"]
+                    spam_keywords = ["구매대행", "구제", "중고", "병행수입"]
                     if any(keyword in clean_title for keyword in spam_keywords): continue
 
-                    # 가격 오차범위 필터 (너무 싸거나 너무 비싼 유령 데이터 차단)
+                    # 가격 방어
                     if original_price > 0:
                         if naver_price <= (original_price * 0.3) or naver_price >= (original_price * 2.5):
                             continue
                             
-                    # 유사도 필터
+                    # 유사도 체크
                     t_clean = re.sub(r'[^가-힣a-zA-Z0-9]', '', prod_name).lower()
                     n_clean = re.sub(r'[^가-힣a-zA-Z0-9]', '', clean_title).lower()
                     sim_score = 1.0 if (t_clean and t_clean in n_clean) else get_similarity(prod_name, clean_title)
@@ -186,21 +232,22 @@ try:
                         else:
                             if sim_score < SIMILARITY_THRESHOLD: continue
 
-                    # 중복 상품 아이디 제거
                     naver_product_id = str(item.get("productId", ""))
                     if naver_product_id and naver_product_id in seen_product_ids: continue
                     if naver_product_id: seen_product_ids.add(naver_product_id)
 
+                    # similarity_score 포함
                     pooled_items.append({
                         "title": clean_title,
                         "price": naver_price,
                         "mallName": item.get("mallName", ""),
                         "link": item.get("link", ""),
-                        "image": item.get("image", "")
+                        "image": item.get("image", ""),
+                        "similarity_score": round(sim_score, 2)
                     })
                     valid_items_count += 1
             
-            time.sleep(0.2) # API 리밋 방지용 짧은 휴식
+            time.sleep(0.2) 
 
         # 최저가 정렬 및 쇼핑몰 도배 방지
         pooled_items.sort(key=lambda x: x["price"])
@@ -217,7 +264,7 @@ try:
 
         # 로깅 기록
         if not final_top_5:
-            print(f"🔍 {product_id} 검색 결과 없음 (또는 필터 탈락)")
+            print(f" 검색 결과 없음 (또는 필터 탈락)")
             with open(log_file, "a", encoding="utf-8") as f:
                 f.write(f"[{datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}] [검색실패(0건)] BRAND: {brand_name or 'N/A'} | CODE: {model_code or 'N/A'} | NAME: {prod_name or 'N/A'}\n")
             continue
@@ -234,23 +281,40 @@ try:
                 WHERE product_id = %s
             """, (product_id,))
 
-            # 상위 데이터 DB 저장
+            # 상위 데이터 DB 저장 (모든 메타데이터 포함)
             for idx, item in enumerate(final_top_5, start=1):
                 cur.execute("""
                     INSERT INTO naver_prices
-                    (product_id, rank, price, mall_name, mall_url, image_url, create_dt, update_dt)
-                    VALUES (%s, %s, %s, %s, %s, %s, now(), now())
-                """, (product_id, idx, item["price"], item["mallName"], item["link"], item["image"]))
+                    (product_id, brand, model_code, original_name, original_price, 
+                     rank, naver_title, naver_price, mall_name, mall_url, image_url, similarity_score, 
+                     create_dt, update_dt)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, now(), now())
+                """, (
+                    product_id,
+                    brand_en,                 # 브랜드
+                    model_code,               # 모델 코드
+                    prod_name,                # 오리지널 상품명
+                    original_price,           # 오리지널 가격
+                    idx,                      # 순위
+                    item["title"],            # 네이버 상품명
+                    item["price"],            # 네이버 가격
+                    item["mallName"],         # 쇼핑몰명
+                    item["link"],             # 쇼핑몰 URL
+                    item["image"],            # 이미지 URL
+                    item["similarity_score"]  # 유사도 점수
+                ))
 
             conn.commit()
-            print(f" {product_id} 완료: {saved_count}건 저장 최저가({final_top_5[0]['price']:,}원)")
+            print(f" 완료: {saved_count}건 저장 / 최저가({final_top_5[0]['price']:,}원)")
 
         except Exception as e:
             conn.rollback()
             print(f" DB 저장 실패 ({product_id}) → {e}")
             continue
 
-    print(" 전체 배치 작업 완료")
+        time.sleep(random.uniform(1.5, 3.0))
+
+    print("\n 전체 배치 작업 완료")
 
 except Exception as e:
     print(" 시스템 오류 발생:", e)
