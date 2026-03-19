@@ -249,7 +249,7 @@ def main():
         print("-" * 60)
 
     # 최종 결과 CSV 저장
-    if final_results:
+if final_results:
         output_file = OUT_DIR / "naver_api_optimized_results.csv"
         
         with open(output_file, 'w', encoding='utf-8-sig', newline='') as f:
@@ -257,7 +257,7 @@ def main():
             
             writer.writerow([
                 'Product ID', 'Brand', 'Model Code', 'Original Name', 'Original Price', 
-                'Rank', 'Naver Title', 'Naver Price', 'Mall Name', 'Mall URL', 'Similarity Score'
+                'Rank', 'Naver Title', 'Naver Price', 'Mall Name', 'Mall URL', 'Image URL', 'Similarity Score'
             ])
 
             for res in final_results:
@@ -265,10 +265,11 @@ def main():
                 top5 = res["top_5_results"]
 
                 if not top5:
+                    # 결과 없을 때 빈 칸 개수 맞추기
                     writer.writerow([
                         res["product_id"], orig["brand_en"], orig["model_code"], 
                         orig["prod_name"], orig["original_price"], 
-                        '-', '결과 없음', '-', '-', '-', '-'
+                        '-', '결과 없음', '-', '-', '-', '-', '-'
                     ])
                 else:
                     for item in top5:
@@ -283,10 +284,11 @@ def main():
                             item["price"],
                             item["mall_name"],
                             item["mall_url"],
+                            item["image_url"],
                             item["similarity_score"]
                         ])
                         
-        print(f"\n 수집 완료! CSV 파일이 성공적으로 저장되었습니다: {output_file}")
+        print(f"\n🎉 수집 완료! CSV 파일이 성공적으로 저장되었습니다: {output_file}")
 
 if __name__ == "__main__":
     main()
