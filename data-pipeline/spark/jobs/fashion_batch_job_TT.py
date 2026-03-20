@@ -156,7 +156,7 @@ mongo_data.write.format("mongodb") \
 print("✅ MongoDB 적재 완료")
 
 # --- [7. 이미지 처리] ---
-
+try:
     hdfs_client = InsecureClient(HDFS_WEB_URL, user="root")
     hdfs_client.makedirs(IMAGE_DIR)
     

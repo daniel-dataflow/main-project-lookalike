@@ -6,10 +6,12 @@ import random
 import re
 import difflib
 from pathlib import Path
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from google.colab import userdata
 from google.colab import drive
 
-# 드라이브 마운트 및 환경 설정
+# 환경 설정 및 유틸리티 함수
 drive.mount('/content/drive')
 
 try:
@@ -29,12 +31,26 @@ BRAND_KO_MAP = {
     "topten": "탑텐"
 }
 
+session = requests.Session()
+retry = Retry(total=3, backoff_factor=1, status_forcelist=[500, 502, 503, 504])
+session.mount('https://', HTTPAdapter(max_retries=retry))
+
 def get_similarity(target_name: str, naver_title: str) -> float:
-    target_clean = re.sub(r'[^가-힣a-zA-Z0-9]', '', target_name)
-    naver_clean = re.sub(r'[^가-힣a-zA-Z0-9]', '', naver_title)
-    if not target_clean or not naver_clean:
+    if not target_name or not naver_title: 
         return 0.0
+    target_clean = re.sub(r'[^가-힣a-zA-Z0-9]', '', target_name).lower()
+    naver_clean = re.sub(r'[^가-힣a-zA-Z0-9]', '', naver_title).lower()
     return difflib.SequenceMatcher(None, target_clean, naver_clean).ratio()
+
+def extract_core_keywords(prod_name: str, max_keywords: int = 3) -> str:
+    if not prod_name: return ""
+    clean_name = re.sub(r'[^가-힣a-zA-Z0-9\s]', ' ', prod_name)
+    stopwords = {'zara', '자라', '8seconds', '에잇세컨즈', '여성', '남성', '여자', '남자', '공용', '남녀공용', '신상', '정품'}
+    
+    words = clean_name.split()
+    keywords = [w for w in words if w.lower() not in stopwords and not w.isdigit()]
+            
+    return " ".join(keywords[:max_keywords]) if keywords else prod_name
 
 def search_naver_shopping(query: str, display: int = 100) -> list:
     if not query.strip():
@@ -48,22 +64,20 @@ def search_naver_shopping(query: str, display: int = 100) -> list:
     params = {
         "query": query,
         "display": display, 
-        # 정확도(sim)로 100개
-        "sort": "sim"       
+        "sort": "sim",
+        "exclude": "used" # 
     }
 
     try:
-        response = requests.get(NAVER_URL, headers=headers, params=params, timeout=5)
+        response = session.get(NAVER_URL, headers=headers, params=params, timeout=5)
         response.raise_for_status()
         return response.json().get("items", [])
     except Exception as e:
-        print(f"API 호출 실패 (query: {query}): {e}")
+        print(f" API 호출 실패 (query: {query}): {e}")
         return []
 
-# ---------------------------------
-# 2️⃣ 데이터 읽기
-# ---------------------------------
-BASE_DIR = Path('/content/drive/MyDrive/# 데이터 저장 위치')
+# 본인 구글 드라이브 경로로 맞춰주세요!
+BASE_DIR = Path('/content/drive/MyDrive/# 데이터 저장 위치') 
 JSON_DIR = BASE_DIR / 'json'
 NAVER_OUT_DIR = BASE_DIR / 'naver_prices' 
 
@@ -74,23 +88,15 @@ products = []
 if JSON_DIR.exists():
     for json_path in JSON_DIR.glob('*.json'):
         try:
-            file_stem = json_path.stem
-
             with open(json_path, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-                item = data[0] if isinstance(data, list) else data
+                item = data[0] if isinstance(data, list) and len(data) > 0 else data
 
-            parts = file_stem.split('_')
-            if len(parts) >= 4:
-                brand = parts[0].lower()
-                model_code = "_".join(parts[3:])
-            else:
-                brand = item.get("brand", "zara").lower()
-                model_code = item.get("model_code", "unknown")
-
-            prod_name = item.get("prod_name", item.get("name", ""))
+            brand = item.get("brand_name", item.get("brand", "unknown")).lower()
+            model_code = item.get("model_code", item.get("code", "unknown"))
+            prod_name = str(item.get("prod_name") or item.get("name") or item.get("productName") or item.get("title") or "").strip()
             
-            raw_price = str(item.get("price", item.get("original_price", "0")))
+            raw_price = str(item.get("base_price", item.get("price", item.get("original_price", "0"))))
             clean_price_str = re.sub(r'[^0-9]', '', raw_price) 
             original_price = int(clean_price_str) if clean_price_str else 0
 
@@ -98,21 +104,21 @@ if JSON_DIR.exists():
                 "product_id": item.get("product_id", model_code),
                 "brand_en": brand,
                 "brand_ko": BRAND_KO_MAP.get(brand, brand),
-                "model_code": model_code,
+                "model_code": str(model_code),
                 "prod_name": prod_name,
                 "original_price": original_price
             })
         except Exception as e:
-            print(f"⚠️ 파일 읽기 에러 ({json_path.name}): {e}")
+            print(f" 파일 읽기 에러 ({json_path.name}): {e}")
             continue
 
 total_products = len(products)
-print(f"📦 총 {total_products}개의 상품 데이터를 성공적으로 읽어왔습니다!\n")
+print(f" 총 {total_products}개의 상품 데이터를 성공적으로 읽어왔습니다!\n")
 
 final_results = []
-SIMILARITY_THRESHOLD = 0.35
+SIMILARITY_THRESHOLD = 0.35 
 
-# 3️⃣ 네이버 검색 및 다중 필터링
+#  네이버 검색 및 다중 필터링
 if products:
     for idx, p in enumerate(products, start=1):
         product_id = p["product_id"]
@@ -124,15 +130,23 @@ if products:
 
         print(f"\n▶ [{idx}/{total_products}] 🛒 대상: {brand_en.upper()} | 코드: {model_code} | 이름: {prod_name}")
 
+        if not prod_name and model_code == "unknown":
+            print(" 검색어 부족으로 건너뜁니다.")
+            continue
+
         clean_model_code = model_code.split('-')[0] if '-' in model_code else model_code
         clean_model_code = clean_model_code.split('_')[0] if '_' in clean_model_code else clean_model_code
+        is_valid_code = len(clean_model_code) > 0 and len(clean_model_code) <= 10
 
-        search_queries = {
-            "ko_name": f"{brand_ko} {prod_name}".strip(),
-            "ko_code": f"{brand_ko} {clean_model_code}".strip(),
-            "en_name": f"{brand_en} {prod_name}".strip(),
-            "en_code": f"{brand_en} {clean_model_code}".strip()
-        }
+        core_prod_name = extract_core_keywords(prod_name, max_keywords=3)
+
+        search_queries = {}
+        if core_prod_name:
+            search_queries["ko_name"] = f"{brand_ko} {core_prod_name}".strip()
+            search_queries["en_name"] = f"{brand_en} {core_prod_name}".strip()
+        if is_valid_code:
+            search_queries["ko_code"] = f"{brand_ko} {clean_model_code}".strip()
+            search_queries["en_code"] = f"{brand_en} {clean_model_code}".strip()
 
         pooled_items = []
         seen_product_ids = set() 
@@ -141,62 +155,48 @@ if products:
             if not query.replace(brand_ko, "").replace(brand_en, "").strip():
                 continue
                 
-            print(f"  검색어({condition_key}): {query}")
+            print(f" 검색어({condition_key}): {query}")
             items = search_naver_shopping(query, display=100) 
             
             if items:
-                # 정확도순으로 가져왔기 때문에, 바로 반복문 돌리지 않고 가져온 100개를 임시로 가격순 정렬합니다.
                 items_sorted_by_price = sorted(items, key=lambda x: int(x.get("lprice", 0)))
                 valid_items_count = 0
                 
                 for item in items_sorted_by_price:
-                    if valid_items_count >= 5: 
-                        break
+                    if valid_items_count >= 5: break
                         
                     naver_price = int(item.get("lprice", 0))
                     clean_title = item.get("title", "").replace("<b>", "").replace("</b>", "")
 
-                    # 방어 0: 악성 키워드 필터링
                     spam_keywords = ["구매대행", "중고", "구제", "병행수입"]
-                    is_spam = any(keyword in clean_title for keyword in spam_keywords)
-                    if is_spam:
-                        continue
+                    if any(keyword in clean_title for keyword in spam_keywords): continue
 
-                    # 방어 1: 가격 방어
                     if original_price > 0:
                         if naver_price <= (original_price * 0.3) or naver_price >= (original_price * 2.5):
                             continue
                             
-                    # 방어 2: 이름 유사도
                     t_clean = re.sub(r'[^가-힣a-zA-Z0-9]', '', prod_name).lower()
                     n_clean = re.sub(r'[^가-힣a-zA-Z0-9]', '', clean_title).lower()
-                    
-                    if t_clean and t_clean in n_clean:
-                        sim_score = 1.0
-                    else:
-                        sim_score = get_similarity(prod_name, clean_title)
+                    sim_score = 1.0 if (t_clean and t_clean in n_clean) else get_similarity(prod_name, clean_title)
 
-                    # 방어 3: 코드 매칭 검사
                     is_code_search = "code" in condition_key
                     main_code = clean_model_code.lower()
                     has_exact_code = main_code and main_code in clean_title.replace(" ", "").lower()
 
                     if is_code_search:
-                        if not has_exact_code:
-                            continue 
-                        if sim_score < (SIMILARITY_THRESHOLD * 0.5): 
-                            continue 
+                        if not has_exact_code: continue 
+                        if sim_score < (SIMILARITY_THRESHOLD * 0.5): continue 
                     else:
-                        if sim_score < SIMILARITY_THRESHOLD:
-                            continue
+                        if has_exact_code and main_code:
+                            if sim_score < (SIMILARITY_THRESHOLD * 0.5): continue
+                        else:
+                            if sim_score < SIMILARITY_THRESHOLD: continue
 
                     naver_product_id = item.get("productId", "")
-                    if naver_product_id and naver_product_id in seen_product_ids:
-                        continue
-                    if naver_product_id:
-                        seen_product_ids.add(naver_product_id)
+                    if naver_product_id and naver_product_id in seen_product_ids: continue
+                    if naver_product_id: seen_product_ids.add(naver_product_id)
 
-                    print(f"    ✔️ [후보등록 / 유사도 {sim_score:.2f}] {clean_title} ({naver_price:,}원)")
+                    print(f" [후보등록 / 유사도 {sim_score:.2f}] {clean_title} ({naver_price:,}원)")
 
                     pooled_items.append({
                         "found_by": condition_key,
@@ -211,7 +211,7 @@ if products:
                     
                     valid_items_count += 1
             
-            time.sleep(0.5)
+            time.sleep(0.2)
 
         # 전체 모인 후보군을 가격 낮은 순으로 최종 정렬하고 중복 쇼핑몰 제거
         pooled_items.sort(key=lambda x: x["price"])
@@ -230,12 +230,12 @@ if products:
                 break
 
         if final_top_5:
-            print(f"  [최종 상위 요약 - 쇼핑몰 중복 제거]")
+            print(f" [최종 상위 요약 - 쇼핑몰 중복 제거]")
             for rank, item in enumerate(final_top_5, start=1):
                 item["final_rank"] = rank
                 print(f"    {rank}위: [{item['mall_name']}] {item['title']} - {item['price']:,}원")
         else:
-            print(f"  조건(가격/유사도)을 통과한 상품이 없습니다.")
+            print(f" 조건(가격/유사도)을 통과한 상품이 없습니다.")
 
         final_results.append({
             "product_id": product_id,
@@ -252,7 +252,7 @@ if products:
         print("-" * 60)
         time.sleep(random.uniform(1.0, 2.0))
 
-# 4️⃣ 최종 결과 JSON 저장
+# 최종 결과 JSON 저장
 if final_results:
     output_file = NAVER_OUT_DIR / "naver_top5_integrated_results.json"
     with open(output_file, "w", encoding="utf-8") as f:
