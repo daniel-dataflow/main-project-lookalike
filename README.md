@@ -27,15 +27,21 @@
 **2026년 01월 12일 ~ 2026년 03월 11일**  
 **서비스 URL**: ~~https://lookalike.duckdns.org~~ (GCP 2026.06.03 인프라 종료)
 
-📢 인프라 다이어트 및 상시 데모 가동 안내
-클라우드 비용 최적화(GCP 무료 크레딧 만료)에 따라, 본 프로젝트는 메인 서버를 종료하고 무료 티어 자원(render, Neon, Cloudinary, Hugging Face)을 효율적으로 배분한 경량화 아키텍처로 전환되었습니다. 
+> 🔨 **경량화 및 리팩토링 기간: 2026년 06월 ~ 07월** (한대성 🧑‍💻 1인 개발 / 단독 리팩토링)
 
-* 🟢 경량화 서버 URL: https://lookalike-api.onrender.com
-* 💾 경량화 레포지토리: [lookalike-lightweight](https://github.com/daniel-dataflow/lookalike-lightweight)
+---
 
-💡 인프라 운영 및 제약 사항
-* Neon PostgreSQL의 무료 용량(0.5GB) 제약을 방어하기 위해, 크롤러 파이프라인 가동 시 대용량 임베딩 벡터 데이터는 '스트리밍 청크 이관' 후 스테이징 테이블을 즉시 청소(Truncate)하도록 설계되어 있습니다.
-* Cloudinary 이미지 스토리지의 무료 크레딧(25 Credits) 한도를 보호하기 위해, 수집 단계에서 고화질 패션 이미지를 WebP 포맷으로 자동 다이어트하여 업로드하도록 제어합니다.
+#### 🗺️ 인프라 다이어트 및 상시 데모 가동 안내
+
+클라우드 비용 최적화(GCP 무료 크레딧 만료)에 따라, 본 프로젝트는 **혼자서** 메인 서버를 종료하고 무료 티어 자원(Render, Neon, Cloudinary, Hugging Face)을 효율적으로 배분한 경량화 아키텍처로 전환했습니다.
+
+- 🟢 **경량화 서버 URL:** [lookalike-ml.onrender.com](https://lookalike-ml.onrender.com)
+- 📦 **경량화 레포지토리:** [lookalike-lightweight](https://github.com/daniel-dataflow/lookalike-lightweight)
+
+#### 💡 인프라 운영 및 제약 사항
+
+- **Neon PostgreSQL**의 무료 용량(0.5GB) 제약을 방어하기 위해, 크롤러 파이프라인 가동 시 대용량 임베딩 벡터 데이터는 **'스트리밍 청크 이관'** 후 스테이징 테이블을 즉시 청소(Truncate)하도록 설계했습니다.
+- **Cloudinary** 이미지 스토리지의 무료 크레딧(25 Credits) 한도를 보호하기 위해, 수집 단계에서 고화질 패션 이미지를 **WebP 포맷**으로 자동 다이어트하여 업로드하도록 제어합니다.
 
 ---
 
